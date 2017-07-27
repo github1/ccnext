@@ -1,0 +1,26 @@
+.layout {
+}
+
+.menu {
+  padding: 2px;
+  min-height: 32px;
+  border-bottom: 1px solid #eee;
+}
+
+.menu-buttons {
+  margin: 0px;
+}
+
+.form {
+  form {
+    max-width: 400px;
+    margin-left: auto;
+    margin-right: auto;
+    section {
+      text-align: right;
+      button {
+        margin-left: 5px;
+      }
+    }
+  }
+}

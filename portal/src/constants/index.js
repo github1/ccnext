@@ -1,0 +1,10 @@
+export const INIT = "init";
+export const TIME_TICK = "time_tick";
+export const SIGN_IN_REQUIRED = "sign_in_required";
+export const SIGN_IN = "sign_in";
+export const SIGN_OUT = "sign_out";
+export const AUTHENTICATION_STARTED = "authentication_started";
+export const AUTHENTICATION_FAILED = "authentication_failed";
+export const AUTHENTICATION_SUCCESS = "authentication_success";
+export const NAVIGATE = "navigate";
+export const NAVIGATION_REQUESTED = "navigation_requested";
