@@ -3,14 +3,14 @@
 ## Getting started
 
 ##### Configure your `.env`
-Create a file named `.env` in the project root dir and inside it export the following environment variables: 
+Create a file named `.env` in the project root dir. Inside it `export` the following environment variables: 
 
-`TWILIO_ACCOUNT_SID` - your twilio account SID
-`TWILIO_AUTH_TOKEN` - your twilio auth token
-`TWILIO_NUMBER_SID` - the SID for your twilio phone number
-`AWS_ACCESS_KEY_ID` - your AWS access key ID
-`AWS_SECRET_ACCESS_KEY` - your AWS secret access key
-`AWS_DEFAULT_REGION` - the default AWS region to use
+- `TWILIO_ACCOUNT_SID` - your twilio account SID
+- `TWILIO_AUTH_TOKEN` - your twilio auth token
+- `TWILIO_NUMBER_SID` - the SID for your twilio phone number
+- `AWS_ACCESS_KEY_ID` - your AWS access key ID
+- `AWS_SECRET_ACCESS_KEY` - your AWS secret access key
+- `AWS_DEFAULT_REGION` - the default AWS region to use
 
 ##### Install
 ```shell
