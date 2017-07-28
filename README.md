@@ -2,6 +2,12 @@
 
 ## Getting started
 
+##### Install
+```shell
+cd platform
+npm install
+```
+
 ##### Configure your `.env`
 Create a file named `.env` in the project root dir. Inside it `export` the following environment variables: 
 
@@ -11,12 +17,6 @@ Create a file named `.env` in the project root dir. Inside it `export` the follo
 - `AWS_ACCESS_KEY_ID` - your AWS access key ID
 - `AWS_SECRET_ACCESS_KEY` - your AWS secret access key
 - `AWS_DEFAULT_REGION` - the default AWS region to use
-
-##### Install
-```shell
-cd platform
-npm install
-```
 
 ##### Run
 In order to function properly, the service must be hosted on a publicly routable endpoint. You optionally may use [ngrok] to expose the service from your machine by way of a secure tunnel.
