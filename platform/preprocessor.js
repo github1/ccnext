@@ -3,7 +3,6 @@ const tsConfig = require('./tsconfig.json');
 
 module.exports = {
   process(src, path) {
-    console.log('hai');
     if (path.endsWith('.ts') || path.endsWith('.tsx')) {
       return tsc.transpile(
         src,

@@ -3,6 +3,8 @@
     "tslint-microsoft-contrib"
   ],
   "rules": {
+    "strict-boolean-expressions": false,
+    "no-constant-condition": false,
     "interface-name": false,
     "completed-docs": false,
     "whitespace": false,
