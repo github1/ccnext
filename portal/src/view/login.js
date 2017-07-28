@@ -1,4 +1,5 @@
 import { Component } from 'react';
+import { Alert } from 'react-bootstrap';
 import { findDOMNode } from 'react-dom';
 import { SIGN_IN } from '../constants';
 
@@ -15,9 +16,6 @@ export default class extends Component {
   }
 
   register() {
-
-    const username = findDOMNode(this.refs['username']).value;
-
   }
 
   submitCredentials() {
@@ -56,8 +54,15 @@ export default class extends Component {
   }
 
   render() {
-    return <div className={ this.props.model.theme.form }>
+    return <div className="form">
       <form>
+        {
+          this.props.model.messages['invalid_credentials'] ?
+            <Alert
+              bsStyle={this.props.model.messages['invalid_credentials'].type}>
+              {this.props.model.messages['invalid_credentials'].text}
+            </Alert> : null
+        }
         <div className={ this.formGroupStyle('username') }>
           <label htmlFor="username">Username</label>
           <input ref='username'

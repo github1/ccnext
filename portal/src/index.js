@@ -1,10 +1,9 @@
-import React from 'react';
 import { render } from 'react-dom';
 import jwtutil from 'jwt-simple';
 import reqwest from 'reqwest';
-import theme from './style/theme.scss';
 import page from 'page';
 import Container from './component/container';
+import './style/theme.scss';
 
 import {
     INIT,
@@ -22,7 +21,7 @@ import {
 let element = document.getElementById('main');
 if (!element) {
     element = document.createElement('div');
-    document.body.className = theme.layout;
+    document.body.className = 'layout';
     document.body.appendChild(element);
 }
 
@@ -30,7 +29,6 @@ const pendingEvents = [];
 const events = [];
 const model = () => {
     return {
-        theme: theme,
         messages: [],
         isPending: false
     }

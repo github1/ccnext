@@ -1,9 +1,7 @@
-import React from 'react';
-import { DropdownButton, MenuItem } from 'react-bootstrap';
-import { SIGN_OUT } from '../constants';
+import { Component, createElement } from 'react';
 import views from '../view';
 
-export default class extends React.Component {
+export default class extends Component {
   constructor(props) {
     super(props);
   }
@@ -20,7 +18,7 @@ export default class extends React.Component {
       {
         menuVisible ?
           <div
-            className={[this.props.model.theme.menu,'clearfix'].join(' ')}>
+            className="menu clearfix">
             {this.props.model.user.friendlyName}
           </div> : null
       }
@@ -31,13 +29,15 @@ export default class extends React.Component {
               <h3>{ title }</h3>
             </div>
             {
-              Object.keys(this.props.model.messages).map(key => {
-                const msg = this.props.model.messages[key];
-                return <div key={key}
-                            className={ `alert alert-${msg.type}` }>{msg.text}</div>;
-              })
+              Object.keys(this.props.model.messages)
+                .map(key => this.props.model.messages[key])
+                .filter(alert => alert.global)
+                .map((alert, index) => {
+                  return <div key={index}
+                              className={ `alert alert-${alert.type}` }>{alert.text}</div>;
+                })
             }
-            { React.createElement(view, {
+            { createElement(view, {
               key: 'view',
               model: this.props.model
             }) }
