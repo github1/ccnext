@@ -1,5 +1,7 @@
 import { Component, createElement } from 'react';
+import { DropdownButton, MenuItem } from 'react-bootstrap';
 import views from '../view';
+import { SIGN_OUT } from '../constants';
 
 export default class extends Component {
   constructor(props) {
@@ -8,25 +10,38 @@ export default class extends Component {
 
   render() {
 
-    let title = '';
-    let menuVisible = false;
-
     const viewName = this.props.model.view || 'empty';
     const view = views[viewName];
+    const title = viewName.substring(0,1).toUpperCase() + viewName.substring(1);
 
     return <div key="root-container">
       {
-        menuVisible ?
+        this.props.model.user ?
           <div
             className="menu clearfix">
-            {this.props.model.user.friendlyName}
+            <DropdownButton
+              title={ this.props.model.user.username }
+              id="user-dd"
+              bsSize="small"
+              onSelect={ eventKey => {
+                                    switch(eventKey) {
+                                        case "signOut":
+                                            dispatch({
+                                                type: SIGN_OUT
+                                            });
+                                        break;
+                                    }
+                                } }>
+              <MenuItem eventKey="signOut">Sign out</MenuItem>
+            </DropdownButton>
           </div> : null
       }
       <div className="container-fluid">
         <div className="row">
           <div className="col-xs-12">
-            <div className="panel">
+            <div>
               <h3>{ title }</h3>
+              <hr/>
             </div>
             {
               Object.keys(this.props.model.messages)

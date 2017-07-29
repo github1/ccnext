@@ -6,10 +6,11 @@
     "clean": "rimraf dist",
     "lint": "eslint src/**/*.js",
     "build": "npm run lint && webpack",
-    "run": "node server.js"
+    "start": "nodemon --watch server.js server.js"
   },
   "license": "MIT",
   "dependencies": {
+    "body-parser": "^1.17.2",
     "express": "^4.15.3"
   },
   "devDependencies": {
@@ -30,6 +31,7 @@
     "jquery": "^3.2.1",
     "jwt-simple": "^0.5.1",
     "node-sass": "^4.5.3",
+    "nodemon": "^1.11.0",
     "npm-font-open-sans": "^1.0.3",
     "page": "^1.7.1",
     "react": "^15.6.1",
