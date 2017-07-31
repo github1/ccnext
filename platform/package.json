@@ -7,6 +7,7 @@
     "node": ">= 6.9.0"
   },
   "scripts": {
+    "postinstall": "npm run build",
     "clean": "rimraf coverage dist tmp",
     "build": "tsc -p tsconfig.release.json",
     "watch": "tsc -w -p tsconfig.release.json",
