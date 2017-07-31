@@ -1,4 +1,5 @@
 # ccnext
+[![Build Status][travis-badge]][travis-ci]
 
 ## Getting started
 
@@ -37,4 +38,6 @@ When running the script, a fully qualified url to the script via the `PUBLIC_URL
 PUBLIC_URL=<url> ./run.sh
 ```
 
+[travis-badge]: https://travis-ci.org/github1/ccnext.svg?branch=master
+[travis-ci]: https://travis-ci.org/github1/ccnext
 [ngrok]: https://ngrok.com/
