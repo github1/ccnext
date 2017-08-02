@@ -16,6 +16,7 @@ export default (port, opts) => {
   app.listen(port, () => {
     Promise.all(Object
       .keys(opts.integrations)
+      .filter(id => opts.integrations[id].postConfigure)
       .map(id => {
         console.log(`Post-configuring ${id}`);
         return opts.integrations[id].postConfigure();

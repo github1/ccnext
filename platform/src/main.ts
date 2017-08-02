@@ -1,8 +1,10 @@
 import * as awsSdk from 'aws-sdk';
-import { ChatProvider } from './core/chat';
-import { LexChatBot } from './impl/integration/lex_chatbot';
-import twilio_hooks from './impl/integration/twilio_hooks';
 import server from './impl/runtime/server';
+import twilio_hooks from './impl/integration/twilio_hooks';
+import { ChatProvider } from './core/chat';
+import { identityAPI } from './core/api/identity_api';
+import { InMemoryIdentityService } from './impl/in_mem_identity_service';
+import { LexChatBot } from './impl/integration/lex_chatbot';
 
 // port to run the service on
 const port : string = process.env.PORT || '9999';
@@ -29,8 +31,11 @@ const chatProvider : ChatProvider = {
   }
 };
 
+const JWT_SECRET : string = Buffer.from(twilioPhoneNumberSid, 'utf8').toString();
+
 server(port, {
   integrations: {
+    identity_api: identityAPI(JWT_SECRET, new InMemoryIdentityService()),
     twilio_hooks: twilio_hooks(
       publicUrl,
       '/integration/twilio',
