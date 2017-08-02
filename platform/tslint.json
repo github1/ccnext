@@ -3,6 +3,8 @@
     "tslint-microsoft-contrib"
   ],
   "rules": {
+    "ordered-imports": false,
+    "no-string-literal": false,
     "no-http-string": false,
     "strict-boolean-expressions": false,
     "no-constant-condition": false,

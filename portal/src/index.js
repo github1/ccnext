@@ -1,5 +1,5 @@
 import { render } from 'react-dom';
-import jwtutil from 'jwt-simple';
+import jwts from 'jwt-simple';
 import reqwest from 'reqwest';
 import page from 'page';
 import Container from './component/container';
@@ -45,7 +45,7 @@ const identity = () => {
   try {
     const token = localStorage.getItem('user-token');
     if (token) {
-      return jwtutil.decode(token, null, true);
+      return jwts.decode(token, null, true);
     }
   } finally {
     // ignore
@@ -100,10 +100,10 @@ const sideEffect = (command) => {
           data: command,
           success: (resp) => {
             localStorage.setItem('user-token', resp.token);
-            const token = jwtutil.decode(resp.token, null, true);
+            const identity = jwts.decode(resp.token, null, true);
             dispatch({
               type: AUTHENTICATION_SUCCESS,
-              user: token
+              user: identity
             }).then(() => {
               page.redirect('/home');
             });
