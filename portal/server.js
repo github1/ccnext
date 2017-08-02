@@ -5,7 +5,7 @@ const baseDir = path.resolve(isDevelopment ? path.join('./', 'dist') : './');
 const jwtutil = require('jwt-simple');
 const JWT_SECRET = Buffer.from('supersecret', 'utf8');
 
-const port = process.env.PORT || 8080;
+const port = process.env.PORT || 8181;
 const express = require('express');
 const bodyParser = require('body-parser');
 const app = express();
@@ -45,8 +45,8 @@ app.use((req, res, next) => {
 });
 
 const users = {
-  cheech: {
-    password: "chong"
+  demouser: {
+    password: "password"
   }
 };
 
