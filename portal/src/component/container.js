@@ -15,15 +15,20 @@ export default class extends Component {
     const title = viewName.substring(0,1).toUpperCase() + viewName.substring(1);
 
     return <div key="root-container">
-      {
-        this.props.model.user ?
-          <div
-            className="menu clearfix">
-            <DropdownButton
-              title={ this.props.model.user.username }
-              id="user-dd"
-              bsSize="small"
-              onSelect={ eventKey => {
+      <div className="container-fluid">
+        <div className="row">
+          <div className="col-xs-12">
+            <div>
+              {
+                this.props.model.user ?
+                  <div
+                    className="pull-right">
+                    <DropdownButton
+                      title={ this.props.model.user.username }
+                      pullRight={true}
+                      id="user-dd"
+                      bsSize="small"
+                      onSelect={ eventKey => {
                                     switch(eventKey) {
                                         case "signOut":
                                             dispatch({
@@ -32,14 +37,10 @@ export default class extends Component {
                                         break;
                                     }
                                 } }>
-              <MenuItem eventKey="signOut">Sign out</MenuItem>
-            </DropdownButton>
-          </div> : null
-      }
-      <div className="container-fluid">
-        <div className="row">
-          <div className="col-xs-12">
-            <div>
+                      <MenuItem eventKey="signOut">Sign out</MenuItem>
+                    </DropdownButton>
+                  </div> : null
+              }
               <h3>{ title }</h3>
               <hr/>
             </div>
