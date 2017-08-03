@@ -4,6 +4,7 @@ import reqwest from 'reqwest';
 import page from 'page';
 import Container from './component/container';
 import './style/theme.scss';
+import BrowserWebSocket from 'browser-websocket';
 
 import {
   INIT,
@@ -21,7 +22,8 @@ import {
   END_CHAT,
   CHAT_ENDED,
   POST_OUTGOING_CHAT_MESSAGE,
-  OUTGOING_CHAT_MESSAGE_POSTED
+  OUTGOING_CHAT_MESSAGE_POSTED,
+  INCOMING_CHAT_MESSAGE_POSTED
 } from './constants';
 
 let element = document.getElementById('main');
@@ -40,6 +42,8 @@ const model = () => {
     chatSessions: {}
   }
 };
+
+const CHANNEL_INSTANCES = {};
 
 const identity = () => {
   try {
@@ -72,7 +76,7 @@ const sideEffect = (command) => {
             type: AUTHENTICATION_SUCCESS,
             user: id
           }).then(() => {
-            perform()
+            perform();
           });
         } else {
           const redirect = command.redirect || '/login';
@@ -128,21 +132,50 @@ const sideEffect = (command) => {
       });
       break;
     case START_CHAT:
-      // @TODO - integrate with service
-      dispatch({
-        type: CHAT_STARTED,
-        id: command.id
-      });
+
+      if(!CHANNEL_INSTANCES[command.id]) {
+        CHANNEL_INSTANCES[command.id] = new BrowserWebSocket(`ws://${window.location.hostname}:9999/ws/register?=${command.id}`);
+        //const ws = new BrowserWebSocket(`ws://24099f8d.ngrok.io/ws/register`);
+
+        const ws = CHANNEL_INSTANCES[command.id];
+
+        ws.on('open', () => {
+          dispatch({
+            type: CHAT_STARTED,
+            id: command.id
+          });
+        });
+
+        ws.on('message', msg => {
+          const chatMessage = JSON.parse(msg.data);
+          if(chatMessage.from !== identity().username) {
+            dispatch({
+              type: INCOMING_CHAT_MESSAGE_POSTED,
+              id: command.id,
+              from: chatMessage.from,
+              text: chatMessage.text
+            });
+          }
+        });
+
+      }
       break;
     case END_CHAT:
-      // @TODO - integrate with service
+    {
+      const ws = CHANNEL_INSTANCES[command.id];
+      delete CHANNEL_INSTANCES[command.id];
+      ws.emit(JSON.stringify({ chatId: command.id, end: true}));
+      ws.close();
       dispatch({
         type: CHAT_ENDED,
         id: command.id
       });
       break;
+    }
     case POST_OUTGOING_CHAT_MESSAGE:
-      // @TODO - integrate with service
+    {
+      const ws = CHANNEL_INSTANCES[command.id];
+      ws.emit(JSON.stringify({ chatId: command.id, source: identity().username, text: command.text }));
       dispatch({
         type: OUTGOING_CHAT_MESSAGE_POSTED,
         id: command.id,
@@ -150,6 +183,7 @@ const sideEffect = (command) => {
         text: command.text
       });
       break;
+    }
     case TIME_TICK:
       break;
   }
@@ -187,6 +221,7 @@ const update = (event, model) => {
       delete model.chatSessions[event.id];
       break;
     case OUTGOING_CHAT_MESSAGE_POSTED:
+    {
       const chatSession = model.chatSessions[event.id];
       chatSession.messages = chatSession.messages || [];
       chatSession.messages.push({
@@ -195,6 +230,18 @@ const update = (event, model) => {
         text: event.text
       });
       break;
+    }
+    case INCOMING_CHAT_MESSAGE_POSTED:
+    {
+      const chatSession = model.chatSessions[event.id];
+      chatSession.messages = chatSession.messages || [];
+      chatSession.messages.push({
+        from: event.from,
+        source: 'me',
+        text: event.text
+      });
+      break;
+    }
   }
   return model;
 };
@@ -202,9 +249,6 @@ const update = (event, model) => {
 let rendering = false;
 let latestModel = {};
 window.dispatch = (event) => {
-  if (event.type !== TIME_TICK) {
-    console.log(event);
-  }
   return new Promise((resolve) => {
     sideEffect(event, latestModel);
     if (!rendering) {

@@ -1,7 +1,7 @@
 import awsSdk = require('aws-sdk');
-import { Chat, ChatRequest, ChatResponse } from '../../core/chat';
+import { ChatDestination, ChatRequest, ChatResponse } from '../../core/chat';
 
-export class LexChatBot implements Chat {
+export class LexChatBot implements ChatDestination {
   private botName : string;
   private botAlias : string;
   private lexRuntime : awsSdk.LexRuntime;
