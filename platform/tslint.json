@@ -3,6 +3,12 @@
     "tslint-microsoft-contrib"
   ],
   "rules": {
+    "no-stateless-class": false,
+    "possible-timing-attack": false,
+    "no-increment-decrement": false,
+    "no-suspicious-comment": false,
+    "no-empty-interface": false,
+    "max-classes-per-file": false,
     "ordered-imports": false,
     "no-string-literal": false,
     "no-http-string": false,

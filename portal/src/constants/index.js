@@ -14,3 +14,4 @@ export const END_CHAT = "end_chat";
 export const CHAT_ENDED = "chat_ended";
 export const POST_OUTGOING_CHAT_MESSAGE = "post_chat_message";
 export const OUTGOING_CHAT_MESSAGE_POSTED = "outgoing_chat_message_posted";
+export const INCOMING_CHAT_MESSAGE_POSTED = "incoming_chat_message_posted";
