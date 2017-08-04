@@ -18,7 +18,7 @@ export class LexChatBot implements ChatDestination {
     const params = {
       botName: this.botName,
       botAlias: this.botAlias,
-      userId: request.dialogCorrelationId,
+      userId: (request.dialogCorrelationId.replace(/[^0-9a-z._:-]+/i, '_')),
       inputText: request.message,
       sessionAttributes: {}
     };
@@ -28,7 +28,9 @@ export class LexChatBot implements ChatDestination {
         if (err == null) {
           resolve({
             message: data.message,
-            state: data.dialogState
+            state: data.dialogState,
+            provider: 'lex',
+            payload: data
           });
         } else {
           reject(err);

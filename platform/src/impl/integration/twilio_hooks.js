@@ -1,4 +1,6 @@
 import * as normalizeUrl from 'normalize-url';
+import * as uuid from 'uuid';
+const cookieParser = require('cookie-parser');
 const twilio = require('twilio');
 
 /**
@@ -9,7 +11,8 @@ const twilio = require('twilio');
  * @param {string} phoneNumberSid
  * @param {string} accountSid
  * @param {string} authToken
- * @param {ChatProvider} chatProvider
+ * @param {ChatService} chatService
+ * @param {EventBus} eventBus
  * @returns {object} server configurator
  */
 export default (baseUrl,
@@ -17,15 +20,49 @@ export default (baseUrl,
                 phoneNumberSid,
                 accountSid,
                 authToken,
-                chatProvider) => {
+                chatService,
+                eventBus) => {
 
 
   const twilioClient = twilio(accountSid, authToken);
+
+  const twilioContext = {
+    chats: {}
+  };
+
+  const refreshChatContext = (event) => {
+    twilioContext.chats[event.stream] = twilioContext.chats[event.stream] || {};
+    twilioContext.chats[event.stream].isIncoming = false;
+    if ((event.payload.source || '').indexOf('sms-incoming::') === 0) {
+      twilioContext.chats[event.stream].isIncoming = true;
+      twilioContext.chats[event.stream].incoming = event.payload.source;
+      twilioContext.chats[event.stream].incomingNumber = (twilioContext.chats[event.stream].incoming + '').split(/::/)[1];
+    }
+    return twilioContext.chats[event.stream];
+  };
+
+  eventBus.subscribe((event) => {
+    if (event.name === 'ChatMessagePostedEvent') {
+      const chatContext = refreshChatContext(event);
+      if (!chatContext.isIncoming) {
+        twilioClient.messages.create({
+          to: chatContext.incomingNumber,
+          from: twilioContext.phoneNumber,
+          body: event.payload.text
+        });
+      }
+    } else if (event.name === 'ChatEndedEvent') {
+      chatService.endChat(event.stream);
+      delete twilioContext.chats[event.stream];
+    }
+  });
 
   return {
 
     // Define twilio webhook endpoints
     preConfigure(server) {
+
+      server.use(cookieParser());
 
       server.use(function (req, res, next) {
         if (req.path.indexOf(contextPath) === 0) {
@@ -50,22 +87,15 @@ export default (baseUrl,
           .type('text/xml');
         switch (req.params.channel) {
           case 'sms':
-            chatProvider.getChat("OrderFlowers").send({
-                dialogCorrelationId: req.body.From.replace(/[^0-9a-z._:-]+/i, '_'),
-                message: req.body.Body
-              })
-              .then(response => {
-                // @TODO - factor fulfillment code out
-                if(response.state === 'ReadyForFulfillment') {
-                  res.send(`<Response><Sms>Your order has been placed.</Sms></Response>`);
-                } else {
-                  res.send(`<Response><Sms>${response.message}</Sms></Response>`);
-                }
-              })
-              .catch(error => {
-                console.log(error);
-                res.send(`<Response><Sms>${error.message}</Sms></Response>`);
-              });
+            const source = `sms-incoming::${req.body.From}`;
+            const text = req.body.Body;
+            let chatId = req.cookies['x-conversation-id'];
+            if (!req.cookies['x-conversation-id']) {
+              res.cookie('x-conversation-id', chatId = uuid.v4());
+            }
+            chatService
+              .postMessage(chatId, source, text);
+            res.send('<Response></Response>');
             break;
           case 'voice':
             res.send(new twilio.twiml.VoiceResponse()
@@ -83,7 +113,6 @@ export default (baseUrl,
     // Update the voiceURLs on the provided phoneNumberSid
     // after the service has started.
     postConfigure() {
-
       return twilioClient
         .incomingPhoneNumbers(phoneNumberSid)
         .update({
@@ -91,8 +120,9 @@ export default (baseUrl,
           voiceMethod: 'POST',
           smsUrl: normalizeUrl(`${baseUrl}/${contextPath}/sms`),
           smsMethod: 'POST'
+        }, (err, data) => {
+          twilioContext.phoneNumber = data.phoneNumber
         });
-
     }
 
   };

@@ -1,14 +1,12 @@
 import * as express from 'express';
 import {
   EventBus,
-  EventBusSubscription,
-  EntityRepository
+  EventBusSubscription
 } from '../entity/entity';
 import {
-  Chat,
-  ChatDestinationProvider,
   ChatMessagePostedEvent
 } from '../chat';
+import { ChatService } from '../chat_service';
 import * as expressWS from 'express-ws';
 
 type WebSocket  = { on: Function, send : Function };
@@ -17,8 +15,7 @@ interface WSApplication extends express.Application {
   ws : Function;
 }
 
-export function chatAPI(chatDestinationProvider : ChatDestinationProvider,
-                        entityRepository : EntityRepository,
+export function chatAPI(chatService : ChatService,
                         eventBus : EventBus) : { preConfigure: Function } {
 
   return {
@@ -43,20 +40,11 @@ export function chatAPI(chatDestinationProvider : ChatDestinationProvider,
         ws.on('message', (msg : string) => {
           type Msg = { chatId : string, source : string, text : string, end : boolean };
           const payload : Msg = (<Msg>JSON.parse(msg));
-          entityRepository
-            .load(Chat, payload.chatId)
-            .then((chat : Chat) => {
-              if(payload.end) {
-                chat.end();
-              } else {
-                const chatQueue : string = 'OrderFlowers'; // might need some sort of routing logic here
-                chat.transferTo(chatQueue);
-                chat.postMessage(payload.source, payload.text, chatDestinationProvider);
-              }
-            })
-            .catch((error : Error) => {
-              console.error(error);
-            });
+          if (payload.end) {
+            chatService.endChat(payload.chatId);
+          } else {
+            chatService.postMessage(payload.chatId, payload.source, payload.text);
+          }
         });
 
         ws.on('close', () => {
