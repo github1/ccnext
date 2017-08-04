@@ -24,22 +24,31 @@ export function chatAPI(chatService : ChatService,
       (<Function>expressWS)(app);
 
       app.ws('/ws/register', (ws : WebSocket) => {
-        const subscription : EventBusSubscription = eventBus.subscribe((event : { name: string, payload: {} }) => {
-          switch (event.name) {
-            case 'ChatMessagePostedEvent':
-              const chatMessagePostedEvent : ChatMessagePostedEvent = (<ChatMessagePostedEvent>event.payload);
-              ws.send(JSON.stringify({
-                from: chatMessagePostedEvent.source,
-                text: chatMessagePostedEvent.text
-              }));
-              break;
-            default:
+
+        const wsChatContext : { chatId : string } = {chatId: null};
+
+        const subscription : EventBusSubscription = eventBus.subscribe((event : { name: string, stream : string, payload: {} }) => {
+          if (event.stream === wsChatContext.chatId) {
+            switch (event.name) {
+              case 'ChatMessagePostedEvent':
+                const chatMessagePostedEvent : ChatMessagePostedEvent = (<ChatMessagePostedEvent>event.payload);
+                ws.send(JSON.stringify({
+                  from: chatMessagePostedEvent.source,
+                  text: chatMessagePostedEvent.text
+                }));
+                break;
+              case 'ChatErrorEvent':
+                console.log(event);
+                break;
+              default:
+            }
           }
         });
 
         ws.on('message', (msg : string) => {
           type Msg = { chatId : string, source : string, text : string, end : boolean };
           const payload : Msg = (<Msg>JSON.parse(msg));
+          wsChatContext.chatId = payload.chatId;
           if (payload.end) {
             chatService.endChat(payload.chatId);
           } else {
