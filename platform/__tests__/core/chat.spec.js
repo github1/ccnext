@@ -3,7 +3,8 @@ import {
   ChatStartedEvent,
   ChatEndedEvent,
   ChatMessagePostedEvent,
-  ChatTransferredEvent
+  ChatTransferredEvent,
+  ChatReadyForFulfillmentEvent
 } from '../../src/core/chat';
 import { Clock } from '../../src/core/clock';
 
@@ -60,14 +61,43 @@ describe('Chat', () => {
       chat.transferTo('someQueue');
       chat.transferTo('aDifferentQueue');
       expect(chat.dispatch)
-        .toBeCalledWith('chatId', new ChatTransferredEvent('someQueue','aDifferentQueue'));
+        .toBeCalledWith('chatId', new ChatTransferredEvent('someQueue', 'aDifferentQueue'));
     });
     describe('if the new queue is the same as the current queue', () => {
       it('does not perform the transfer', () => {
         chat.transferTo('aDifferentQueue');
         chat.transferTo('aDifferentQueue');
         expect(chat.dispatch)
-          .not.toBeCalledWith('chatId', new ChatTransferredEvent('aDifferentQueue','aDifferentQueue'));
+          .not.toBeCalledWith('chatId', new ChatTransferredEvent('aDifferentQueue', 'aDifferentQueue'));
+      });
+    });
+  });
+
+  describe('when a chat is ready for fulfillment', () => {
+    it('dispatches a ready for fulfillment event', () => {
+      chat.transferTo('someQueue');
+      return chat.postMessage('fromSomeone', 'aMessage', {
+        getChat() {
+          return {
+            send() {
+              return Promise.resolve({
+                state: 'ReadyForFulfillment',
+                payload: {
+                  slots: {
+                    Blarp: 'Blap'
+                  }
+                }
+              })
+            }
+          }
+        }
+      }).then(() => {
+        expect(chat.dispatch)
+          .toBeCalledWith('chatId', new ChatReadyForFulfillmentEvent({
+            slots: {
+              Blarp: 'Blap'
+            }
+          }));
       });
     });
   });

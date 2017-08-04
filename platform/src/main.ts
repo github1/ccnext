@@ -3,6 +3,7 @@ import server from './impl/runtime/server';
 import { entityRepository, eventBus } from './impl/runtime/es';
 import twilio_hooks from './impl/integration/twilio_hooks';
 import { ChatDestinationProvider } from './core/chat';
+import { ChatService } from './core/chat_service';
 import { LexChatBot } from './impl/integration/lex_chatbot';
 import { IdentityService } from './core/identity_service';
 import { InMemoryAuthenticator } from './impl/in_mem_authenticator';
@@ -28,24 +29,25 @@ const awsLexRuntime : awsSdk.LexRuntime = new awsSdk.LexRuntime({
   region: process.env.AWS_DEFAULT_REGION
 });
 
-// chat provider
-const chatProvider : ChatDestinationProvider = {
-  getChat(id : string) {
-    return new LexChatBot(id, 'prod', awsLexRuntime);
-  }
-};
-
 const JWT_SECRET : string = Buffer.from(twilioPhoneNumberSid, 'utf8').toString();
 
 const identityService : IdentityService = new IdentityService(
   entityRepository,
   new InMemoryAuthenticator());
 
+const chatDesintationProvider : ChatDestinationProvider = {
+  getChat(id : string) {
+    return new LexChatBot(id, 'prod', awsLexRuntime);
+  }
+};
+
+const chatService : ChatService = new ChatService(entityRepository, chatDesintationProvider);
+
 /* tslint:disable */
 
 const integrations : any = {
   identity_api: identityAPI(JWT_SECRET, identityService),
-  chat_api: chatAPI(chatProvider, entityRepository, eventBus)
+  chat_api: chatAPI(chatService, eventBus)
 };
 
 if (publicUrl && publicUrl.indexOf('localhost') === -1) {
@@ -55,7 +57,8 @@ if (publicUrl && publicUrl.indexOf('localhost') === -1) {
     twilioPhoneNumberSid,
     twilioAccountSid,
     twilioAuthToken,
-    chatProvider);
+    chatService,
+    eventBus);
 } else {
   console.warn('[WARN] Invalid publicUrl provided, Unable to register twilio hooks!');
 }
