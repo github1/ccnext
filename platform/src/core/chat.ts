@@ -45,10 +45,14 @@ export class ChatMessagePostedEvent extends ChatEvent {
 }
 
 export class ChatReadyForFulfillmentEvent extends ChatEvent {
+  public requester : string;
+  public queue : string;
   public payload : {};
 
-  constructor(payload : {}) {
+  constructor(requester : string, queue : string, payload : {}) {
     super();
+    this.requester = requester;
+    this.queue = queue;
     this.payload = payload;
   }
 }
@@ -92,6 +96,8 @@ export interface ChatDestinationProvider {
 
 export class Chat extends Entity {
   private chatQueue : string;
+  private fulfillmentSequence : number = 0;
+  private chatSequence : number = 1;
 
   constructor(id : string) {
     super(id, Entity.CONFIG((self : Chat, event : EntityEvent) : void => {
@@ -99,6 +105,10 @@ export class Chat extends Entity {
         self.chatQueue = event.chatQueue;
       } else if (event instanceof ChatTransferredEvent) {
         self.chatQueue = event.toQueue;
+      } else if (event instanceof ChatReadyForFulfillmentEvent) {
+        self.fulfillmentSequence = self.chatSequence;
+      } else if (event instanceof ChatEndedEvent) {
+        self.chatSequence++;
       }
     }));
   }
@@ -108,21 +118,26 @@ export class Chat extends Entity {
       return new Promise((resolve : Function) => {
         this.dispatch(this.id, new ChatMessagePostedEvent(source, text));
         const dest : ChatDestination = provider.getChat(this.chatQueue);
-        dest.send({
-          message: text,
-          dialogCorrelationId: this.id
-        }).then((response : ChatResponse) => {
+        if (source === this.chatQueue) {
+          resolve();
+        } else {
+          dest.send({
+            message: text,
+            dialogCorrelationId: `${this.id}_${this.chatSequence}`
+          }).then((response : ChatResponse) => {
             if (response.state === 'ReadyForFulfillment') {
-              this.dispatch(this.id, new ChatReadyForFulfillmentEvent(response.payload));
+              if (this.fulfillmentSequence !== this.chatSequence) {
+                this.dispatch(this.id, new ChatReadyForFulfillmentEvent(source, this.chatQueue, response.payload));
+              }
             } else if (response.state !== 'Deferred') {
               this.dispatch(this.id, new ChatMessagePostedEvent(this.chatQueue, response.message));
             }
             resolve();
-          })
-          .catch((error : Error) => {
+          }).catch((error : Error) => {
             this.dispatch(this.id, new ChatErrorEvent(error));
             resolve();
           });
+        }
       });
     } else {
       throw new Error('No chat queue set');

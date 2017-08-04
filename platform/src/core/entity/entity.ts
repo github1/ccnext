@@ -37,8 +37,8 @@ export class BaseEntityRepository implements EntityRepository {
     return new Promise((resolve : Function) => {
       const entity : Entity = (<Entity> new construct(id));
       entity.init((streamId : string, event : EntityEvent) => {
-        entity.apply(event);
         this.eventDispatcher(streamId, event);
+        entity.apply(event);
       });
       this.eventStore.replay(
         id,

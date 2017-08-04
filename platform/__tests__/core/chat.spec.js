@@ -93,7 +93,7 @@ describe('Chat', () => {
         }
       }).then(() => {
         expect(chat.dispatch)
-          .toBeCalledWith('chatId', new ChatReadyForFulfillmentEvent({
+          .toBeCalledWith('chatId', new ChatReadyForFulfillmentEvent('fromSomeone', 'someQueue', {
             slots: {
               Blarp: 'Blap'
             }

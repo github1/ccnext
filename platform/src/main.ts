@@ -5,6 +5,7 @@ import twilio_hooks from './impl/integration/twilio_hooks';
 import { ChatDestinationProvider } from './core/chat';
 import { ChatService } from './core/chat_service';
 import { LexChatBot } from './impl/integration/lex_chatbot';
+import * as fulfillment_processor from './impl/fulfillment_processor';
 import { IdentityService } from './core/identity_service';
 import { InMemoryAuthenticator } from './impl/in_mem_authenticator';
 import { identityAPI } from './core/api/identity_api';
@@ -42,6 +43,9 @@ const chatDesintationProvider : ChatDestinationProvider = {
 };
 
 const chatService : ChatService = new ChatService(entityRepository, chatDesintationProvider);
+
+// start the fulfillment processor
+fulfillment_processor(eventBus, chatService);
 
 /* tslint:disable */
 

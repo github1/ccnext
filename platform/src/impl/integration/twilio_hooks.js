@@ -44,7 +44,7 @@ export default (baseUrl,
   eventBus.subscribe((event) => {
     if (event.name === 'ChatMessagePostedEvent') {
       const chatContext = refreshChatContext(event);
-      if (!chatContext.isIncoming) {
+      if (!chatContext.isIncoming && chatContext.incomingNumber) {
         twilioClient.messages.create({
           to: chatContext.incomingNumber,
           from: twilioContext.phoneNumber,
@@ -52,7 +52,6 @@ export default (baseUrl,
         });
       }
     } else if (event.name === 'ChatEndedEvent') {
-      chatService.endChat(event.stream);
       delete twilioContext.chats[event.stream];
     }
   });
