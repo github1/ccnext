@@ -49,7 +49,7 @@ describe('Chat', () => {
         chat.transferTo('someQueue');
         chat.postMessage('fromSomeone', 'aMessage', chatDestinationProvider);
         expect(chat.dispatch)
-          .toBeCalledWith('chatId', new ChatStartedEvent('someQueue'));
+          .toBeCalledWith('chatId', new ChatStartedEvent('fromSomeone'));
         expect(chat.dispatch)
           .toBeCalledWith('chatId', new ChatMessagePostedEvent('fromSomeone', 'aMessage'));
       });

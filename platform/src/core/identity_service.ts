@@ -30,4 +30,15 @@ export class IdentityService {
         return new IdentityVO(username);
       });
   }
+
+  public register(username : string, password : string, firstName : string, lastName : string, phoneNumber : string, role : string) : void {
+    this.entityRepository
+      .load(Identity, username)
+      .then((identity : Identity) => {
+        identity.register(password, firstName, lastName, phoneNumber, role);
+      })
+      .catch((error : Error) => {
+        console.error(error);
+      });
+  }
 }

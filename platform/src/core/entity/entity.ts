@@ -14,6 +14,8 @@ export interface EventBusSubscription {
   unsubscribe() : void;
 }
 
+export type EventRecord = { name: string, stream : string, payload: {} };
+
 export interface EventBus {
   subscribe(listener : (event : EntityEvent) => void) : EventBusSubscription;
   emit(event : EntityEvent) : void;

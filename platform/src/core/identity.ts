@@ -31,8 +31,27 @@ export class AuthenticationErrorEvent extends AuthenticationEvent {
 export class AuthenticationLockedEvent extends AuthenticationEvent {
 }
 
+export class IdentityRegisteredEvent extends AuthenticationEvent {
+  public username : string;
+  public password : string;
+  public firstName : string;
+  public lastName : string;
+  public phoneNumber : string;
+  public role : string;
+  constructor(username : string, password : string, firstName : string, lastName : string, phoneNumber : string, role : string) {
+    super();
+    this.username = username;
+    this.password = password;
+    this.firstName = firstName;
+    this.lastName = lastName;
+    this.phoneNumber = phoneNumber;
+    this.role = role;
+  }
+}
+
 export class Identity extends Entity {
 
+  private registered : boolean = false;
   private lastState : string;
   private failedAuthenticationAttempts : number = 0;
 
@@ -46,6 +65,8 @@ export class Identity extends Entity {
           } else {
             self.failedAuthenticationAttempts = 0;
           }
+        } else if(event instanceof IdentityRegisteredEvent) {
+          self.registered = true;
         }
         self.lastState = event.constructor.name;
       }
@@ -89,6 +110,12 @@ export class Identity extends Entity {
           });
       }
     });
+  }
+
+  public register(password : string, firstName : string, lastName : string, phoneNumber : string, role : string) : void {
+    if(!this.registered) {
+      this.dispatch(this.id, new IdentityRegisteredEvent(this.id, password, firstName, lastName, phoneNumber, role));
+    }
   }
 
 }
