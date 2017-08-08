@@ -1,5 +1,5 @@
 let character = {
-name : "characterx",
+name : "character",
 description : "a slot to hold single characters",
 enumerationValues : [
     { value: "a"},
