@@ -5,6 +5,12 @@ import page from 'page';
 import Container from './component/container';
 import './style/theme.scss';
 import BrowserWebSocket from 'browser-websocket';
+import {
+  isMobile,
+  resetScroll,
+  preventZoom,
+  fallbackStorage
+} from './browser_utils';
 
 import {
   INIT,
@@ -14,9 +20,12 @@ import {
   CLEAR_USER,
   SIGN_IN,
   SIGN_OUT,
+  REGISTER_USER,
+  USER_REGISTERED,
   AUTHENTICATION_STARTED,
   AUTHENTICATION_FAILED,
   AUTHENTICATION_SUCCESS,
+  INIT_CHAT,
   START_CHAT,
   CHAT_STARTED,
   END_CHAT,
@@ -39,7 +48,13 @@ const model = () => {
   return {
     messages: [],
     isPending: false,
-    chatSessions: {}
+    chatSessions: {},
+    device: {
+      isMobile: isMobile(),
+      screen: {
+        height: window.innerHeight
+      }
+    }
   }
 };
 
@@ -47,7 +62,7 @@ const CHANNEL_INSTANCES = {};
 
 const identity = () => {
   try {
-    const token = localStorage.getItem('user-token');
+    const token = fallbackStorage.getItem('user-token');
     if (token) {
       return jwts.decode(token, null, true);
     }
@@ -57,14 +72,14 @@ const identity = () => {
   return false;
 };
 
-const sideEffect = (command) => {
+const sideEffect = (command, model) => {
   switch (command.type) {
     case NAVIGATE:
     case INIT:
       const perform = () => {
         dispatch({
           type: NAVIGATION_REQUESTED,
-          view: command.view || 'home'
+          view: command.view || 'account'
         });
       };
       const id = identity();
@@ -79,7 +94,7 @@ const sideEffect = (command) => {
             perform();
           });
         } else {
-          const redirect = command.redirect || '/login';
+          const redirect = command.redirect || '/home';
           if (window.location.pathname.indexOf(redirect) === -1) {
             page.redirect(redirect);
           } else {
@@ -87,6 +102,20 @@ const sideEffect = (command) => {
           }
         }
       }
+      break;
+    case REGISTER_USER:
+      reqwest({
+        url: '/api/register',
+        method: 'post',
+        data: command,
+        success: () => {
+          dispatch({
+            type: USER_REGISTERED
+          }).then(() => {
+            page.redirect('/home');
+          });
+        }
+      });
       break;
     case SIGN_IN:
       if (command.username.trim().length === 0 ||
@@ -103,13 +132,13 @@ const sideEffect = (command) => {
           method: 'post',
           data: command,
           success: (resp) => {
-            localStorage.setItem('user-token', resp.token);
+            fallbackStorage.setItem('user-token', resp.token);
             const identity = jwts.decode(resp.token, null, true);
             dispatch({
               type: AUTHENTICATION_SUCCESS,
               user: identity
             }).then(() => {
-              page.redirect('/home');
+              page.redirect('/account');
             });
           },
           error: () => {
@@ -121,65 +150,102 @@ const sideEffect = (command) => {
       }
       break;
     case SIGN_OUT:
-      localStorage.removeItem('user-token');
+      fallbackStorage.removeItem('user-token');
       dispatch({
         type: CLEAR_USER
       }).then(() => {
         dispatch({
           type: INIT,
-          redirect: '/login'
+          redirect: '/landing'
         });
       });
       break;
-    case START_CHAT:
-
-      if(!CHANNEL_INSTANCES[command.id]) {
-        CHANNEL_INSTANCES[command.id] = new BrowserWebSocket(`ws://${window.location.hostname}:9999/ws/register?=${command.id}`);
-        //const ws = new BrowserWebSocket(`ws://24099f8d.ngrok.io/ws/register`);
+    case INIT_CHAT:
+      if (!CHANNEL_INSTANCES[command.id]) {
+        let wsProtocol = window.location.protocol === 'https:' ? 'wss' : 'ws';
+        let wsHost = window.location.host;
+        wsHost = `${window.location.hostname}:9999`;
+        //wsHost = '73463add.ngrok.io';
+        let wsUrl = `${wsProtocol}://${wsHost}/ws/register?=${command.id}`;
+        CHANNEL_INSTANCES[command.id] = new BrowserWebSocket(wsUrl);
 
         const ws = CHANNEL_INSTANCES[command.id];
 
         ws.on('open', () => {
-          dispatch({
-            type: CHAT_STARTED,
-            id: command.id
-          });
+          let source = identity();
+          source = source ? source.username : 'visitor';
+          ws.emit(JSON.stringify({
+            register: true,
+            chatId: command.id,
+            source: source
+          }));
         });
 
         ws.on('message', msg => {
           const chatMessage = JSON.parse(msg.data);
-          if(chatMessage.from !== identity().username) {
-            dispatch({
-              type: INCOMING_CHAT_MESSAGE_POSTED,
-              id: command.id,
-              from: chatMessage.from,
-              text: chatMessage.text
-            });
+          if (chatMessage.from !== identity().username && chatMessage.from !== 'visitor') {
+            setTimeout(() => {
+              dispatch({
+                type: INCOMING_CHAT_MESSAGE_POSTED,
+                id: command.id,
+                from: chatMessage.from,
+                text: chatMessage.text
+              });
+            }, 500);
           }
         });
-
+      }
+      break;
+    case START_CHAT:
+      if (CHANNEL_INSTANCES[command.id]) {
+        dispatch({
+          type: CHAT_STARTED,
+          id: command.id
+        });
+      } else {
+        dispatch({
+          type: INIT_CHAT,
+          id: command.id
+        }).then(() => {
+          dispatch({
+            type: START_CHAT,
+            id: command.id
+          });
+        });
       }
       break;
     case END_CHAT:
     {
-      const ws = CHANNEL_INSTANCES[command.id];
-      delete CHANNEL_INSTANCES[command.id];
-      ws.emit(JSON.stringify({ chatId: command.id, end: true}));
-      ws.close();
-      dispatch({
-        type: CHAT_ENDED,
-        id: command.id
+      Object.keys(CHANNEL_INSTANCES).forEach((key) => {
+        if (key === command.id || typeof command.id === 'undefined') {
+          const ws = CHANNEL_INSTANCES[key];
+          if (ws) {
+            delete CHANNEL_INSTANCES[key];
+            ws.emit(JSON.stringify({chatId: key, end: true}));
+            ws.close();
+            dispatch({
+              type: CHAT_ENDED,
+              id: key
+            });
+          }
+        }
       });
       break;
     }
     case POST_OUTGOING_CHAT_MESSAGE:
     {
+      let source = identity();
+      source = source ? source.username : 'visitor';
       const ws = CHANNEL_INSTANCES[command.id];
-      ws.emit(JSON.stringify({ chatId: command.id, source: identity().username, text: command.text }));
+      ws.emit(JSON.stringify({
+        chatId: command.id,
+        source: source,
+        text: command.text
+      }));
       dispatch({
         type: OUTGOING_CHAT_MESSAGE_POSTED,
         id: command.id,
-        from: identity().username,
+        from: source,
         text: command.text
       });
       break;
@@ -199,7 +265,15 @@ const update = (event, model) => {
     case CLEAR_USER:
       delete model.user;
       break;
+    case USER_REGISTERED:
+      model.messages['user_registered'] = {
+        type: 'success',
+        text: 'Enrollment complete',
+        global: true
+      };
+      break;
     case AUTHENTICATION_STARTED:
+      delete model.messages['user_registered'];
       delete model.messages['invalid_credentials'];
       model.isPending = true;
       break;
@@ -263,6 +337,22 @@ window.dispatch = (event) => {
       render(<Container model={ latestModel }/>, element, () => {
         rendering = false;
         resolve(latestModel);
+
+        if (latestModel.device.isMobile) {
+          let focused = null;
+          $('*').on('focusin', function (e) {
+            focused = e.target;
+          });
+          $('.form-control').on('focusout', function (e) {
+            focused = null;
+            setTimeout(function () {
+              if (focused === null || !focused.classList.contains('form-control')) {
+                resetScroll();
+              }
+            }, 0);
+          });
+        }
+
       });
     } else {
       pendingEvents.push(event);
@@ -271,6 +361,18 @@ window.dispatch = (event) => {
 };
 
 window.onload = function () {
+
+  document.addEventListener('keyup',
+    function (e) {
+      if (e.key === 'Escape') {
+        dispatch({
+          type: END_CHAT
+        });
+      }
+    }, true);
+
+  preventZoom();
+  resetScroll();
 
   page('/', () => {
     window.dispatch({
@@ -282,7 +384,7 @@ window.onload = function () {
     window.dispatch({
       type: NAVIGATE,
       view: ctx.params.view,
-      insecure: ['register', 'dev'].indexOf(ctx.params.view) > -1
+      insecure: ['enroll', 'dev'].indexOf(ctx.params.view) > -1
     });
   });
 

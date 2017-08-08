@@ -10,6 +10,17 @@ export class ChatService {
     this.chatDestinationProvider = chatDestinationProvider;
   }
 
+  public startChat(chatId : string, user : string) : void {
+    this.entityRepository
+      .load(Chat, chatId)
+      .then((chat : Chat) => {
+        chat.start(user);
+      })
+      .catch((error : Error) => {
+        throw error;
+      });
+  }
+
   public postMessage(chatId : string, source : string, text : string) : void {
     this.entityRepository
       .load(Chat, chatId)

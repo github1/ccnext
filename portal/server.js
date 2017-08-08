@@ -13,11 +13,15 @@ app.use(bodyParser.urlencoded({extended: false}));
 app.use(bodyParser.json());
 
 app.use((req, res, next) => {
-  if (req.path.indexOf('/api') === 0) {
-    req.headers['content-type'] = 'application/json';
+  if ((/\/(api|ws)\//).test(req.path)) {
     // @TODO URL needs to be configurable
-    const platformURL = 'http://localhost:9999';
-    proxy(platformURL)(req, res, next);
+    let platformUrl = 'http://localhost:9999';
+    if((/\/api/).test(req.path)) {
+      req.headers['content-type'] = 'application/json';
+    } else {
+      platformUrl = 'ws://localhost:9999';
+    }
+    proxy(platformUrl)(req, res, next);
   } else if (path.extname(req.path).length > 0) {
     // assume static content here
     next();

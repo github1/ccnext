@@ -1,7 +1,7 @@
 import * as express from 'express';
 import {
   EventBus,
-  EventBusSubscription
+  EventRecord
 } from '../entity/entity';
 import {
   ChatMessagePostedEvent
@@ -23,33 +23,38 @@ export function chatAPI(chatService : ChatService,
 
       (<Function>expressWS)(app);
 
+      const wsChats : { [key:string]: WebSocket } = {};
+
+      eventBus.subscribe((event : EventRecord) => {
+        if (wsChats[event.stream]) {
+          switch (event.name) {
+            case 'ChatMessagePostedEvent':
+              const chatMessagePostedEvent : ChatMessagePostedEvent = (<ChatMessagePostedEvent>event.payload);
+              wsChats[event.stream].send(JSON.stringify({
+                from: chatMessagePostedEvent.source,
+                text: chatMessagePostedEvent.text
+              }));
+              break;
+            case 'ChatErrorEvent':
+              console.log(event);
+              break;
+            default:
+          }
+        }
+      });
+
       app.ws('/ws/register', (ws : WebSocket) => {
 
-        const wsChatContext : { chatId : string } = {chatId: null};
-
-        const subscription : EventBusSubscription = eventBus.subscribe((event : { name: string, stream : string, payload: {} }) => {
-          if (event.stream === wsChatContext.chatId) {
-            switch (event.name) {
-              case 'ChatMessagePostedEvent':
-                const chatMessagePostedEvent : ChatMessagePostedEvent = (<ChatMessagePostedEvent>event.payload);
-                ws.send(JSON.stringify({
-                  from: chatMessagePostedEvent.source,
-                  text: chatMessagePostedEvent.text
-                }));
-                break;
-              case 'ChatErrorEvent':
-                console.log(event);
-                break;
-              default:
-            }
-          }
-        });
+        let wsChatId : string;
 
         ws.on('message', (msg : string) => {
-          type Msg = { chatId : string, source : string, text : string, end : boolean };
+          type Msg = { chatId : string, source : string, text : string, end : boolean, register : boolean };
           const payload : Msg = (<Msg>JSON.parse(msg));
-          wsChatContext.chatId = payload.chatId;
-          if (payload.end) {
+          wsChatId = payload.chatId;
+          wsChats[payload.chatId] = ws;
+          if (payload.register) {
+            chatService.startChat(payload.chatId, payload.source);
+          } else if (payload.end) {
             chatService.endChat(payload.chatId);
           } else {
             chatService.postMessage(payload.chatId, payload.source, payload.text);
@@ -57,7 +62,9 @@ export function chatAPI(chatService : ChatService,
         });
 
         ws.on('close', () => {
-          subscription.unsubscribe();
+          if(wsChats[wsChatId]) {
+            delete wsChats[wsChatId];
+          }
         });
 
       });

@@ -1,12 +1,23 @@
 $FontPathOpenSans: "../../node_modules/npm-font-open-sans/fonts";
 @import '../../node_modules/npm-font-open-sans/open-sans.scss';
 
-$font-family-sans-serif: 'Open Sans', sans-serif;
+$brand-primary: #4f9fc1;
+$brand-success: #59bfaa;
+$brand-danger: #c14f66;
+$brand-info: #fcf4b2;
+$state-danger-border: $brand-danger;
+$state-danger-text: lighten($brand-danger, 40%);
+$state-danger-bg: $brand-danger;
+$state-info-border: $brand-info;
+$state-info-text: #fff;
+$state-info-bg: $brand-info;
+$text-color: #999;
+$font-family-sans-serif: "Open Sans", "Helvetica Neue", Helvetica, Arial, sans-serif;
 $font-size-base: 14px;
-$border-radius-base: 3px;
+$border-radius-base: 0;
+$panel-default-border: $brand-primary;
 $navbar-height: 10px;
 $navbar-padding-vertical: 5px;
 $navbar-collapse-max-height: 10px;
 $icon-font-path: "../../node_modules/bootstrap-sass/assets/fonts/bootstrap/";
 @import "../../node_modules/bootstrap-sass/assets/stylesheets/bootstrap";
-

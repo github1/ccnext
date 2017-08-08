@@ -1,5 +1,8 @@
 import { Component, createElement } from 'react';
 import { DropdownButton, MenuItem } from 'react-bootstrap';
+import Logo from './logo';
+import NavMenu from './nav_menu';
+import ChatAdapter from './chat_adapter';
 import views from '../view';
 import { SIGN_OUT } from '../constants';
 
@@ -12,54 +15,111 @@ export default class extends Component {
 
     const viewName = this.props.model.view || 'empty';
     const view = views[viewName];
-    const title = viewName.substring(0,1).toUpperCase() + viewName.substring(1);
 
-    return <div key="root-container">
-      <div className="container-fluid">
-        <div className="row">
-          <div className="col-xs-12">
-            <div>
-              {
-                this.props.model.user ?
-                  <div
-                    className="pull-right">
-                    <DropdownButton
-                      title={ this.props.model.user.username }
-                      pullRight={true}
-                      id="user-dd"
-                      bsSize="small"
-                      onSelect={ eventKey => {
+    const content = <div className="col-xs-12 root-column">
+      <div className="divider"></div>
+      {
+        Object.keys(this.props.model.messages)
+          .map(key => this.props.model.messages[key])
+          .filter(alert => alert.global)
+          .map((alert, index) => {
+            return <div key={index}
+                        className={ `alert global-alert alert-${alert.type}` }>{alert.text}</div>;
+          })
+      }
+      { createElement(view, {
+        key: 'view',
+        model: this.props.model
+      }) }
+    </div>;
+
+    const accountLinks = [
+      {text: 'Accounts', icon: 'credit-card'},
+      {text: 'Payments', icon: 'usd'},
+      {text: 'Messages & Alerts', icon: 'alert'},
+      {text: 'Benefits', icon: 'star'},
+      {text: 'Profile', icon: 'user'},
+      {text: 'Services', icon: 'cog'},
+      'divider',
+      {text: 'Sign Out', icon: 'log-out'}
+    ];
+
+    const actions = this.props.model.user ?
+      <div
+        className="user-menu">
+        <DropdownButton
+          title={  <span className="glyphicon glyphicon-menu-hamburger"></span> }
+          id="user-menu"
+          pullRight={true}
+          bsSize="small"
+          onSelect={ eventKey => {
                                     switch(eventKey) {
-                                        case "signOut":
+                                        case "sign_out":
                                             dispatch({
                                                 type: SIGN_OUT
                                             });
                                         break;
                                     }
                                 } }>
-                      <MenuItem eventKey="signOut">Sign out</MenuItem>
-                    </DropdownButton>
-                  </div> : null
+          {
+            accountLinks.map((link, index) => {
+              if (link === 'divider') {
+                return <MenuItem key={index} divider/>;
               }
-              <h3>{ title }</h3>
-              <hr/>
+              return <MenuItem key={index}
+                               eventKey={ link.text.toLowerCase().replace(/[^a-z]+/i,'_') }>
+                <span
+                  className={`glyphicon glyphicon-${link.icon}`}></span>&nbsp;&nbsp;{ link.text }
+              </MenuItem>
+            })
+          }
+        </DropdownButton>
+      </div> : null;
+
+    if (this.props.model.user) {
+      return <div key="root-container">
+        <div className="pull-left">
+          <NavMenu className="account-menu" logo={true}/>
+        </div>
+        { actions }
+        { content }
+        <ChatAdapter model={this.props.model}/>
+      </div>;
+    } else if (viewName === 'enroll') {
+      return <div key="root-container">
+        <NavMenu logo={true}/>
+        <hr/>
+        { content }
+        <ChatAdapter model={this.props.model}/>
+      </div>;
+    } else {
+      return <div key="root-container">
+        <div className="row">
+          <div className="col-xs-12 root-column">
+            <Logo className="pull-left"/>
+            <div className="pull-right hidden-xs">
+              <NavMenu links={ [
+                { icon: 'search', text: 'Search'},
+                { icon: 'globe', text: 'Locations'},
+                { icon: 'user', text: 'Sign In'}
+              ] }/>
             </div>
-            {
-              Object.keys(this.props.model.messages)
-                .map(key => this.props.model.messages[key])
-                .filter(alert => alert.global)
-                .map((alert, index) => {
-                  return <div key={index}
-                              className={ `alert alert-${alert.type}` }>{alert.text}</div>;
-                })
-            }
-            { createElement(view, {
-              key: 'view',
-              model: this.props.model
-            }) }
           </div>
         </div>
-      </div>
-    </div>
+        <div className="hidden-xs">
+          <NavMenu className="landing-menu" links={ [
+                { text: 'Credit Cards'},
+                { text: 'Bank'},
+                { text: 'Borrow'},
+                { text: 'Invest'},
+                { text: 'Learn'},
+                { text: 'Contact'}
+              ] }/>
+        </div>
+        { content }
+        <ChatAdapter model={this.props.model}/>
+      </div>;
+    }
+
   }
 }

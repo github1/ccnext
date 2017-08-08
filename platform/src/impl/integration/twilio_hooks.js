@@ -41,6 +41,7 @@ export default (baseUrl,
     return twilioContext.chats[event.stream];
   };
 
+  // Reply to chat messages with sms
   eventBus.subscribe((event) => {
     if (event.name === 'ChatMessagePostedEvent') {
       const chatContext = refreshChatContext(event);
@@ -120,7 +121,8 @@ export default (baseUrl,
           smsUrl: normalizeUrl(`${baseUrl}/${contextPath}/sms`),
           smsMethod: 'POST'
         }, (err, data) => {
-          twilioContext.phoneNumber = data.phoneNumber
+          twilioContext.phoneNumber = data.phoneNumber;
+          console.log('Using twilio phoneNumber:', twilioContext.phoneNumber);
         });
     }
 

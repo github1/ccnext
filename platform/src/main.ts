@@ -34,7 +34,7 @@ const JWT_SECRET : string = Buffer.from(twilioPhoneNumberSid, 'utf8').toString()
 
 const identityService : IdentityService = new IdentityService(
   entityRepository,
-  new InMemoryAuthenticator());
+  new InMemoryAuthenticator(entityRepository, eventBus));
 
 const chatDesintationProvider : ChatDestinationProvider = {
   getChat(id : string) {
@@ -50,7 +50,7 @@ fulfillment_processor(eventBus, chatService);
 /* tslint:disable */
 
 const integrations : any = {
-  identity_api: identityAPI(JWT_SECRET, identityService),
+  identity_api: identityAPI(JWT_SECRET, eventBus, identityService),
   chat_api: chatAPI(chatService, eventBus)
 };
 

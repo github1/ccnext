@@ -11,11 +11,11 @@ export class ChatEvent implements EntityEvent {
 }
 
 export class ChatStartedEvent extends ChatEvent {
-  public chatQueue : string;
+  public user : string;
 
-  constructor(chatQueue : string) {
+  constructor(user : string) {
     super();
-    this.chatQueue = chatQueue;
+    this.user = user;
   }
 }
 
@@ -95,6 +95,7 @@ export interface ChatDestinationProvider {
 }
 
 export class Chat extends Entity {
+  private user : string;
   private chatQueue : string;
   private fulfillmentSequence : number = 0;
   private chatSequence : number = 1;
@@ -102,7 +103,7 @@ export class Chat extends Entity {
   constructor(id : string) {
     super(id, Entity.CONFIG((self : Chat, event : EntityEvent) : void => {
       if (event instanceof ChatStartedEvent) {
-        self.chatQueue = event.chatQueue;
+        self.user = event.user;
       } else if (event instanceof ChatTransferredEvent) {
         self.chatQueue = event.toQueue;
       } else if (event instanceof ChatReadyForFulfillmentEvent) {
@@ -113,9 +114,16 @@ export class Chat extends Entity {
     }));
   }
 
+  public start(user : string) : void {
+    if(!this.user) {
+      this.dispatch(this.id, new ChatStartedEvent(user));
+    }
+  }
+
   public postMessage(source : string, text : string, provider : ChatDestinationProvider) : Promise<{}> {
     if (this.chatQueue) {
       return new Promise((resolve : Function) => {
+        this.start(source);
         this.dispatch(this.id, new ChatMessagePostedEvent(source, text));
         const dest : ChatDestination = provider.getChat(this.chatQueue);
         if (source === this.chatQueue) {
@@ -145,9 +153,7 @@ export class Chat extends Entity {
   }
 
   public transferTo(newChatQueue : string) {
-    if (!this.chatQueue) {
-      this.dispatch(this.id, new ChatStartedEvent(newChatQueue));
-    } else if (this.chatQueue !== newChatQueue) {
+    if (this.chatQueue !== newChatQueue) {
       this.dispatch(this.id, new ChatTransferredEvent(this.chatQueue, newChatQueue));
     }
   }

@@ -4,7 +4,8 @@ import {
   AuthenticationSucceededEvent,
   AuthenticationFailedEvent,
   AuthenticationLockedEvent,
-  AuthenticationErrorEvent
+  AuthenticationErrorEvent,
+  IdentityRegisteredEvent
 } from '../../src/core/identity';
 import { UsernamePasswordCredentials } from '../../src/core/authentication';
 import { Clock } from '../../src/core/clock';
@@ -93,5 +94,14 @@ describe('Identity', () => {
     });
   });
 
+  it('can be registered once', () => {
+    identity.register('somePassword', 'aFirstName', 'aLastName', 'aPhoneNumber', 'aRole');
+    identity.register('somePassword', 'aFirstName', 'aLastName', 'aPhoneNumber', 'aRole');
+    expect(identity.dispatch)
+      .toBeCalledWith('someId',
+        new IdentityRegisteredEvent('someId', 'somePassword', 'aFirstName', 'aLastName', 'aPhoneNumber', 'aRole'));
+    expect(identity.dispatch.mock.calls.length).toBe(1);
+
+  });
 
 });

@@ -1,7 +1,7 @@
 import { Component } from 'react';
 import { Alert } from 'react-bootstrap';
 import { findDOMNode } from 'react-dom';
-import { SIGN_IN } from '../constants';
+import { SIGN_IN, NAVIGATE } from '../constants';
 
 export default class extends Component {
   constructor(props) {
@@ -16,6 +16,11 @@ export default class extends Component {
   }
 
   register() {
+    dispatch({
+      type: NAVIGATE,
+      view: 'register',
+      redirect: '/enroll'
+    });
   }
 
   submitCredentials() {
@@ -60,15 +65,19 @@ export default class extends Component {
           this.props.model.messages['invalid_credentials'] ?
             <Alert
               bsStyle={this.props.model.messages['invalid_credentials'].type}>
+              <span className="glyphicon glyphicon-alert"/>&nbsp;
               {this.props.model.messages['invalid_credentials'].text}
             </Alert> : null
         }
         <div className={ this.formGroupStyle('username') }>
-          <label htmlFor="username">Username</label>
           <input ref='username'
+                 type="text"
+                 autoComplete="off"
+                 autoCorrect="off"
+                 autoCapitalize="none"
+                 placeholder="Username"
                  className="form-control"
                  name="username"
-                 autoComplete="off"
                  onKeyPress={
                                     (event) => {
                                         if(event.key === 'Enter') {
@@ -76,12 +85,10 @@ export default class extends Component {
                                         }
                                     }}
           />
-          <p
-            className="help-block text-danger small">{ this.formGroupHelp('username') }</p>
         </div>
         <div className={ this.formGroupStyle('password') }>
-          <label htmlFor="password">Password</label>
           <input ref='password' type="password"
+                 placeholder="Password"
                  className="form-control"
                  name="password"
                  onKeyPress={
@@ -91,23 +98,21 @@ export default class extends Component {
                                         }
                                     }}
           />
-          <p
-            className="help-block text-danger small">{ this.formGroupHelp('password') }</p>
         </div>
-        <section className="form-group">
+        <section className="form-group pull-right">
           <a className="btn btn-secondary" href="javascript:void(0);"
              onClick={
                                 () => {
                                     this.register();
                                 }
-                            }>Register
+                            }>Enroll
           </a>
           <button type="button" className="btn btn-primary"
                   onClick={
                                 () => {
                                     this.submitCredentials();
                                 }
-                            }>Sign in
+                            }><span className="glyphicon glyphicon-lock"></span>&nbsp;Sign In
           </button>
         </section>
       </form>

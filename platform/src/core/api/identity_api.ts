@@ -1,9 +1,20 @@
 import * as express from 'express';
+import { EventBus, EventRecord } from '../entity/entity';
 import { UsernamePasswordCredentials } from '../authentication';
+import { IdentityRegisteredEvent } from '../identity';
 import { IdentityService, IdentityVO } from '../identity_service';
 import * as jwts from 'jwt-simple';
 
-export function identityAPI(jwtSecret : string, identityService : IdentityService) : { preConfigure: Function } {
+export function identityAPI(jwtSecret : string, eventBus : EventBus, identityService : IdentityService) : { preConfigure: Function } {
+
+  const profiles : {[key: string]:IdentityRegisteredEvent} = {};
+
+  eventBus.subscribe((event : EventRecord) => {
+    if (event.name === 'IdentityRegisteredEvent') {
+      profiles[event.stream] = (<IdentityRegisteredEvent>event.payload);
+    }
+  });
+
   return {
     preConfigure(app : express.Application): void {
 
@@ -11,7 +22,8 @@ export function identityAPI(jwtSecret : string, identityService : IdentityServic
         if (req.path.indexOf('/api') === 0) {
           const bypass : boolean = [
             '/api/authenticate',
-            '/api/interactions'
+            '/api/register',
+            '/api/contactInformation'
           ]
             .map((path : string) : boolean => req.path.indexOf(path) === 0)
             .filter((result : boolean) : boolean => result)[0];
@@ -41,8 +53,7 @@ export function identityAPI(jwtSecret : string, identityService : IdentityServic
           .authenticate(body.username, new UsernamePasswordCredentials(body.username, body.password))
           .then((identity : IdentityVO) => {
             res.json({
-              identity: identity,
-              token: jwts.encode(identity, jwtSecret)
+              token: jwts.encode(profiles[identity.username], jwtSecret)
             });
           })
           .catch((error : Error) => {
@@ -53,6 +64,19 @@ export function identityAPI(jwtSecret : string, identityService : IdentityServic
           });
       });
 
+      app.post('/api/register', (req : express.Request, res : express.Response) : void => {
+        const body : RegisterRequestBody = <RegisterRequestBody> req.body;
+        identityService
+          .register(body.username, body.password, body.firstName, body.lastName, body.phoneNumber, body.role);
+        res.json({
+          username: body.username
+        });
+      });
+
+      app.get('/api/profile', (req : express.Request, res : express.Response) : void => {
+        res.json(profiles[`${req.headers['user-id']}`]);
+      });
+
     }
   };
 }
@@ -60,4 +84,13 @@ export function identityAPI(jwtSecret : string, identityService : IdentityServic
 type AuthenticateRequestBody = {
   username : string,
   password : string
+};
+
+type RegisterRequestBody = {
+  username : string,
+  password : string,
+  firstName : string,
+  lastName : string,
+  phoneNumber : string,
+  role : string
 };

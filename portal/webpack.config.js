@@ -2,6 +2,7 @@ const path = require('path');
 const webpack = require('webpack');
 const HtmlWebpackPlugin = require('html-webpack-plugin');
 const ExtractTextPlugin = require('extract-text-webpack-plugin');
+const CopyWebpackPlugin = require('copy-webpack-plugin');
 require('sass-resources-loader');
 
 const extractSass = new ExtractTextPlugin({
@@ -51,7 +52,7 @@ module.exports = {
         'url-loader?limit=10000'
       ]
     }, {
-      test: /\.(ttf|eot)$/,
+      test: /\.(ttf|eot|jpe?g)$/,
       use: [
         'file-loader'
       ]
@@ -65,10 +66,13 @@ module.exports = {
       React: 'react'
     }),
     new HtmlWebpackPlugin({
-      title: 'Portal',
+      title: 'DemoBank',
       template: './src/index.ejs'
     }),
-    extractSass
+    extractSass,
+    new CopyWebpackPlugin([{
+      from: './src/assets'
+    }])
   ],
   output: {
     path: path.resolve(__dirname, './dist'),
