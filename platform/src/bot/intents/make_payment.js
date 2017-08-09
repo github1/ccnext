@@ -117,6 +117,6 @@ let makePayment = {
     "Can I send some money to {payee}",
     "Can I make a payment please"
   ]
-}
+};
 
 module.exports = makePayment;

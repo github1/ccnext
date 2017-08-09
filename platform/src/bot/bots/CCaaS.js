@@ -6,7 +6,7 @@ let CCaaS = {
   abortStatement: {
     messages: [ /* required */
       {
-        content: "I\'m sorry, I can't deal with your request this time, let me pass you over to a human agent", /* required */
+        content: "I'm sorry, I can't deal with your request this time, let me pass you over to a human agent", /* required */
         contentType: "PlainText" /* required */
       },
       /* more items */

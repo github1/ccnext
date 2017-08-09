@@ -29,7 +29,7 @@ export default (port, opts) => {
         console.log(`Listening on port ${port}`);
       });
   });
-}
+};
 
 
 

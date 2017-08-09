@@ -14,10 +14,7 @@ describe('LexChatBot', () => {
 
 
   it('asks what type of flowers', () => {
-    return bot.send({
-        dialogCorrelationId: dialogCorrelationId,
-        message: 'I would like to order some flowers'
-      })
+    return bot.send({ dialogCorrelationId: dialogCorrelationId, message: 'I would like to order some flowers' })
       .then((result) => {
         expect(result.message).toBe('What type of flowers would you like to order?');
       });

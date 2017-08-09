@@ -3,6 +3,7 @@
     "tslint-microsoft-contrib"
   ],
   "rules": {
+    "linebreak-style": [true, "LF"],
     "no-stateless-class": false,
     "possible-timing-attack": false,
     "no-increment-decrement": false,
