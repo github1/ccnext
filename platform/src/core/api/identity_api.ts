@@ -23,7 +23,7 @@ export function identityAPI(jwtSecret : string, eventBus : EventBus, identitySer
           const bypass : boolean = [
             '/api/authenticate',
             '/api/register',
-            '/api/contactInformation'
+            '/api/chat'
           ]
             .map((path : string) : boolean => req.path.indexOf(path) === 0)
             .filter((result : boolean) : boolean => result)[0];

@@ -1,4 +1,6 @@
 export const INIT = "init";
+export const REALTIME_CONNECTION_ESTABLISHED = ":realtime_connection_established";
+export const RECEIVE_ENTITY_EVENT = ":receive_entity_event";
 export const TIME_TICK = "time_tick";
 export const SIGN_IN = "sign_in";
 export const SIGN_OUT = "sign_out";
@@ -10,7 +12,6 @@ export const AUTHENTICATION_FAILED = "authentication_failed";
 export const AUTHENTICATION_SUCCESS = "authentication_success";
 export const NAVIGATE = "navigate";
 export const NAVIGATION_REQUESTED = "navigation_requested";
-export const INIT_CHAT = "init_chat";
 export const START_CHAT = "start_chat";
 export const CHAT_STARTED = "chat_started";
 export const END_CHAT = "end_chat";

@@ -24,6 +24,14 @@ export class InMemoryAuthenticator implements Authenticator {
       .catch((err : Error) => {
         console.error(err);
       });
+
+    entityRepository.load(Identity, 'demoagent')
+      .then((identity : Identity) => {
+        identity.register('password1', 'Kermit', 'Frog', '+15555555555', 'agent');
+      })
+      .catch((err : Error) => {
+        console.error(err);
+      });
   }
 
   public authenticateUsernamePassword(username : string, password : string) : Promise<AuthenticationResult> {

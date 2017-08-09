@@ -8,6 +8,7 @@ import { LexChatBot } from './impl/integration/lex_chatbot';
 import * as fulfillment_processor from './impl/fulfillment_processor';
 import { IdentityService } from './core/identity_service';
 import { InMemoryAuthenticator } from './impl/in_mem_authenticator';
+import { eventAPI } from './core/api/event_api';
 import { identityAPI } from './core/api/identity_api';
 import { chatAPI } from './core/api/chat_api';
 
@@ -50,8 +51,9 @@ fulfillment_processor(eventBus, chatService);
 /* tslint:disable */
 
 const integrations : any = {
+  event_api: eventAPI(eventBus),
   identity_api: identityAPI(JWT_SECRET, eventBus, identityService),
-  chat_api: chatAPI(chatService, eventBus)
+  chat_api: chatAPI(chatService)
 };
 
 if (publicUrl && publicUrl.indexOf('localhost') === -1) {

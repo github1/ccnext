@@ -1,5 +1,5 @@
 import { Component } from 'react';
-import { INIT_CHAT, START_CHAT, END_CHAT, POST_OUTGOING_CHAT_MESSAGE } from '../constants';
+import { START_CHAT, END_CHAT, POST_OUTGOING_CHAT_MESSAGE } from '../constants';
 import ChatWindow from './chat_window';
 import uuid from 'uuid';
 
@@ -7,58 +7,53 @@ export default class extends Component {
   constructor(props) {
     super(props);
     this.state = {
-      id: uuid.v4()
+      componentInstanceId: uuid.v4()
     }
   }
 
-  componentDidMount() {
-    dispatch({
-      type: INIT_CHAT,
-      id: this.state.id
-    });
+  getChatId() {
+    const results = Object.keys(this.props.model.chatSessions)
+      .map(key => this.props.model.chatSessions[key])
+      .filter(chatSession => {
+        return chatSession.componentInstanceIds.indexOf(this.state.componentInstanceId) > -1
+      });
+    return results.length > 0 ? results[0].id : '';
   }
 
   startChat() {
     dispatch({
       type: START_CHAT,
-      id: this.state.id
+      componentInstanceId: this.state.componentInstanceId
     });
   }
 
   onChatInputBlur() {
-    if(this.props.model.device.isMobile) {
+    if (this.props.model.device.isMobile) {
       this.endChat();
-      window.scrollTo(0,0);
+      window.scrollTo(0, 0);
     }
   }
 
   endChat() {
-    const currentId = this.state.id;
-    this.setState({
-      id: uuid.v4()
-    }, () => {
-      dispatch({
-        type: END_CHAT,
-        id: currentId
-      });
+    dispatch({
+      type: END_CHAT,
+      id: this.getChatId()
     });
   }
 
   postMessage(message) {
     dispatch({
       type: POST_OUTGOING_CHAT_MESSAGE,
-      id: this.state.id,
+      id: this.getChatId(),
       text: message
     });
   }
 
   render() {
     const chatSessions = this.props.model.chatSessions || {};
-    const chatSession = chatSessions[this.state.id];
-    return <div>
+    const chatSession = chatSessions[this.getChatId()];
+    return <div className="customer-chat">
       <ChatWindow session={chatSession}
-                  smsNumber="1-484-346-0557"
-                  useSms={this.props.model.device.isMobile}
                   onChatInputBlur={() => this.onChatInputBlur()}
                   onStartChatPressed={() => this.startChat()}
                   onCancelChatPressed={() => this.endChat()}
