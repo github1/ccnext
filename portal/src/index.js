@@ -5,8 +5,10 @@ import page from 'page';
 import Container from './component/container';
 import './style/theme.scss';
 import BrowserWebSocket from 'browser-websocket';
+import uuid from 'uuid';
 import {
   isMobile,
+  resetScrollVirtualKeyboard,
   resetScroll,
   preventZoom,
   fallbackStorage
@@ -14,6 +16,8 @@ import {
 
 import {
   INIT,
+  REALTIME_CONNECTION_ESTABLISHED,
+  RECEIVE_ENTITY_EVENT,
   TIME_TICK,
   NAVIGATE,
   NAVIGATION_REQUESTED,
@@ -25,7 +29,6 @@ import {
   AUTHENTICATION_STARTED,
   AUTHENTICATION_FAILED,
   AUTHENTICATION_SUCCESS,
-  INIT_CHAT,
   START_CHAT,
   CHAT_STARTED,
   END_CHAT,
@@ -58,7 +61,8 @@ const model = () => {
   }
 };
 
-const CHANNEL_INSTANCES = {};
+const CONNECTION_ID = uuid.v4();
+const CONNECTION_INSTANCES = {};
 
 const identity = () => {
   try {
@@ -77,8 +81,35 @@ const sideEffect = (command, model) => {
     case NAVIGATE:
     case INIT:
       const id = identity();
-      if(!command.redirect && !command.view) {
+
+      if (!CONNECTION_INSTANCES[CONNECTION_ID]) {
+        let wsProtocol = window.location.protocol === 'https:' ? 'wss' : 'ws';
+        let wsHost = window.location.host;
+        wsHost = `${window.location.hostname}:9999`;
+        let wsUrl = `${wsProtocol}://${wsHost}/ws/realtime?id=${CONNECTION_ID}`;
+        CONNECTION_INSTANCES[CONNECTION_ID] = new BrowserWebSocket(wsUrl);
+        const ws = CONNECTION_INSTANCES[CONNECTION_ID];
+        ws.on('open', () => {
+          dispatch({
+            type: REALTIME_CONNECTION_ESTABLISHED
+          })
+        });
+        ws.on('message', msg => {
+          const message = JSON.parse(msg.data);
+          dispatch({
+            type: RECEIVE_ENTITY_EVENT,
+            stream: message.stream,
+            name: message.name,
+            event: message.payload
+          })
+        });
+      }
+
+      if (!command.redirect && !command.view) {
         command.redirect = '/account';
+      }
+      if (id && id.role === 'agent') {
+        command.redirect = '/agent';
       }
       const redirectOnly = command.redirect && !command.view;
       const perform = () => {
@@ -108,6 +139,20 @@ const sideEffect = (command, model) => {
             type: NAVIGATE,
             redirect: '/home'
           });
+        }
+      }
+      break;
+    case RECEIVE_ENTITY_EVENT:
+      if (command.name === 'ChatMessagePostedEvent') {
+        if (command.event.source !== identity().username && command.event.source !== 'visitor') {
+          setTimeout(() => {
+            dispatch({
+              type: INCOMING_CHAT_MESSAGE_POSTED,
+              id: command.stream,
+              from: command.event.source,
+              text: command.event.text
+            });
+          }, 500);
         }
       }
       break;
@@ -146,7 +191,7 @@ const sideEffect = (command, model) => {
               type: AUTHENTICATION_SUCCESS,
               user: identity
             }).then(() => {
-              page.redirect('/account');
+              page.redirect(identity.role === 'agent' ? '/agent' : '/account');
             });
           },
           error: () => {
@@ -168,93 +213,65 @@ const sideEffect = (command, model) => {
         });
       });
       break;
-    case INIT_CHAT:
-      if (!CHANNEL_INSTANCES[command.id]) {
-        let wsProtocol = window.location.protocol === 'https:' ? 'wss' : 'ws';
-        let wsHost = window.location.host;
-        wsHost = `${window.location.hostname}:9999`;
-        //wsHost = '73463add.ngrok.io';
-        let wsUrl = `${wsProtocol}://${wsHost}/ws/register?=${command.id}`;
-        CHANNEL_INSTANCES[command.id] = new BrowserWebSocket(wsUrl);
-
-        const ws = CHANNEL_INSTANCES[command.id];
-
-        ws.on('open', () => {
-          let source = identity();
-          source = source ? source.username : 'visitor';
-          ws.emit(JSON.stringify({
-            register: true,
-            chatId: command.id,
-            source: source
-          }));
-        });
-
-        ws.on('message', msg => {
-          const chatMessage = JSON.parse(msg.data);
-          if (chatMessage.from !== identity().username && chatMessage.from !== 'visitor') {
-            setTimeout(() => {
-              dispatch({
-                type: INCOMING_CHAT_MESSAGE_POSTED,
-                id: command.id,
-                from: chatMessage.from,
-                text: chatMessage.text
-              });
-            }, 500);
-          }
-        });
-      }
-      break;
     case START_CHAT:
-      if (CHANNEL_INSTANCES[command.id]) {
-        dispatch({
-          type: CHAT_STARTED,
-          id: command.id
-        });
-      } else {
-        dispatch({
-          type: INIT_CHAT,
-          id: command.id
-        }).then(() => {
-          dispatch({
-            type: START_CHAT,
-            id: command.id
-          });
-        });
-      }
-      break;
-    case END_CHAT:
     {
-      Object.keys(CHANNEL_INSTANCES).forEach((key) => {
-        if (key === command.id || typeof command.id === 'undefined') {
-          const ws = CHANNEL_INSTANCES[key];
-          if (ws) {
-            delete CHANNEL_INSTANCES[key];
-            ws.emit(JSON.stringify({chatId: key, end: true}));
-            ws.close();
-            dispatch({
-              type: CHAT_ENDED,
-              id: key
-            });
-          }
+      const chatId = uuid.v4();
+      let source = identity();
+      source = source ? source.username : 'visitor';
+      reqwest({
+        url: `/api/events/${chatId}/${CONNECTION_ID}`,
+        method: 'post',
+        success: () => {
+          reqwest({
+            url: `/api/chat/${chatId}`,
+            method: 'post',
+            success: () => {
+              dispatch({
+                type: CHAT_STARTED,
+                id: chatId,
+                componentInstanceId: command.componentInstanceId
+              });
+            }
+          });
         }
       });
       break;
     }
+    case END_CHAT:
+      Object.keys(model.chatSessions).forEach((chatId) => {
+        if (chatId === command.id || typeof command.id === 'undefined') {
+          reqwest({
+            url: `/api/chat/${chatId}`,
+            method: 'delete',
+            success: () => {
+              dispatch({
+                type: CHAT_ENDED,
+                id: chatId
+              });
+            }
+          });
+        }
+      });
+      break;
     case POST_OUTGOING_CHAT_MESSAGE:
     {
       let source = identity();
       source = source ? source.username : 'visitor';
-      const ws = CHANNEL_INSTANCES[command.id];
-      ws.emit(JSON.stringify({
-        chatId: command.id,
-        source: source,
-        text: command.text
-      }));
-      dispatch({
-        type: OUTGOING_CHAT_MESSAGE_POSTED,
-        id: command.id,
-        from: source,
-        text: command.text
+      reqwest({
+        url: `/api/chat/${command.id}`,
+        method: 'post',
+        data: {
+          source: source,
+          text: command.text
+        },
+        success: () => {
+          dispatch({
+            type: OUTGOING_CHAT_MESSAGE_POSTED,
+            id: command.id,
+            from: source,
+            text: command.text
+          });
+        }
       });
       break;
     }
@@ -297,7 +314,10 @@ const update = (event, model) => {
       model.user = event.user;
       break;
     case CHAT_STARTED:
-      model.chatSessions[event.id] = {};
+      model.chatSessions[event.id] = {
+        id: event.id,
+        componentInstanceIds: [event.componentInstanceId]
+      };
       break;
     case CHAT_ENDED:
       delete model.chatSessions[event.id];
@@ -316,12 +336,14 @@ const update = (event, model) => {
     case INCOMING_CHAT_MESSAGE_POSTED:
     {
       const chatSession = model.chatSessions[event.id];
-      chatSession.messages = chatSession.messages || [];
-      chatSession.messages.push({
-        from: event.from,
-        source: 'me',
-        text: event.text
-      });
+      if (chatSession) {
+        chatSession.messages = chatSession.messages || [];
+        chatSession.messages.push({
+          from: event.from,
+          source: 'me',
+          text: event.text
+        });
+      }
       break;
     }
   }
@@ -333,6 +355,11 @@ let latestModel = {};
 window.dispatch = (event) => {
   return new Promise((resolve) => {
     sideEffect(event, latestModel);
+    if (event.type.indexOf(':') === 0) {
+      // non rendering event
+      resolve(latestModel);
+      return;
+    }
     if (!rendering) {
       rendering = true;
       while (pendingEvents.length > 0) {
@@ -347,18 +374,7 @@ window.dispatch = (event) => {
         resolve(latestModel);
 
         if (latestModel.device.isMobile) {
-          let focused = null;
-          $('*').on('focusin', function (e) {
-            focused = e.target;
-          });
-          $('.form-control').on('focusout', function (e) {
-            focused = null;
-            setTimeout(function () {
-              if (focused === null || !focused.classList.contains('form-control')) {
-                resetScroll();
-              }
-            }, 0);
-          });
+          resetScrollVirtualKeyboard();
         }
 
       });

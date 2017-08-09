@@ -107,18 +107,21 @@ class ChatWindow extends Component {
     let stateView = closedState;
     if (this.props.session != null) {
       stateView = conversationState(this.props.session);
-      stateView = <div className="panel panel-special chat-panel">
-        <div className="panel-heading">
-          <button type="button" className="close"
-                  onClick={this.props.onCancelChatPressed}>
-            <span>&times;</span>
-          </button>
-          <h3 className="panel-title"><span className="glyphicon glyphicon-comment"/>&nbsp;Chat</h3>
-        </div>
-        <div className="panel-body">
-          { stateView }
-        </div>
-      </div>;
+      if(!this.props.hidePanel) {
+        stateView = <div className="panel panel-special chat-panel">
+          <div className="panel-heading">
+            <button type="button" className="close"
+                    onClick={this.props.onCancelChatPressed}>
+              <span>&times;</span>
+            </button>
+            <h3 className="panel-title"><span
+              className="glyphicon glyphicon-comment"/>&nbsp;Chat</h3>
+          </div>
+          <div className="panel-body">
+            { stateView }
+          </div>
+        </div>;
+      }
     }
     return <div className="chat">
       { stateView }
@@ -130,6 +133,7 @@ ChatWindow.propTypes = {
   smsNumber: PropTypes.string,
   useSms: PropTypes.bool,
   session: PropTypes.object,
+  hidePanel: PropTypes.bool,
   onChatInputBlur: PropTypes.func,
   onCancelChatPressed: PropTypes.func.isRequired,
   onStartChatPressed: PropTypes.func.isRequired,

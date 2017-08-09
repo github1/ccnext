@@ -22,6 +22,21 @@ export const resetScroll = () => {
   $("html, body").stop().animate({scrollTop: 0}, 100, 'swing');
 };
 
+export const resetScrollVirtualKeyboard = () => {
+  let focused = null;
+  $('*').on('focusin', function (e) {
+    focused = e.target;
+  });
+  $('.form-control').on('focusout', function (e) {
+    focused = null;
+    setTimeout(function () {
+      if (focused === null || !focused.classList.contains('form-control')) {
+        resetScroll();
+      }
+    }, 0);
+  });
+};
+
 let localStorageAvailable = null;
 const isLocalStorageAvailable = () => {
   if(localStorageAvailable === null) {

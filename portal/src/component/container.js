@@ -33,16 +33,21 @@ export default class extends Component {
       }) }
     </div>;
 
-    const accountLinks = [
-      {text: 'Accounts', icon: 'credit-card'},
-      {text: 'Payments', icon: 'usd'},
-      {text: 'Messages & Alerts', icon: 'alert'},
-      {text: 'Benefits', icon: 'star'},
-      {text: 'Profile', icon: 'user'},
-      {text: 'Services', icon: 'cog'},
-      'divider',
-      {text: 'Sign Out', icon: 'log-out'}
-    ];
+    const menuLinks = {
+      agent: [
+        {text: 'Sign Out', icon: 'log-out'}
+      ],
+      customer: [
+        {text: 'Accounts', icon: 'credit-card'},
+        {text: 'Payments', icon: 'usd'},
+        {text: 'Messages & Alerts', icon: 'alert'},
+        {text: 'Benefits', icon: 'star'},
+        {text: 'Profile', icon: 'user'},
+        {text: 'Services', icon: 'cog'},
+        'divider',
+        {text: 'Sign Out', icon: 'log-out'}
+      ]
+    };
 
     const actions = this.props.model.user ?
       <div
@@ -62,7 +67,7 @@ export default class extends Component {
                                     }
                                 } }>
           {
-            accountLinks.map((link, index) => {
+            menuLinks[this.props.model.user.role].map((link, index) => {
               if (link === 'divider') {
                 return <MenuItem key={index} divider/>;
               }
@@ -83,7 +88,10 @@ export default class extends Component {
         </div>
         { actions }
         { content }
-        <ChatAdapter model={this.props.model}/>
+        {
+          this.props.model.user.role === 'customer' ?
+            <ChatAdapter model={this.props.model}/> : null
+        }
       </div>;
     } else if (viewName === 'enroll') {
       return <div key="root-container">

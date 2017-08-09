@@ -4,6 +4,7 @@ import home from './home.js';
 import enroll from './enroll.js';
 import login from './login.js';
 import account from './account.js';
+import agent from './agent.js';
 
 export default  {
   dev,
@@ -11,5 +12,6 @@ export default  {
   home,
   enroll,
   login,
-  account
+  account,
+  agent
 };
