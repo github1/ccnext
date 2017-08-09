@@ -4,24 +4,10 @@ import {accountHolder} from "./slots/AccountHolder.js";
 import {character} from "./slots/Character.js";
 import {cardType} from "./slots/CardType.js"; 
 
-//"transform_to_const()" assign to every slotType the adequate variable required
-function transform_to_const (slot_type ){
-  
-    switch (slot_type) {
-        case 'Topic':
-            return topic ;
-          break;
-        case 'AccountHolder':
-            return accountHolder ;
-          break;
-        case 'Character':
-            return character
-          break;
-        case 'CardType':
-            return cardType ;
-          break;
-    }
-}
+let slot_type_map = new Map ([ ['Topic', topic], ['AccountHolder', accountHolder], ['Character', character], ['CardType', cardType] ]);
+
+//"transform_to_const()" assigns to every slotType the adequate variable required
+
 /*The function "is_valid_slot()"" checks whether a slot is valid or not, whatever its type.
  It returns a boolean. */
 function is_valid_slot( slot, slot_type ) {
@@ -56,7 +42,7 @@ function is_valid_slot( slot, slot_type ) {
 
       default :
             let set = new Set ;
-            transform_to_const(slot_type).enumerationValues.forEach( (val) => {
+            slot_type_map.get(slot_type).enumerationValues.forEach( (val) => {
                 set.add ( val.value.toLowerCase() )
               }
             );
@@ -66,6 +52,7 @@ function is_valid_slot( slot, slot_type ) {
 }
 
 
+}
 /*Format of the response built after a validation check of an intent's slots.
  "buildValidationResult()" enables to identify which slot is violated,
  and what message it should return to the end user.*/
