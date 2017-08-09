@@ -17,10 +17,11 @@ export default class extends Component {
     }];
 
     return <div>
-      <div className="visible-xs-inline">
+      <div className="visible-xs-inline pull-left">
         <Card small={true}/>
       </div>
-      <h3>Platinum Rewards</h3>
+      <h4 className="card-product">
+        Platinum Rewards</h4>
       <div className="card-detail">
         {
           sections.map((section, index) => {

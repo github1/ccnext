@@ -48,7 +48,7 @@ export default class extends Component {
       <div
         className="user-menu">
         <DropdownButton
-          title={  <span className="glyphicon glyphicon-menu-hamburger"></span> }
+          title={  <span className="glyphicon glyphicon-menu-hamburger"/> }
           id="user-menu"
           pullRight={true}
           bsSize="small"
@@ -69,7 +69,7 @@ export default class extends Component {
               return <MenuItem key={index}
                                eventKey={ link.text.toLowerCase().replace(/[^a-z]+/i,'_') }>
                 <span
-                  className={`glyphicon glyphicon-${link.icon}`}></span>&nbsp;&nbsp;{ link.text }
+                  className={`glyphicon glyphicon-${link.icon}`}/>&nbsp;&nbsp;{ link.text }
               </MenuItem>
             })
           }
@@ -116,6 +116,7 @@ export default class extends Component {
                 { text: 'Contact'}
               ] }/>
         </div>
+        <hr/>
         { content }
         <ChatAdapter model={this.props.model}/>
       </div>;
