@@ -1,5 +1,5 @@
 let cardType = {
-  name : "cardTypex",
+  name : "cardType",
   description : "Slot to hold customer's card type",
   enumerationValues : [
     { value: "Debit"},

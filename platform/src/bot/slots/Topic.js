@@ -1,5 +1,5 @@
 let topic = {
-  name: "topicx",
+  name: "topic",
   description: "Topic of a question being asked by a customer",
   enumerationValues: [
     {

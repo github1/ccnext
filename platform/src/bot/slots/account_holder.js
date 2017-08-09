@@ -1,5 +1,5 @@
 let accountHolder = {
-  name: "accountHolderx",
+  name: "accountHolder",
   description: "The name of the person/company the customer would like to pay",
   enumerationValues: [
     {

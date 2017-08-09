@@ -1,0 +1,95 @@
+<!doctype html>
+<html>
+	<head>
+		<meta charset="utf-8">
+		<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+
+		<title>reveal.js</title>
+
+		<link rel="stylesheet" href="../node_modules/reveal.js/css/reveal.css"/>
+		<link rel="stylesheet" href="../node_modules/reveal.js/css/theme/white.css">
+		<!-- Edits to the base theme -->
+		<link rel="stylesheet" href="./CCaaS-edits.css"/>
+
+		<!-- Theme used for syntax highlighting of code -->
+		<link rel="stylesheet" href="../node_modules/reveal.js/lib/css/zenburn.css">
+
+		<!-- Printing and PDF exports -->
+		<script>
+			var link = document.createElement( 'link' );
+			link.rel = 'stylesheet';
+			link.type = 'text/css';
+			link.href = window.location.search.match( /print-pdf/gi ) ? '../node_modules/reveal.js/css/print/pdf.css' : '../node_modules/reveal.js/css/print/paper.css';
+			document.getElementsByTagName( 'head' )[0].appendChild( link );
+		</script>
+	</head>
+	<body>
+		<div class="reveal">
+			<div class="slides">
+				<section>
+					<h3>CCaaS PoC</h3>
+					Contact Centre as a Service is the next evolution of our contact centre capabilities
+				</section>
+				<section>
+					CCaaS utilises cutting edge technologies to interact with our customers quicker than ever, via channels offering them the greatest convenience
+				</section>
+				<section>
+					It has been designed to prevent vendor entanglement by using runtime adapter interfaces between third party services, aligning with group architecture principles
+				</section>
+				<section>
+					This proof of concept ties together various technologies to create a consistent customer experience in a variety of channels.
+				</section>
+				<section>
+					<section>
+						<ul>
+							<li>
+								At the centre of CCaaS is a chatbot technology that customers interact with in order to perform various tasks, from asking basic questions such as "How can I pay my bill?", to actioning account services such as making a payment.
+							</li>
+							<li>
+								Natural language processing (NLP) allows the customer to interact with the bot in the same way they would a human agent.
+							</li>
+						</ul>
+					</section>
+					<section>
+						<ul>
+							<li>
+								This bot can be accessed from multiple different channels including; a chat interface on our website, SMS, Facebook Messenger and a voice call.
+							</li>
+							<li>
+								Using a single bot for all channels ensures a channel agnostic customer experience.
+							</li>
+						</ul>
+					</section>
+					<section>
+						<ul>
+							<li>
+								The bot can communicate with our internal services to fulfill customer intents without the need for human intervention, making the experience fast and reducing demand on contact centre agents.
+							</li>
+							<li>
+								If the bot is unable to understand the customers intent, or if the customer would like to do something requiring an agent the bot can seamlessly hand off to an agent or schedule a callback,
+								passing the gathered information to the agent to speed up the call and improve customer experience
+							</li>
+						</ul>
+					</section>
+				</section>
+			</div>
+		</div>
+
+		<script src="../node_modules/reveal.js/lib/js/head.min.js"></script>
+		<script src="../node_modules/reveal.js/js/reveal.js"></script>
+
+		<script>
+			// More info about config & dependencies:
+			// - https://github.com/hakimel/reveal.js#configuration
+			// - https://github.com/hakimel/reveal.js#dependencies
+			Reveal.initialize({
+				dependencies: [
+					{ src: '../node_modules/reveal.js/plugin/markdown/marked.js' },
+					{ src: '../node_modules/reveal.js/plugin/markdown/markdown.js' },
+					{ src: '../node_modules/reveal.js/plugin/notes/notes.js', async: true },
+					{ src: '../node_modules/reveal.js/plugin/highlight/highlight.js', async: true, callback: function() { hljs.initHighlightingOnLoad(); } }
+				]
+			});
+		</script>
+	</body>
+</html>
