@@ -3,9 +3,14 @@ const accountHolder = require("./slots/AccountHolder.js");
 const character = require("./slots/Character.js");
 const cardType = require("./slots/CardType.js");
 
+import {topic} from "./slots/Topic.js"); 
+import {accountHolder} from "./slots/AccountHolder.js";
+import {character} from "./slots/Character.js";
+import {cardType} from "./slots/CardType.js"; 
 
 //"transform_to_const()" assign to every slotType the adequate variable required
 function transform_to_const (slot_type ){
+  
     switch (slot_type) {
         case 'Topic':
             return topic ;
@@ -19,8 +24,6 @@ function transform_to_const (slot_type ){
         case 'CardType':
             return cardType ;
           break;
-
-
     }
 }
 /*The function "is_valid_slot()"" checks whether a slot is valid or not, whatever its type.
