@@ -51,8 +51,6 @@ function is_valid_slot( slot, slot_type ) {
 
 }
 
-
-}
 /*Format of the response built after a validation check of an intent's slots.
  "buildValidationResult()" enables to identify which slot is violated,
  and what message it should return to the end user.*/
