@@ -18,8 +18,8 @@ const CCaaS = require("./bots/CCaaS.js");
 
 AWS.config.update({
   region:'us-east-1',
-  accessKeyId: "AKIAIA6PWONQ7HCTPQYQ",
-  secretAccessKey: "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"
+  accessKeyId: "",
+  secretAccessKey: ""
 });
 
 
