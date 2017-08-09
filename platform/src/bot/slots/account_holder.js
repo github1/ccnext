@@ -15,6 +15,6 @@ let accountHolder = {
       value: "R. Wilkins & Sons"
     }
   ]
-}
+};
 
 module.exports = accountHolder;

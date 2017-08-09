@@ -7,7 +7,7 @@ let lostCard = {
   slots: [
     {
       name: "cardOwner",
-      description: "Slot to hold customer\'s full name",
+      description: "Slot to hold customer's full name",
       slotConstraint: "Required",
       slotType: "accountHolder" ,
       slotTypeVersion: "1",

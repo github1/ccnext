@@ -18,7 +18,7 @@ describe('Chat', () => {
         send() {
           return Promise.resolve({});
         }
-      }
+      };
     }
   };
 
@@ -87,9 +87,9 @@ describe('Chat', () => {
                     Blarp: 'Blap'
                   }
                 }
-              })
+              });
             }
-          }
+          };
         }
       }).then(() => {
         expect(chat.dispatch)

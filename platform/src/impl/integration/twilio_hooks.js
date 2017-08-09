@@ -15,14 +15,7 @@ const twilio = require('twilio');
  * @param {EventBus} eventBus
  * @returns {object} server configurator
  */
-export default (baseUrl,
-                contextPath,
-                phoneNumberSid,
-                accountSid,
-                authToken,
-                chatService,
-                eventBus) => {
-
+export default (baseUrl, contextPath, phoneNumberSid, accountSid, authToken, chatService, eventBus) => {
 
   const twilioClient = twilio(accountSid, authToken);
 
@@ -67,9 +60,7 @@ export default (baseUrl,
       server.use(function (req, res, next) {
         if (req.path.indexOf(contextPath) === 0) {
           // validate the x-twilio-signature header
-          if (twilio.validateExpressRequest(req, authToken, {
-              protocol: req.headers['x-forwarded-proto']
-            })) {
+          if (twilio.validateExpressRequest(req, authToken, {protocol: req.headers['x-forwarded-proto']})) {
             next();
           } else {
             res
@@ -87,6 +78,7 @@ export default (baseUrl,
           .type('text/xml');
         switch (req.params.channel) {
           case 'sms':
+          {
             const source = `sms-incoming::${req.body.From}`;
             const text = req.body.Body;
             let chatId = req.cookies['x-conversation-id'];
@@ -97,6 +89,7 @@ export default (baseUrl,
               .postMessage(chatId, source, text);
             res.send('<Response></Response>');
             break;
+          }
           case 'voice':
             res.send(new twilio.twiml.VoiceResponse()
               .say({}, 'Not configured')

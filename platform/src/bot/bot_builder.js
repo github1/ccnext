@@ -45,4 +45,4 @@ putSlot(lexmodelbuildingservice, topic).then(() => {
   return putIntent(lexmodelbuildingservice, LostCard);
 }).then(() => {
   return putBot(lexmodelbuildingservice, CCaaS);
-})
+});
