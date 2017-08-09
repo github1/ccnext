@@ -1,5 +1,5 @@
 
-import {topic} from "./slots/Topic.js"); 
+import {topic} from "./slots/Topic.js"; 
 import {accountHolder} from "./slots/AccountHolder.js";
 import {character} from "./slots/Character.js";
 import {cardType} from "./slots/CardType.js"; 
@@ -75,7 +75,7 @@ function buildValidationResult(isValid, violatedSlot, messageContent) {
         violatedSlot,
         message: { contentType: 'PlainText', content: messageContent },
     }
-
+}
 /*Slots validation for the AskQuestion intent */
 function validate_ask_question ( slots ){
   const question_topic = slots.QuestionTopic ;
