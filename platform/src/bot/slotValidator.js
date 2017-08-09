@@ -1,7 +1,3 @@
-const topic = require("./slots/Topic.js");
-const accountHolder = require("./slots/AccountHolder.js");
-const character = require("./slots/Character.js");
-const cardType = require("./slots/CardType.js");
 
 import {topic} from "./slots/Topic.js"); 
 import {accountHolder} from "./slots/AccountHolder.js";
