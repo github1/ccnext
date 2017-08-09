@@ -76,14 +76,24 @@ const sideEffect = (command, model) => {
   switch (command.type) {
     case NAVIGATE:
     case INIT:
-      const perform = () => {
-        dispatch({
-          type: NAVIGATION_REQUESTED,
-          view: command.view || 'account'
-        });
-      };
       const id = identity();
-      if (command.insecure) {
+      if(!command.redirect && !command.view) {
+        command.redirect = '/account';
+      }
+      const redirectOnly = command.redirect && !command.view;
+      const perform = () => {
+        if (redirectOnly) {
+          if (window.location.pathname.indexOf(command.redirect) === -1) {
+            page.redirect(command.redirect);
+          }
+        } else {
+          dispatch({
+            type: NAVIGATION_REQUESTED,
+            view: command.view
+          });
+        }
+      };
+      if (redirectOnly || command.insecure) {
         perform();
       } else {
         if (id) {
@@ -94,12 +104,10 @@ const sideEffect = (command, model) => {
             perform();
           });
         } else {
-          const redirect = command.redirect || '/home';
-          if (window.location.pathname.indexOf(redirect) === -1) {
-            page.redirect(redirect);
-          } else {
-            perform();
-          }
+          dispatch({
+            type: NAVIGATE,
+            redirect: '/home'
+          });
         }
       }
       break;
@@ -372,7 +380,6 @@ window.onload = function () {
     }, true);
 
   preventZoom();
-  resetScroll();
 
   page('/', () => {
     window.dispatch({
@@ -384,7 +391,7 @@ window.onload = function () {
     window.dispatch({
       type: NAVIGATE,
       view: ctx.params.view,
-      insecure: ['enroll', 'dev'].indexOf(ctx.params.view) > -1
+      insecure: ['home', 'enroll', 'dev'].indexOf(ctx.params.view) > -1
     });
   });
 
