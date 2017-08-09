@@ -22,8 +22,7 @@ export default class extends Component {
   cancel() {
     dispatch({
       type: NAVIGATE,
-      view: 'login',
-      redirect: '/login'
+      redirect: '/home'
     });
   }
 
@@ -75,10 +74,6 @@ export default class extends Component {
 
   formGroupStyle(id) {
     return ['form-group', this.state.errors[id] ? 'has-error' : ''].join(' ');
-  }
-
-  formGroupHelp(id) {
-    return this.state.errors[id] ? this.state.errors[id] : '';
   }
 
   render() {

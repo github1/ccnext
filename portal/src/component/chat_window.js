@@ -52,7 +52,7 @@ class ChatWindow extends Component {
     const closedState = <div>
       <button type="button" className="btn btn-info chat-now-btn"
               onClick={ this.props.onStartChatPressed }>
-        <span className="glyphicon glyphicon-comment" aria-hidden="true"></span>
+        <span className="glyphicon glyphicon-comment" aria-hidden="true"/>
         &nbsp;Chat now
       </button>
     </div>;

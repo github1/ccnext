@@ -6,14 +6,15 @@ $brand-info-dark: darken($brand-info, 50%);
 html, body {
   overflow-x: hidden;
   margin: 0;
+  padding: 0;
   height: 100%;
+  width: 100%;
 }
 
 .layout {
   position: relative;
-  overflow: visible;
   .bg {
-    overflow: visible;
+    overflow: hidden;
     z-index: -1;
     position: absolute;
     top: 0;
@@ -389,10 +390,6 @@ select:focus {
 
 // account view
 
-.account-welcome {
-  color: #555;
-}
-
 .account-body {
   display: flex;
   flex-direction: row;
@@ -412,6 +409,10 @@ select:focus {
   flex-direction: column;
   display: flex;
   flex: 1;
+}
+
+.card-product {
+  color: $brand-primary;
 }
 
 .card-detail {
@@ -454,10 +455,10 @@ $bubble-shadow: #aaa;
   z-index: 2;
   position: fixed;
   bottom: 0;
-  right: 0;
+  left: 0;
   opacity: 0.8;
   border-radius: 0;
-  float: right;
+  //float: right;
 }
 
 .chat-panel {
@@ -491,6 +492,8 @@ $bubble-shadow: #aaa;
 
 .conversation-box {
   overflow-y: scroll;
+  overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
   height: 200px;
   margin-bottom: 5px;
   border-radius: 0;
