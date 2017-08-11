@@ -16,10 +16,14 @@ const LostCard = require("./intents/lost_card.js");
 
 const CCaaS = require("./bots/CCaaS.js");
 
+const AWS_ACCESS_KEY_ID = process.env.AWS_ACCESS_KEY_ID;
+const AWS_SECRET_ACCESS_KEY = process.env.AWS_SECRET_ACCESS_KEY;
+const AWS_DEFAULT_REGION = process.env.AWS_DEFAULT_REGION;
+
 AWS.config.update({
-  region:'us-east-1',
-  accessKeyId: "",
-  secretAccessKey: ""
+  region: AWS_DEFAULT_REGION,
+  accessKeyId: AWS_ACCESS_KEY_ID,
+  secretAccessKey: AWS_SECRET_ACCESS_KEY
 });
 
 
