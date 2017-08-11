@@ -6,7 +6,8 @@
     "clean": "rimraf dist",
     "lint": "eslint src/**/*.js",
     "build": "npm run lint && webpack",
-    "start": "nodemon --watch server.js server.js"
+    "start": "nodemon --watch server.js server.js",
+    "test:e2e": "wdio ./wdio.conf.js"
   },
   "license": "MIT",
   "dependencies": {
@@ -23,6 +24,7 @@
     "babel-preset-stage-0": "^6.24.1",
     "bootstrap-sass": "^3.3.7",
     "browser-websocket": "^1.0.0",
+    "chai": "^4.1.1",
     "copy-webpack-plugin": "^4.0.1",
     "css-loader": "^0.28.4",
     "eslint": "^4.3.0",
@@ -48,6 +50,10 @@
     "style-loader": "^0.18.2",
     "url-loader": "^0.5.9",
     "uuid": "^3.1.0",
+    "wdio-mocha-framework": "^0.5.10",
+    "wdio-phantomjs-service": "^0.2.2",
+    "wdio-spec-reporter": "^0.1.0",
+    "webdriverio": "^4.8.0",
     "webpack": "^2.7.0",
     "webpack-dev-middleware": "^1.11.0",
     "webpack-hot-middleware": "^2.18.2"
