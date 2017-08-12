@@ -1,6 +1,5 @@
 import { Component } from 'react';
 import { findDOMNode } from 'react-dom';
-import { DropdownButton, MenuItem } from 'react-bootstrap';
 import InternationalPhoneCodes  from './../component/intl_phone_codes';
 import SelectBox from './../component/select_box';
 import { REGISTER_USER, NAVIGATE } from '../constants';
