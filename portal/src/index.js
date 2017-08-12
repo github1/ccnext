@@ -170,11 +170,12 @@ const sideEffect = (command, model) => {
             user: id
           }).then(() => {
             // subscribe to events addressed to this user
-            subscribeTo(command.username).then(() => {
+            return subscribeTo(command.username).then(() => {
               page.redirect(id.role === 'agent' ? '/agent' : '/account');
             });
           });
-        }).catch(() => {
+        }).catch((err) => {
+          console.log(err);
           dispatch({
             type: AUTHENTICATION_FAILED
           });

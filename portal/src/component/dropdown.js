@@ -2,12 +2,12 @@ import { Component } from 'react';
 import { DropdownButton, MenuItem } from 'react-bootstrap';
 
 const toEventKey = (link) => {
-  return link.text.toLowerCase().replace(/[^a-z]+/i, '_');
+  return (link.text||'').toLowerCase().replace(/[^a-z]+/i, '_');
 };
 
 export default class extends Component {
   render() {
-    const handlers = this.props.menuItems.reduce((res, cur) => {
+    const handlers = (this.props.menuItems||[]).reduce((res, cur) => {
       res[toEventKey(cur)] = cur.handler;
       return res;
     }, {});

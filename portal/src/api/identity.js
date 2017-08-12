@@ -13,6 +13,7 @@ export const identity = () => {
       return jwts.decode(token, null, true);
     }
   } finally {
+    // do nothing
   }
   return {username: 'visitor', role: 'visitor', invalid: true};
 };

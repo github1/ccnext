@@ -228,6 +228,7 @@ form {
 }
 
 .dropdown-menu {
+  padding: 0px;
   border-color: $brand-success;
   .glyphicon {
     color: $brand-success;
@@ -236,12 +237,16 @@ form {
   @media screen and (max-width: 480px) {
     width: 350px;
   }
+  li[role=divier] {
+    padding: 0px;
+  }
   li[role=presentation] {
     padding: 2px 0 2px 0 !important;
     color: $brand-primary;
     a {
-      color: #999 !important;
       padding: 10px;
+      color: #999 !important;
+      //padding: 10px;
       &:focus {
         border-color: transparent !important;
       }
