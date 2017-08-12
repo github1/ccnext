@@ -1,5 +1,5 @@
 import { Component, createElement } from 'react';
-import { DropdownButton, MenuItem } from 'react-bootstrap';
+import Dropdown  from './dropdown';
 import Logo from './logo';
 import NavMenu from './nav_menu';
 import ChatAdapter from './chat_adapter';
@@ -35,7 +35,11 @@ export default class extends Component {
 
     const menuLinks = {
       agent: [
-        {text: 'Sign Out', icon: 'log-out'}
+        {text: 'Sign Out', icon: 'log-out', handler: () => {
+          dispatch({
+            type: SIGN_OUT
+          });
+        }}
       ],
       customer: [
         {text: 'Accounts', icon: 'credit-card'},
@@ -45,40 +49,21 @@ export default class extends Component {
         {text: 'Profile', icon: 'user'},
         {text: 'Services', icon: 'cog'},
         'divider',
-        {text: 'Sign Out', icon: 'log-out'}
+        {text: 'Sign Out', icon: 'log-out', handler: () => {
+          dispatch({
+            type: SIGN_OUT
+          });
+        }}
       ]
     };
 
     const actions = this.props.model.user ?
       <div
         className="user-menu">
-        <DropdownButton
+        <Dropdown
           title={  <span className="glyphicon glyphicon-menu-hamburger"/> }
           id="user-menu"
-          pullRight={true}
-          bsSize="small"
-          onSelect={ eventKey => {
-                                    switch(eventKey) {
-                                        case "sign_out":
-                                            dispatch({
-                                                type: SIGN_OUT
-                                            });
-                                        break;
-                                    }
-                                } }>
-          {
-            menuLinks[this.props.model.user.role].map((link, index) => {
-              if (link === 'divider') {
-                return <MenuItem key={index} divider/>;
-              }
-              return <MenuItem key={index}
-                               eventKey={ link.text.toLowerCase().replace(/[^a-z]+/i,'_') }>
-                <span
-                  className={`glyphicon glyphicon-${link.icon}`}/>&nbsp;&nbsp;{ link.text }
-              </MenuItem>
-            })
-          }
-        </DropdownButton>
+          menuItems={menuLinks[this.props.model.user.role]}/>
       </div> : null;
 
     if (this.props.model.user) {

@@ -6,8 +6,8 @@ export type EventDispatcher = (streamId : string, event : EntityEvent) => void;
 export type EventHandler = (entity : Entity, event : EntityEvent) => void;
 
 export interface EventStore {
-  replay(id : string, handler : (event : EntityEvent) => void, done : () => void) : void;
-  replayAll(handler : (event : EntityEvent) => void, done : () => void) : void;
+  replay(id : string, handler : (event : EntityEvent, isReplaying? : boolean) => void, done? : () => void) : void;
+  replayAll(handler : (event : EntityEvent, isReplaying? : boolean) => void, done? : () => void) : void;
 }
 
 export interface EventBusSubscription {
@@ -17,7 +17,8 @@ export interface EventBusSubscription {
 export type EventRecord = { name: string, stream : string, payload: {} };
 
 export interface EventBus {
-  subscribe(listener : (event : EntityEvent) => void) : EventBusSubscription;
+  subscribe(listener : (event : EntityEvent, isReplaying? : boolean) => void,
+            options? : { [key:string]: string | boolean }) : EventBusSubscription;
   emit(event : EntityEvent) : void;
 }
 

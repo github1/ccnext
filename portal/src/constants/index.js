@@ -1,7 +1,6 @@
 export const INIT = "init";
 export const REALTIME_CONNECTION_ESTABLISHED = ":realtime_connection_established";
 export const RECEIVE_ENTITY_EVENT = ":receive_entity_event";
-export const TIME_TICK = "time_tick";
 export const SIGN_IN = "sign_in";
 export const SIGN_OUT = "sign_out";
 export const CLEAR_USER = "clear_user";
@@ -19,3 +18,7 @@ export const CHAT_ENDED = "chat_ended";
 export const POST_OUTGOING_CHAT_MESSAGE = "post_chat_message";
 export const OUTGOING_CHAT_MESSAGE_POSTED = "outgoing_chat_message_posted";
 export const INCOMING_CHAT_MESSAGE_POSTED = "incoming_chat_message_posted";
+export const LOAD_TASKS = "load_tasks";
+export const TASKS_LOADED = "tasks_loaded";
+export const TASK_RECEIVED = "task_received";
+export const MARK_TASK_COMPLETE = "mark_task_complete";

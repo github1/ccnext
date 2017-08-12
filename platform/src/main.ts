@@ -2,15 +2,18 @@ import * as awsSdk from 'aws-sdk';
 import server from './impl/runtime/server';
 import { entityRepository, eventBus } from './impl/runtime/es';
 import twilio_hooks from './impl/integration/twilio_hooks';
-import { ChatDestinationProvider } from './core/chat';
+import { ChatDestinationProvider, AgentChat } from './core/chat';
 import { ChatService } from './core/chat_service';
 import { LexChatBot } from './impl/integration/lex_chatbot';
+import { TaskService } from './core/task_service';
+import * as task_processor from './impl/task_processor';
 import * as fulfillment_processor from './impl/fulfillment_processor';
 import { IdentityService } from './core/identity_service';
 import { InMemoryAuthenticator } from './impl/in_mem_authenticator';
-import { eventAPI } from './core/api/event_api';
 import { identityAPI } from './core/api/identity_api';
+import { eventAPI } from './core/api/event_api';
 import { chatAPI } from './core/api/chat_api';
+import { taskAPI } from './core/api/task_api';
 
 // port to run the service on
 const port : string = process.env.PORT || '9999';
@@ -39,21 +42,30 @@ const identityService : IdentityService = new IdentityService(
 
 const chatDesintationProvider : ChatDestinationProvider = {
   getChat(id : string) {
+    if (id === 'agentChatQueue') {
+      return new AgentChat();
+    }
     return new LexChatBot(id, 'prod', awsLexRuntime);
   }
 };
 
 const chatService : ChatService = new ChatService(entityRepository, chatDesintationProvider);
 
-// start the fulfillment processor
+const taskService : TaskService = new TaskService(entityRepository);
+
+// start fulfillment processor
 fulfillment_processor(eventBus, chatService);
+
+// start task processor
+task_processor(eventBus, taskService, chatService);
 
 /* tslint:disable */
 
 const integrations : any = {
-  event_api: eventAPI(eventBus),
   identity_api: identityAPI(JWT_SECRET, eventBus, identityService),
-  chat_api: chatAPI(chatService)
+  event_api: eventAPI(publicUrl, eventBus),
+  chat_api: chatAPI(eventBus, chatService),
+  task_api: taskAPI(eventBus, taskService)
 };
 
 if (publicUrl && publicUrl.indexOf('localhost') === -1) {
@@ -64,6 +76,7 @@ if (publicUrl && publicUrl.indexOf('localhost') === -1) {
     twilioAccountSid,
     twilioAuthToken,
     chatService,
+    taskService,
     eventBus);
 } else {
   console.warn('[WARN] Invalid publicUrl provided, Unable to register twilio hooks!');
