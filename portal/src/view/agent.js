@@ -39,7 +39,7 @@ export default class extends Component {
                 tasks.map((task) => {
                   const taskIdLast4 = task.taskId.substring(task.taskId.length - 4);
                   const menuLinks = [{
-                    text: 'Complete', icon: 'ok', handler: () => {
+                    text: 'Mark as complete', icon: 'ok', handler: () => {
                       this.markTaskComplete(task.taskId);
                     }
                   }];

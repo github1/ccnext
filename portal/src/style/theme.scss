@@ -234,9 +234,6 @@ form {
     color: $brand-success;
   }
   @include box-shadow(none);
-  @media screen and (max-width: 480px) {
-    width: 350px;
-  }
   li[role=divier] {
     padding: 0px;
   }
