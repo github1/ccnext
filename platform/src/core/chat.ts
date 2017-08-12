@@ -115,7 +115,7 @@ export class Chat extends Entity {
   }
 
   public start(user : string) : void {
-    if(!this.user) {
+    if (!this.user) {
       this.dispatch(this.id, new ChatStartedEvent(user));
     }
   }
@@ -140,6 +140,9 @@ export class Chat extends Entity {
             } else if (response.state !== 'Deferred') {
               this.dispatch(this.id, new ChatMessagePostedEvent(this.chatQueue, response.message));
             }
+            if (response.state === 'Failed') {
+              this.transferTo('agentChatQueue');
+            }
             resolve();
           }).catch((error : Error) => {
             this.dispatch(this.id, new ChatErrorEvent(error));
@@ -149,6 +152,12 @@ export class Chat extends Entity {
       });
     } else {
       throw new Error('No chat queue set');
+    }
+  }
+
+  public defaultQueue(chatQueue : string) {
+    if (!this.chatQueue) {
+      this.transferTo(chatQueue);
     }
   }
 
@@ -162,4 +171,15 @@ export class Chat extends Entity {
     this.dispatch(this.id, new ChatEndedEvent());
   }
 
+}
+
+export class AgentChat implements ChatDestination {
+  public send() : Promise<ChatResponse> {
+    return Promise.resolve({
+      message: '',
+      state: (<State> 'Deferred'),
+      provider: 'human',
+      payload: {}
+    });
+  }
 }

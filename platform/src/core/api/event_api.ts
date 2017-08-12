@@ -11,7 +11,7 @@ interface WSApplication extends express.Application {
   ws : Function;
 }
 
-export function eventAPI(eventBus : EventBus) : { preConfigure: Function } {
+export function eventAPI(baseUrl : string, eventBus : EventBus) : { preConfigure: Function } {
 
   type Msg = { [key:string]:string };
 
@@ -35,10 +35,43 @@ export function eventAPI(eventBus : EventBus) : { preConfigure: Function } {
         }
       });
 
+      const unsubscribe = (connection : string) => {
+        Object.keys(eventSubscriptions).forEach((streamId : string) => {
+          const index = eventSubscriptions[streamId].indexOf(connection);
+          if (index > -1) {
+            eventSubscriptions[streamId].splice(index, 1);
+          }
+        });
+      };
+
+      app.get('/api/events/connectionUrl', (req : express.Request, res : express.Response) : void => {
+        const query : Msg = <Msg> req.query;
+        const wsConnectionId : string = query.id;
+        res.json({
+          connectionUrl: (`${baseUrl}/ws/realtime?id=${wsConnectionId}`.replace(/^http/, 'ws'))
+        });
+      });
+
+      app.get('/api/events/subscriptions/:connection', (req : express.Request, res : express.Response) : void => {
+        const params : Msg = <Msg> req.params;
+        res.json(Object.keys(eventSubscriptions)
+          .filter((streamId : string) => {
+            return eventSubscriptions[streamId].indexOf(params.connection) > -1;
+          }));
+      });
+
+      app.delete('/api/events/subscriptions/:connection', (req : express.Request, res : express.Response) : void => {
+        const params : Msg = <Msg> req.params;
+        unsubscribe(params.connection);
+        res.json({});
+      });
+
       app.post('/api/events/:stream/:connection', (req : express.Request, res : express.Response) : void => {
         const params : Msg = <Msg> req.params;
         eventSubscriptions[params.stream] = eventSubscriptions[params.stream] || [];
-        eventSubscriptions[params.stream].push(params.connection);
+        if (eventSubscriptions[params.stream].indexOf(params.connection) < 0) {
+          eventSubscriptions[params.stream].push(params.connection);
+        }
         res.json({});
       });
 

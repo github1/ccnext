@@ -73,6 +73,26 @@ describe('Chat', () => {
     });
   });
 
+  describe('when a chat bot has failed', () => {
+    it('transfers to the agent chat queue', () => {
+      chat.transferTo('someQueue');
+      return chat.postMessage('fromSomeone', 'aMessage', {
+        getChat() {
+          return {
+            send() {
+              return Promise.resolve({
+                state: 'Failed'
+              });
+            }
+          };
+        }
+      }).then(() => {
+        expect(chat.dispatch)
+          .toBeCalledWith('chatId', new ChatTransferredEvent('someQueue', 'agentChatQueue'));
+      });
+    });
+  });
+
   describe('when a chat is ready for fulfillment', () => {
     it('dispatches a ready for fulfillment event', () => {
       chat.transferTo('someQueue');

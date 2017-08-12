@@ -25,8 +25,7 @@ export class ChatService {
     this.entityRepository
       .load(Chat, chatId)
       .then((chat : Chat) => {
-        const chatQueue : string = 'CCaaSBot'; // add some sort of routing logic here
-        chat.transferTo(chatQueue);
+        chat.defaultQueue('CCaaSBot');
         chat
           .postMessage(source, text, this.chatDestinationProvider)
           .catch((error : Error) => {

@@ -4,6 +4,7 @@
   ],
   "rules": {
     "linebreak-style": [true, "LF"],
+    "no-shadowed-variable": false,
     "no-stateless-class": false,
     "possible-timing-attack": false,
     "no-increment-decrement": false,

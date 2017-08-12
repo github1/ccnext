@@ -81,7 +81,7 @@ class ChatWindow extends Component {
               }
               {
                 session.holdMessage ? <div
-                  className="alert alert-info">{ session.holdMessage }</div> : null
+                  className="alert alert-success">{ session.holdMessage }</div> : null
               }
             </div>
           </div> : null

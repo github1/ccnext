@@ -23,21 +23,22 @@ export function identityAPI(jwtSecret : string, eventBus : EventBus, identitySer
           const bypass : boolean = [
             '/api/authenticate',
             '/api/register',
-            '/api/chat'
+            '/api/chat',
+            '/api/events'
           ]
             .map((path : string) : boolean => req.path.indexOf(path) === 0)
             .filter((result : boolean) : boolean => result)[0];
-          if (bypass) {
-            next();
+          if (req.headers['jwt']) {
+            try {
+              const jwt : IdentityVO = <IdentityVO> jwts.decode(req.headers['jwt'], jwtSecret);
+              req.headers['user-id'] = jwt.username;
+              next();
+            } catch (err) {
+              res.status(401).send({status: 401});
+            }
           } else {
-            if (req.headers['jwt']) {
-              try {
-                const jwt : IdentityVO = <IdentityVO> jwts.decode(req.headers['jwt'], jwtSecret);
-                req.headers['user-id'] = jwt.username;
-                next();
-              } catch (err) {
-                res.status(401).send({status: 401});
-              }
+            if (bypass) {
+              next();
             } else {
               res.status(401).send({status: 401});
             }

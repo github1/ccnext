@@ -37,7 +37,7 @@
     "@types/jest": "~20.0.4",
     "@types/jwt-simple": "^0.5.33",
     "@types/node": "^8.0.17",
-    "@types/twilio": "0.0.9",
+    "@types/uuid": "^3.4.0",
     "babel-jest": "^20.0.3",
     "babel-plugin-transform-async-to-generator": "^6.24.1",
     "babel-preset-node6": "^11.0.0",

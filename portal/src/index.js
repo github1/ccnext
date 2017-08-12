@@ -1,24 +1,24 @@
 import { render } from 'react-dom';
 import jwts from 'jwt-simple';
-import reqwest from 'reqwest';
 import page from 'page';
 import Container from './component/container';
 import './style/theme.scss';
-import BrowserWebSocket from 'browser-websocket';
 import uuid from 'uuid';
 import {
   isMobile,
   resetScrollVirtualKeyboard,
   resetScroll,
-  preventZoom,
-  fallbackStorage
+  preventZoom
 } from './browser_utils';
+import { identity, authenticate, signout, register } from './api/identity.js';
+import { startChat, endChat, postChatMessage } from './api/chat.js';
+import { getTasks, markTaskComplete } from './api/tasks.js';
+import { openEventStream, subscribeTo, unsubscribe } from './api/events';
 
 import {
   INIT,
   REALTIME_CONNECTION_ESTABLISHED,
   RECEIVE_ENTITY_EVENT,
-  TIME_TICK,
   NAVIGATE,
   NAVIGATION_REQUESTED,
   CLEAR_USER,
@@ -35,7 +35,11 @@ import {
   CHAT_ENDED,
   POST_OUTGOING_CHAT_MESSAGE,
   OUTGOING_CHAT_MESSAGE_POSTED,
-  INCOMING_CHAT_MESSAGE_POSTED
+  INCOMING_CHAT_MESSAGE_POSTED,
+  LOAD_TASKS,
+  TASKS_LOADED,
+  TASK_RECEIVED,
+  MARK_TASK_COMPLETE
 } from './constants';
 
 let element = document.getElementById('main');
@@ -52,6 +56,7 @@ const model = () => {
     messages: [],
     isPending: false,
     chatSessions: {},
+    tasks: [],
     device: {
       isMobile: isMobile(),
       screen: {
@@ -61,54 +66,33 @@ const model = () => {
   }
 };
 
-const CONNECTION_ID = uuid.v4();
-const CONNECTION_INSTANCES = {};
-
-const identity = () => {
-  try {
-    const token = fallbackStorage.getItem('user-token');
-    if (token) {
-      return jwts.decode(token, null, true);
-    }
-  } finally {
-    // ignore
-  }
-  return false;
-};
-
 const sideEffect = (command, model) => {
   switch (command.type) {
     case NAVIGATE:
     case INIT:
       const id = identity();
 
-      if (!CONNECTION_INSTANCES[CONNECTION_ID]) {
-        let wsProtocol = window.location.protocol === 'https:' ? 'wss' : 'ws';
-        let wsHost = window.location.host;
-        wsHost = `${window.location.hostname}:9999`;
-        let wsUrl = `${wsProtocol}://${wsHost}/ws/realtime?id=${CONNECTION_ID}`;
-        CONNECTION_INSTANCES[CONNECTION_ID] = new BrowserWebSocket(wsUrl);
-        const ws = CONNECTION_INSTANCES[CONNECTION_ID];
-        ws.on('open', () => {
+      openEventStream({
+        open: () => {
           dispatch({
             type: REALTIME_CONNECTION_ESTABLISHED
-          })
-        });
-        ws.on('message', msg => {
+          });
+        },
+        message: (msg) => {
           const message = JSON.parse(msg.data);
           dispatch({
             type: RECEIVE_ENTITY_EVENT,
             stream: message.stream,
             name: message.name,
             event: message.payload
-          })
-        });
-      }
+          });
+        }
+      });
 
       if (!command.redirect && !command.view) {
         command.redirect = '/account';
       }
-      if (id && id.role === 'agent') {
+      if (id.role === 'agent') {
         command.redirect = '/agent';
       }
       const redirectOnly = command.redirect && !command.view;
@@ -127,12 +111,12 @@ const sideEffect = (command, model) => {
       if (redirectOnly || command.insecure) {
         perform();
       } else {
-        if (id) {
+        if (id.role !== 'visitor') {
           dispatch({
             type: AUTHENTICATION_SUCCESS,
             user: id
           }).then(() => {
-            perform();
+            subscribeTo(id.username).then(() => perform());
           });
         } else {
           dispatch({
@@ -144,7 +128,7 @@ const sideEffect = (command, model) => {
       break;
     case RECEIVE_ENTITY_EVENT:
       if (command.name === 'ChatMessagePostedEvent') {
-        if (command.event.source !== identity().username && command.event.source !== 'visitor') {
+        if (command.event.source !== identity().username) {
           setTimeout(() => {
             dispatch({
               type: INCOMING_CHAT_MESSAGE_POSTED,
@@ -154,20 +138,20 @@ const sideEffect = (command, model) => {
             });
           }, 500);
         }
+      } else if (command.name === 'WorkerTaskUpdatedEvent') {
+        dispatch({
+          type: TASK_RECEIVED,
+          task: command.event.task
+        });
       }
       break;
     case REGISTER_USER:
-      reqwest({
-        url: '/api/register',
-        method: 'post',
-        data: command,
-        success: () => {
-          dispatch({
-            type: USER_REGISTERED
-          }).then(() => {
-            page.redirect('/home');
-          });
-        }
+      register(command).then(() => {
+        dispatch({
+          type: USER_REGISTERED
+        }).then(() => {
+          page.redirect('/home');
+        });
       });
       break;
     case SIGN_IN:
@@ -180,30 +164,26 @@ const sideEffect = (command, model) => {
         dispatch({
           type: AUTHENTICATION_STARTED
         });
-        reqwest({
-          url: '/api/authenticate',
-          method: 'post',
-          data: command,
-          success: (resp) => {
-            fallbackStorage.setItem('user-token', resp.token);
-            const identity = jwts.decode(resp.token, null, true);
-            dispatch({
-              type: AUTHENTICATION_SUCCESS,
-              user: identity
-            }).then(() => {
-              page.redirect(identity.role === 'agent' ? '/agent' : '/account');
+        authenticate(command.username, command.password).then((id) => {
+          return dispatch({
+            type: AUTHENTICATION_SUCCESS,
+            user: id
+          }).then(() => {
+            // subscribe to events addressed to this user
+            subscribeTo(command.username).then(() => {
+              page.redirect(id.role === 'agent' ? '/agent' : '/account');
             });
-          },
-          error: () => {
-            dispatch({
-              type: AUTHENTICATION_FAILED
-            });
-          }
+          });
+        }).catch(() => {
+          dispatch({
+            type: AUTHENTICATION_FAILED
+          });
         });
       }
       break;
     case SIGN_OUT:
-      fallbackStorage.removeItem('user-token');
+      unsubscribe();
+      signout();
       dispatch({
         type: CLEAR_USER
       }).then(() => {
@@ -217,38 +197,26 @@ const sideEffect = (command, model) => {
     {
       const chatId = uuid.v4();
       let source = identity();
-      source = source ? source.username : 'visitor';
-      reqwest({
-        url: `/api/events/${chatId}/${CONNECTION_ID}`,
-        method: 'post',
-        success: () => {
-          reqwest({
-            url: `/api/chat/${chatId}`,
-            method: 'post',
-            success: () => {
-              dispatch({
-                type: CHAT_STARTED,
-                id: chatId,
-                componentInstanceId: command.componentInstanceId
-              });
-            }
-          });
-        }
+      source = source.username;
+      subscribeTo(chatId).then(() => {
+        return startChat(chatId)
+      }).then(() => {
+        dispatch({
+          type: CHAT_STARTED,
+          id: chatId,
+          componentInstanceId: command.componentInstanceId
+        });
       });
       break;
     }
     case END_CHAT:
       Object.keys(model.chatSessions).forEach((chatId) => {
         if (chatId === command.id || typeof command.id === 'undefined') {
-          reqwest({
-            url: `/api/chat/${chatId}`,
-            method: 'delete',
-            success: () => {
-              dispatch({
-                type: CHAT_ENDED,
-                id: chatId
-              });
-            }
+          endChat(chatId).then(() => {
+            dispatch({
+              type: CHAT_ENDED,
+              id: chatId
+            });
           });
         }
       });
@@ -256,26 +224,27 @@ const sideEffect = (command, model) => {
     case POST_OUTGOING_CHAT_MESSAGE:
     {
       let source = identity();
-      source = source ? source.username : 'visitor';
-      reqwest({
-        url: `/api/chat/${command.id}`,
-        method: 'post',
-        data: {
-          source: source,
+      source = source.username;
+      postChatMessage(command.id, source, command.text).then(() => {
+        dispatch({
+          type: OUTGOING_CHAT_MESSAGE_POSTED,
+          id: command.id,
+          from: source,
           text: command.text
-        },
-        success: () => {
-          dispatch({
-            type: OUTGOING_CHAT_MESSAGE_POSTED,
-            id: command.id,
-            from: source,
-            text: command.text
-          });
-        }
+        });
       });
       break;
     }
-    case TIME_TICK:
+    case LOAD_TASKS:
+      getTasks().then((tasks) => {
+        dispatch({
+          type: TASKS_LOADED,
+          tasks: tasks
+        });
+      });
+      break;
+    case MARK_TASK_COMPLETE:
+      markTaskComplete(command.taskId);
       break;
   }
 };
@@ -346,6 +315,19 @@ const update = (event, model) => {
       }
       break;
     }
+    case TASKS_LOADED:
+      model.tasks = event.tasks;
+      break;
+    case TASK_RECEIVED:
+      const index = model.tasks.findIndex((task) => {
+        return task.taskId === event.task.taskId;
+      });
+      if (index === -1) {
+          model.tasks.push(event.task);
+      } else {
+        model.tasks[index] = event.task;
+      }
+      break;
   }
   return model;
 };
@@ -355,8 +337,8 @@ let latestModel = {};
 window.dispatch = (event) => {
   return new Promise((resolve) => {
     sideEffect(event, latestModel);
-    if (event.type.indexOf(':') === 0) {
-      // non rendering event
+    const isTransientEvent = event.type.indexOf(':') === 0;
+    if (isTransientEvent) {
       resolve(latestModel);
       return;
     }

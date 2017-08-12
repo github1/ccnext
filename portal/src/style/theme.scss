@@ -465,6 +465,16 @@ select:focus {
   max-width: 480px;
 }
 
+// tasks
+
+.task-list {
+  .task-id {
+    margin-right: 20px;
+    width: 200px;
+    display: inline;
+  }
+}
+
 // chat
 
 $bot-bubble-color: $brand-success;
