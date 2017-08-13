@@ -1,8 +1,11 @@
 const path = require('path');
 const isDevelopment = process.env.NODE_ENV !== 'production';
-const baseDir = path.resolve(isDevelopment ? path.join('./', 'dist') : './');
+const baseDir = path.resolve(path.join('./', 'dist'));
 
 const port = process.env.PORT || 8181;
+
+const publicUrl = process.env.PUBLIC_URL;
+const platformUrl = process.env.PLATFORM_URL || 'http://localhost:9999';
 
 const proxy = require('express-http-proxy');
 const express = require('express');
@@ -13,15 +16,10 @@ app.use(bodyParser.urlencoded({extended: false}));
 app.use(bodyParser.json());
 
 app.use((req, res, next) => {
-  if ((/\/(api|ws)\//).test(req.path)) {
-    // @TODO URL needs to be configurable
-    let platformUrl = 'http://localhost:9999';
-    if((/\/api/).test(req.path)) {
-      req.headers['content-type'] = 'application/json';
-    } else {
-      platformUrl = 'ws://localhost:9999';
-    }
-    proxy(platformUrl)(req, res, next);
+  if ((/\/api\//).test(req.path)) {
+    let proxyUrl = platformUrl;
+    req.headers['content-type'] = 'application/json';
+    proxy(proxyUrl)(req, res, next);
   } else if (path.extname(req.path).length > 0) {
     // assume static content here
     next();
@@ -49,4 +47,7 @@ if (isDevelopment) {
 
 app.listen(port, () => {
   console.log(`Listening on port ${port}`);
+  if (publicUrl) {
+    console.log(`Served from ${publicUrl}`);
+  }
 });
