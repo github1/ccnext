@@ -10,19 +10,21 @@ if [ -f ".env" ]; then
     source .env
 fi
 
+if [ -z "${NGROK_URL}" ]; then
+  NGROK_URL="http://127.0.0.1:4040"
+fi
+
 if [ -z "${PORT}" ]; then
-    if curl -s http://127.0.0.1:4040/status > /dev/null; then
-        PORT=$(curl -s http://127.0.0.1:4040/status | grep -E "localhost:[0-9]+" -oh | head -n 1 | awk -F':' '{print $2}')
+    if curl -s ${NGROK_URL}/status > /dev/null; then
+        PORT=$(curl -s ${NGROK_URL}/status | grep -E "localhost:[0-9]+" -oh | head -n 1 | awk -F':' '{print $2}')
     else
         PORT=9999
     fi
 fi
 
 if [ -z "${PUBLIC_URL}" ]; then
-    if curl -s http://127.0.0.1:4040/status > /dev/null; then
-        PUBLIC_URL=$(curl -s http://127.0.0.1:4040/status | grep -E "https\:\/\/[^\.]+.ngrok\.io" -oh)
-    else
-        PUBLIC_URL="http://localhost:${PORT}"
+    if curl -s ${NGROK_URL}/status > /dev/null; then
+        PUBLIC_URL=$(curl -s ${NGROK_URL}/status | grep -E "https\:\/\/[^\.]+.ngrok\.io" -oh)
     fi
 fi
 
@@ -40,4 +42,10 @@ export TWILIO_AUTH_TOKEN
 export TWILIO_NUMBER_SID
 export PORT
 
-node_modules/.bin/nodemon --watch dist dist/src/main.js
+echo "Serving from ${PUBLIC_URL}"
+
+if [ -z "${USE_NODEMON}" ]; then
+  node_modules/.bin/nodemon --watch dist dist/src/main.js
+else
+  node dist/src/main.js
+fi

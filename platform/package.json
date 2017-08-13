@@ -16,7 +16,7 @@
     "test": "npm run test-only",
     "test-only": "jest --coverage",
     "test:watch": "jest --watch",
-    "start": "npm run build && ./run.sh"
+    "start": "USE_NODEMON=true npm run build && ./run.sh"
   },
   "dependencies": {
     "aws-sdk": "^2.91.0",

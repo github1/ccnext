@@ -1,13 +1,32 @@
-version: '2'
+version: '3'
 services:
+  platform_ngrok:
+    image: wernight/ngrok
+    command: ["ngrok", "http", "platform:9999"]
   platform:
     build: platform/.
+    depends_on:
+      - platform_ngrok
     ports:
-     - '9999:9999'
+      - '9999:9999'
     environment:
+      - PUBLIC_URL
       - TWILIO_ACCOUNT_SID
       - TWILIO_AUTH_TOKEN
       - TWILIO_NUMBER_SID
       - AWS_ACCESS_KEY_ID
       - AWS_SECRET_ACCESS_KEY
-      - PUBLIC_URL
+      - AWS_DEFAULT_REGION=us-east-1
+      - NGROK_URL=http://platform_ngrok:4040
+  portal_ngrok:
+    image: wernight/ngrok
+    command: ["ngrok", "http", "portal:8181"]
+  portal:
+    build: portal/.
+    depends_on:
+      - platform
+    ports:
+     - '8181:8181'
+    environment:
+      - PLATFORM_URL=http://platform:9999
+      - NGROK_URL=http://portal_ngrok:4040
