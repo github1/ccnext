@@ -75,9 +75,10 @@ const initialize = (onOpen, onMessage, onError) => {
     });
   };
 
-  const unsubscribe = (callback) => {
+  const unsubscribe = (streamId, callback) => {
+    const url = streamId ? `/api/events/stream/${streamId}/subscriptions/${getConfig().uuid}` : `/api/events/subscriptions/${getConfig().uuid}`;
     ajax({
-      url: `/api/events/subscriptions/${getConfig().uuid}`,
+      url: url,
       method: 'delete'
     }).then(() => {
       if (callback) {
@@ -111,10 +112,10 @@ export const subscribeTo = (streamId) => {
   });
 };
 
-export const unsubscribe = () => {
+export const unsubscribe = (streamId) => {
   return new Promise((resolve) => {
     if (instance) {
-      instance.unsubscribe(() => {
+      instance.unsubscribe(streamId, () => {
         resolve();
       });
     }

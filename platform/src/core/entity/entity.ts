@@ -1,3 +1,5 @@
+import { v4 } from 'uuid';
+
 export interface EntityEvent {
 }
 
@@ -101,3 +103,14 @@ export class Entity {
   }
 
 }
+
+let incrementalUUID : boolean = false;
+let uidCount : number = 0;
+
+export const useIncrementalUUID = (value : boolean) => {
+  incrementalUUID = value;
+};
+
+export const uuid = () : string => {
+  return incrementalUUID ? `${uidCount++}` : v4();
+};

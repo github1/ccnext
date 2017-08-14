@@ -1,4 +1,6 @@
 import * as $ from 'jquery';
+import 'jquery.growl';
+import * as scrollBarWidth from 'scrollbar-width';
 
 export const isMobile = () => {
   var check = false;
@@ -72,3 +74,15 @@ export const fallbackStorage = {
     }
   }
 };
+
+export const growl = (opts) => {
+  $.growl.notice(opts);
+};
+
+export const getScrollBarWidth = () => {
+  if (typeof document === 'undefined') {
+    return 13;
+  }
+  return scrollBarWidth();
+};
+

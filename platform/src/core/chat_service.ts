@@ -1,13 +1,11 @@
-import { Chat, ChatDestinationProvider } from './chat';
+import { Chat } from './chat';
 import { EntityRepository } from './entity/entity';
 
 export class ChatService {
   private entityRepository : EntityRepository;
-  private chatDestinationProvider : ChatDestinationProvider;
 
-  constructor(entityRepository : EntityRepository, chatDestinationProvider : ChatDestinationProvider) {
+  constructor(entityRepository : EntityRepository) {
     this.entityRepository = entityRepository;
-    this.chatDestinationProvider = chatDestinationProvider;
   }
 
   public startChat(chatId : string, user : string) : void {
@@ -21,16 +19,60 @@ export class ChatService {
       });
   }
 
-  public postMessage(chatId : string, source : string, text : string) : void {
+  public postMessage(chatId : string, fromParticipant : string, text : string) : void {
     this.entityRepository
       .load(Chat, chatId)
       .then((chat : Chat) => {
         chat.defaultQueue('CCaaSBot');
         chat
-          .postMessage(source, text, this.chatDestinationProvider)
+          .postMessage(fromParticipant, text)
           .catch((error : Error) => {
             console.error(error);
           });
+      })
+      .catch((error : Error) => {
+        throw error;
+      });
+  }
+
+  public transferTo(chatId : string, queue : string) : void {
+    this.entityRepository
+      .load(Chat, chatId)
+      .then((chat : Chat) => {
+        chat.transferTo(queue);
+      })
+      .catch((error : Error) => {
+        throw error;
+      });
+  }
+
+  public signalReadyForFulfillment(chatId : string, onBehalfOf : string, payload : {}) : void {
+    this.entityRepository
+      .load(Chat, chatId)
+      .then((chat : Chat) => {
+        chat.signalReadyForFulfillment(onBehalfOf, payload);
+      })
+      .catch((error : Error) => {
+        throw error;
+      });
+  }
+
+  public signalError(chatId : string, error : Error) : void {
+    this.entityRepository
+      .load(Chat, chatId)
+      .then((chat : Chat) => {
+        chat.signalError(error);
+      })
+      .catch((error : Error) => {
+        throw error;
+      });
+  }
+
+  public leaveChat(chatId : string, participant : string) : void {
+    this.entityRepository
+      .load(Chat, chatId)
+      .then((chat : Chat) => {
+        chat.leave(participant);
       })
       .catch((error : Error) => {
         throw error;

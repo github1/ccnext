@@ -35,12 +35,16 @@ export function eventAPI(baseUrl : string, eventBus : EventBus) : { preConfigure
         }
       });
 
+      const unsubscribeFromStream = (streamId : string, connection : string) => {
+        const index = eventSubscriptions[streamId].indexOf(connection);
+        if (index > -1) {
+          eventSubscriptions[streamId].splice(index, 1);
+        }
+      };
+
       const unsubscribe = (connection : string) => {
         Object.keys(eventSubscriptions).forEach((streamId : string) => {
-          const index = eventSubscriptions[streamId].indexOf(connection);
-          if (index > -1) {
-            eventSubscriptions[streamId].splice(index, 1);
-          }
+          unsubscribeFromStream(streamId, connection);
         });
       };
 
@@ -63,6 +67,12 @@ export function eventAPI(baseUrl : string, eventBus : EventBus) : { preConfigure
       app.delete('/api/events/subscriptions/:connection', (req : express.Request, res : express.Response) : void => {
         const params : Msg = <Msg> req.params;
         unsubscribe(params.connection);
+        res.json({});
+      });
+
+      app.delete('/api/events/stream/:stream/subscriptions/:connection', (req : express.Request, res : express.Response) : void => {
+        const params : Msg = <Msg> req.params;
+        unsubscribeFromStream(params.stream, params.connection);
         res.json({});
       });
 

@@ -1,28 +1,21 @@
 import {
   Chat,
   ChatStartedEvent,
+  ChatParticipantJoinedEvent,
+  ChatParticipantLeftEvent,
   ChatEndedEvent,
   ChatMessagePostedEvent,
-  ChatTransferredEvent,
-  ChatReadyForFulfillmentEvent
+  ChatTransferredEvent
 } from '../../src/core/chat';
 import { Clock } from '../../src/core/clock';
+import { useIncrementalUUID } from '../../src/core/entity/entity';
 
 describe('Chat', () => {
 
   let chat;
 
-  const chatDestinationProvider = {
-    getChat() {
-      return {
-        send() {
-          return Promise.resolve({});
-        }
-      };
-    }
-  };
-
   beforeEach(() => {
+    useIncrementalUUID(true);
     Clock.freeze(0);
     chat = new Chat('chatId');
     chat.dispatch = jest.fn((id, event) => {
@@ -31,14 +24,35 @@ describe('Chat', () => {
   });
 
   afterEach(() => {
+    useIncrementalUUID(false);
     Clock.unfreeze();
+  });
+
+  describe('when a chat is started', () => {
+    beforeEach(() => {
+      chat.start('someUser');
+    });
+    it('dispatches a chat started event', () => {
+      expect(chat.dispatch)
+        .toBeCalledWith('chatId', new ChatStartedEvent('someUser'));
+      expect(chat.dispatch)
+        .toBeCalledWith('chatId', new ChatParticipantJoinedEvent('someUser'));
+    });
+    it('only dispatches one chat started event', () => {
+      chat.start('someUser');
+      expect(chat.dispatch)
+        .toBeCalledWith('chatId', new ChatStartedEvent('someUser'));
+      expect(chat.dispatch)
+        .toBeCalledWith('chatId', new ChatParticipantJoinedEvent('someUser'));
+      expect(chat.dispatch.mock.calls.length).toEqual(2);
+    });
   });
 
   describe('when a chat message is posted', () => {
     describe('and there is no queue set', () => {
       it('throws an error', () => {
         try {
-          chat.postMessage('fromSomeone', 'aMessage', chatDestinationProvider);
+          chat.postMessage('fromSomeone', 'aMessage');
         } catch (err) {
           expect(err).not.toBeUndefined();
         }
@@ -47,11 +61,47 @@ describe('Chat', () => {
     describe('and there is a queue set', () => {
       it('sends the message', () => {
         chat.transferTo('someQueue');
-        chat.postMessage('fromSomeone', 'aMessage', chatDestinationProvider);
+        chat.postMessage('fromSomeone', 'aMessage');
         expect(chat.dispatch)
           .toBeCalledWith('chatId', new ChatStartedEvent('fromSomeone'));
         expect(chat.dispatch)
-          .toBeCalledWith('chatId', new ChatMessagePostedEvent('fromSomeone', 'aMessage'));
+          .toBeCalledWith('chatId', new ChatParticipantJoinedEvent('fromSomeone'));
+        expect(chat.dispatch)
+          .toBeCalledWith('chatId', new ChatMessagePostedEvent('0', 'chatId_1', 'fromSomeone', 'aMessage'));
+      });
+    });
+  });
+
+  describe('when a chat participant joins', () => {
+    it('dispatches a chat participant joined event', () => {
+      chat.join('someone');
+      chat.join('someone');
+      expect(chat.dispatch)
+        .toBeCalledWith('chatId', new ChatParticipantJoinedEvent('someone'));
+      expect(chat.dispatch.mock.calls.length).toEqual(1);
+    });
+  });
+
+  describe('when a chat participant leaves', () => {
+    it('dispatches a chat participant left event', () => {
+      chat.join('someone');
+      chat.leave('someone');
+      expect(chat.dispatch)
+        .toBeCalledWith('chatId', new ChatParticipantJoinedEvent('someone'));
+      expect(chat.dispatch)
+        .toBeCalledWith('chatId', new ChatParticipantLeftEvent('someone'));
+      expect(chat.dispatch.mock.calls.length).toEqual(2);
+    });
+    describe('when the chat participant has already left', ()=> {
+      it('does not dispatch an another chat participant left event', () => {
+        chat.join('someone');
+        chat.leave('someone');
+        chat.leave('someone');
+        expect(chat.dispatch)
+          .toBeCalledWith('chatId', new ChatParticipantJoinedEvent('someone'));
+        expect(chat.dispatch)
+          .toBeCalledWith('chatId', new ChatParticipantLeftEvent('someone'));
+        expect(chat.dispatch.mock.calls.length).toEqual(2);
       });
     });
   });
@@ -69,55 +119,6 @@ describe('Chat', () => {
         chat.transferTo('aDifferentQueue');
         expect(chat.dispatch)
           .not.toBeCalledWith('chatId', new ChatTransferredEvent('aDifferentQueue', 'aDifferentQueue'));
-      });
-    });
-  });
-
-  describe('when a chat bot has failed', () => {
-    it('transfers to the agent chat queue', () => {
-      chat.transferTo('someQueue');
-      return chat.postMessage('fromSomeone', 'aMessage', {
-        getChat() {
-          return {
-            send() {
-              return Promise.resolve({
-                state: 'Failed'
-              });
-            }
-          };
-        }
-      }).then(() => {
-        expect(chat.dispatch)
-          .toBeCalledWith('chatId', new ChatTransferredEvent('someQueue', 'agentChatQueue'));
-      });
-    });
-  });
-
-  describe('when a chat is ready for fulfillment', () => {
-    it('dispatches a ready for fulfillment event', () => {
-      chat.transferTo('someQueue');
-      return chat.postMessage('fromSomeone', 'aMessage', {
-        getChat() {
-          return {
-            send() {
-              return Promise.resolve({
-                state: 'ReadyForFulfillment',
-                payload: {
-                  slots: {
-                    Blarp: 'Blap'
-                  }
-                }
-              });
-            }
-          };
-        }
-      }).then(() => {
-        expect(chat.dispatch)
-          .toBeCalledWith('chatId', new ChatReadyForFulfillmentEvent('fromSomeone', 'someQueue', {
-            slots: {
-              Blarp: 'Blap'
-            }
-          }));
       });
     });
   });
