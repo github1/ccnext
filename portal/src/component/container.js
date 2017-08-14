@@ -2,7 +2,7 @@ import { Component, createElement } from 'react';
 import Dropdown  from './dropdown';
 import Logo from './logo';
 import NavMenu from './nav_menu';
-import ChatAdapter from './chat_adapter';
+import CustomerChat from './customer_chat';
 import views from '../view';
 import { SIGN_OUT } from '../constants';
 
@@ -35,6 +35,10 @@ export default class extends Component {
 
     const menuLinks = {
       agent: [
+        {text: 'Tasks', icon: 'check', handler: () => {
+          window.location = '/agent';
+        }},
+        'divider',
         {text: 'Sign Out', icon: 'log-out', handler: () => {
           dispatch({
             type: SIGN_OUT
@@ -75,7 +79,7 @@ export default class extends Component {
         { content }
         {
           this.props.model.user.role === 'customer' ?
-            <ChatAdapter model={this.props.model}/> : null
+            <CustomerChat model={this.props.model}/> : null
         }
       </div>;
     } else if (viewName === 'enroll') {
@@ -83,7 +87,7 @@ export default class extends Component {
         <NavMenu logo={true}/>
         <hr/>
         { content }
-        <ChatAdapter model={this.props.model}/>
+        <CustomerChat model={this.props.model}/>
       </div>;
     } else {
       return <div key="root-container">
@@ -111,7 +115,7 @@ export default class extends Component {
         </div>
         <hr/>
         { content }
-        <ChatAdapter model={this.props.model}/>
+        <CustomerChat model={this.props.model}/>
       </div>;
     }
 

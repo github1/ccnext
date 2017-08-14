@@ -6,6 +6,7 @@ import { ChatDestinationProvider, AgentChat } from './core/chat';
 import { ChatService } from './core/chat_service';
 import { LexChatBot } from './impl/integration/lex_chatbot';
 import { TaskService } from './core/task_service';
+import { chatRouter } from './impl/chat_router';
 import * as task_processor from './impl/task_processor';
 import * as fulfillment_processor from './impl/fulfillment_processor';
 import { IdentityService } from './core/identity_service';
@@ -49,9 +50,12 @@ const chatDesintationProvider : ChatDestinationProvider = {
   }
 };
 
-const chatService : ChatService = new ChatService(entityRepository, chatDesintationProvider);
+const chatService : ChatService = new ChatService(entityRepository);
 
 const taskService : TaskService = new TaskService(entityRepository);
+
+// start chat router
+chatRouter(eventBus, chatDesintationProvider, chatService);
 
 // start fulfillment processor
 fulfillment_processor(eventBus, chatService);

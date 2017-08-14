@@ -36,9 +36,9 @@ export default (baseUrl, contextPath, phoneNumberSid, accountSid, authToken, cha
     const refreshChatContext = (event) => {
       twilioContext.chats[event.stream] = twilioContext.chats[event.stream] || {};
       twilioContext.chats[event.stream].isIncoming = false;
-      if ((event.payload.source || '').indexOf('sms-incoming::') === 0) {
+      if ((event.payload.fromParticipant || '').indexOf('sms-incoming::') === 0) {
         twilioContext.chats[event.stream].isIncoming = true;
-        twilioContext.chats[event.stream].incoming = event.payload.source;
+        twilioContext.chats[event.stream].incoming = event.payload.fromParticipant;
         twilioContext.chats[event.stream].incomingNumber = (twilioContext.chats[event.stream].incoming + '').split(/::/)[1];
       }
       return twilioContext.chats[event.stream];
@@ -133,14 +133,14 @@ export default (baseUrl, contextPath, phoneNumberSid, accountSid, authToken, cha
         switch (req.params.channel) {
           case 'sms':
           {
-            const source = `sms-incoming::${req.body.From}`;
+            const fromParticipant = `sms-incoming::${req.body.From}`;
             const text = req.body.Body;
             let chatId = req.cookies['x-conversation-id'];
             if (!req.cookies['x-conversation-id']) {
               res.cookie('x-conversation-id', chatId = uuid.v4());
             }
             chatService
-              .postMessage(chatId, source, text);
+              .postMessage(chatId, fromParticipant, text);
             res.send('<Response></Response>');
             break;
           }

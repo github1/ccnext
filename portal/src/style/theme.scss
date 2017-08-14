@@ -449,7 +449,7 @@ select:focus {
   flex-direction: column;
   display: flex;
   flex: 0;
-  min-width: 200px;
+  min-width: 250px;
   @media screen and (min-width: 767px) {
     margin-right: 15px;
   }
@@ -469,12 +469,55 @@ select:focus {
 
 // tasks
 
-.task-list {
-  .task-id {
-    margin-right: 20px;
-    width: 200px;
-    display: inline;
+.task-status {
+  text-transform: capitalize;
+}
+
+td {
+  .task-status {
+    .readonly {
+      padding: 5px;
+    }
   }
+}
+
+.task-channel {
+  text-transform: capitalize;
+}
+
+table {
+  &.task-list {
+    border: none;
+    table-layout: fixed;
+    margin-bottom: 0px;
+    width: 100%;
+    thead > tr > th {
+      border: none;
+    }
+    td {
+      border: 1px solid #ddd;
+      border-top: none !important;
+      border-left: none;
+      height: 48px;
+    }
+    tr > td:last-of-type {
+      border-right: none;
+    }
+    &.task-list-header {
+      border: 1px solid $brand-primary;
+      th {
+        color: $brand-primary;
+        border-right: 1px solid $brand-primary;
+      }
+    }
+  }
+}
+
+.task-list-scroll {
+  overflow-y: scroll;
+  -webkit-overflow-scrolling: touch;
+  border: solid $brand-primary;
+  border-width: 0 1px 1px 1px;
 }
 
 // chat
@@ -543,6 +586,19 @@ $bubble-shadow: #aaa;
   margin-bottom: 5px;
   border-radius: 0;
 
+  .status {
+    display: block;
+    margin: 5px 0 5px 0;
+    color: #aaa;
+    min-height: 18px;
+    vertical-align: middle;
+    border: 1px solid #ddd;
+    border-radius: 5px;
+    padding: 8px;
+    font-size: .9em;
+    @include box-shadow(0 0 6px #eee);
+  }
+
   .bubble-wrapper {
     display: block;
     font-size: 16px;
@@ -576,24 +632,24 @@ $bubble-shadow: #aaa;
     width: 20px;
   }
 
-  .me {
+  .incoming {
     float: left;
     margin: 5px 45px 5px 20px;
   }
 
-  .me::before {
+  .incoming::before {
     @include box-shadow(-2px 2px 2px 0 rgba(178, 178, 178, .4));
     left: -9px;
   }
 
-  .you {
+  .outgoing {
     background-color: $brand-primary;
     color: #fff;
     float: right;
     margin: 5px 20px 5px 45px;
   }
 
-  .you::before {
+  .outgoing::before {
     background-color: $brand-primary;
     @include box-shadow(2px -2px 2px 0 rgba(178, 178, 178, .4));
     right: -9px;

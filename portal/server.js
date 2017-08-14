@@ -21,9 +21,11 @@ app.use((req, res, next) => {
     req.headers['content-type'] = 'application/json';
     proxy(proxyUrl)(req, res, next);
   } else if (path.extname(req.path).length > 0) {
+    req.url = `/${path.basename(req.path)}`;
     // assume static content here
     next();
   } else {
+    req.path = '/';
     // send everything else to index.html
     req.url = '/index.html';
     next();

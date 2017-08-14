@@ -21,3 +21,13 @@ $navbar-padding-vertical: 5px;
 $navbar-collapse-max-height: 10px;
 $icon-font-path: "../../node_modules/bootstrap-sass/assets/fonts/bootstrap/";
 @import "../../node_modules/bootstrap-sass/assets/stylesheets/bootstrap";
+
+@import '../../node_modules/jquery.growl/stylesheets/jquery.growl.sass';
+.growl {
+  &.growl-notice {
+    background: $brand-success;
+  }
+  a {
+    color: #fff;
+  }
+}

@@ -14,9 +14,11 @@ export default class extends Component {
     return <DropdownButton
       title={  this.props.title }
       id={ this.props.id }
-      pullRight={true}
+      pullRight={!this.props.pullRight}
       bsSize="small"
-      onSelect={ eventKey => {
+      onClick={(event) => { event.stopPropagation(); }}
+      onSelect={ (eventKey, event) => {
+      event.stopPropagation();
 if(handlers[eventKey]) {
  handlers[eventKey]();
 }
