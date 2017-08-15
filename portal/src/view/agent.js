@@ -50,6 +50,12 @@ export default class extends Component {
         </div>
       </div>
     } else {
+      if(this.props.model.selectedTask) {
+        return <div className="alert alert-danger"><span>{ `Task ${this.props.model.selectedTask} not found` }</span>
+          <hr/>
+          <a className="btn btn-danger" href="/agent">Ok</a>
+        </div>;
+      }
       return <div>
         <div className="panel panel-default">
           <div className="panel-heading">

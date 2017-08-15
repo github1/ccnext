@@ -59,4 +59,13 @@ export class TaskService {
         return task;
       });
   }
+
+  public cancelTask(taskId : string, reason : string) : Promise<{}> {
+    return this.entityRepository
+      .load(Task, taskId)
+      .then((task : Task) => {
+        task.cancel(reason);
+        return task;
+      });
+  }
 }

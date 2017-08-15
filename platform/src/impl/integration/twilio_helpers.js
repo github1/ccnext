@@ -1,4 +1,26 @@
 /**
+ * Creates a twilio resource if it does not exist.
+ *
+ * @param objectType
+ * @param search
+ * @param resource
+ * @returns {any}
+ */
+export const createIfNotExists = (objectType, search, resource) => {
+  if(!search || search === null) {
+    return objectType.create.bind(objectType)(resource);
+  }
+  return objectType.list(search).then((objects) => {
+    if (objects.length === 0) {
+      return objectType.create.bind(objectType)(resource);
+    } else {
+      //console.log('object already exists in twilio', search, objects[0]);
+      return Promise.resolve(objects[0]);
+    }
+  });
+};
+
+/**
  * Creates or updates a twilio resource.
  *
  * @param objectType
@@ -6,7 +28,7 @@
  * @param resource
  * @returns {any}
  */
-export const create = (objectType, search, resource) => {
+export const upsert = (objectType, search, resource) => {
   return objectType.list(search).then((objects) => {
     if (objects.length === 0) {
       return objectType.create.bind(objectType)(resource);
@@ -16,8 +38,9 @@ export const create = (objectType, search, resource) => {
   });
 };
 
-export const createTask = (twilioClient, workspaceSid, workflowSid, data) => {
-  return twilioClient.taskrouter.v1.workspaces(workspaceSid).tasks.create({
+export const createTaskIfNotExists = (twilioClient, workspaceSid, workflowSid, data) => {
+  const search = data['twilioTaskSid'] ? {sid: data['twilioTaskSid']} : null;
+  return createIfNotExists(twilioClient.taskrouter.v1.workspaces(workspaceSid).tasks, search, {
     workflowSid: workflowSid,
     taskChannel: data.channel === 'chat' ? 'chat' : 'default',
     attributes: JSON.stringify(data)
@@ -28,14 +51,16 @@ export const updateTask = (twilioClient, workspaceSid, taskSid, data) => {
   return twilioClient.taskrouter.v1.workspaces(workspaceSid).tasks(taskSid).update(data);
 };
 
-export const configureIncomingNumber = (twilioClient, phoneNumberSid, voiceUrl, smsUrl) => {
+export const configureIncomingNumber = (twilioClient, phoneNumberSid, voiceUrl, smsUrl, callStatusUrl) => {
   return twilioClient
     .incomingPhoneNumbers(phoneNumberSid)
     .update({
       voiceUrl: voiceUrl,
       voiceMethod: 'POST',
       smsUrl: smsUrl,
-      smsMethod: 'POST'
+      smsMethod: 'POST',
+      statusCallback: callStatusUrl,
+      statusCallbackMethod: 'POST'
     });
 };
 
@@ -52,7 +77,7 @@ export const configureTaskRouter = (twilioClient, workspaceName, baseUrl) => {
     workers: {},
     taskchannels: {}
   };
-  return create(
+  return upsert(
     twilioClient.taskrouter.workspaces,
     {friendlyName: workspaceName}, {
       friendlyName: workspaceName,
@@ -75,7 +100,7 @@ export const configureTaskRouter = (twilioClient, workspaceName, baseUrl) => {
       });
     })
     .then((workspace) => {
-      return create(workspace.taskQueues(), {friendlyName: taskQueueName}, {
+      return upsert(workspace.taskQueues(), {friendlyName: taskQueueName}, {
         friendlyName: taskQueueName,
         targetWorkers: '1==1',
         reservationActivitySid: config.activities['Reserved'].sid,
@@ -86,7 +111,7 @@ export const configureTaskRouter = (twilioClient, workspaceName, baseUrl) => {
       });
     })
     .then((workspace) => {
-      return create(workspace.workflows(), {friendlyName: workflowName}, {
+      return upsert(workspace.workflows(), {friendlyName: workflowName}, {
         friendlyName: workflowName,
         assignmentCallbackUrl: taskAssignmentCallbackUrl,
         taskReservationTimeout: 300,

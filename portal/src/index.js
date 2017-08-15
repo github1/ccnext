@@ -95,15 +95,17 @@ const sideEffect = (command, model) => {
       });
 
       if (!command.redirect && !command.view) {
-        command.redirect = '/account';
+        command.redirect = id.role === 'agent' ? '/agent' : '/account';
       }
-      if (id.role === 'agent') {
-        command.redirect = '/agent';
+
+      if (id.role !== 'visitor' && command.view === 'home') {
+        command.redirect = id.role === 'agent' ? '/agent' : '/account';
+        delete command.view;
       }
       const redirectOnly = command.redirect && !command.view;
       const perform = () => {
         if (redirectOnly) {
-          if (window.location.pathname.indexOf(command.redirect) === -1) {
+          if (window.location.pathname !== command.redirect) {
             page.redirect(command.redirect);
           }
         } else {
@@ -113,6 +115,7 @@ const sideEffect = (command, model) => {
           });
         }
       };
+
       if (redirectOnly || command.insecure) {
         perform();
       } else {
@@ -161,16 +164,27 @@ const sideEffect = (command, model) => {
           id: command.stream,
           text: `${command.event.participant} has ${eventType.toLowerCase()} the chat`
         });
-      } else if (command.name === 'WorkerTaskUpdatedEvent') {
+      } else if (command.name === 'WorkerTaskStatusUpdatedEvent') {
         populateTasks(command.event.task).then((tasks) => {
+          const url = `/agent/task/${tasks[0].taskId}`;
           growl({
             title: `Task ${tasks[0].status}`,
-            message: `<a href='/agent/task/${tasks[0].taskId}'>${tasks[0].taskId}</a>`
+            message: `<a href='${url}'>${tasks[0].taskId}</a>`
           });
           dispatch({
             type: TASK_RECEIVED,
             task: tasks[0]
+          })
+          .then(() => {
+            if(tasks[0].status === 'assigned' && tasks[0].channel === 'voice') {
+              page.redirect('/agent/task/' + tasks[0].taskId);
+            }
           });
+        });
+      } else if (command.name === 'WorkerTaskDataUpdatedEvent') {
+        dispatch({
+          type: TASK_RECEIVED,
+          task: command.event.task
         });
       }
       break;
@@ -200,7 +214,7 @@ const sideEffect = (command, model) => {
           }).then(() => {
             // subscribe to events addressed to this user
             return subscribeTo(command.username).then(() => {
-              page.redirect(id.role === 'agent' ? '/agent' : '/account');
+              page.redirect('/');
             });
           });
         }).catch((err) => {
@@ -364,7 +378,7 @@ const update = (event, model) => {
       } else {
         model.tasks[index] = event.task;
       }
-      if(model.selectedTask && model.selectedTask.taskId === event.task.taskId) {
+      if (model.selectedTask && model.selectedTask.taskId === event.task.taskId) {
         model.selectedTask = event.task;
       }
       break;

@@ -20,7 +20,7 @@ import { taskAPI } from './core/api/task_api';
 const port : string = process.env.PORT || '9999';
 
 // publicly accessible url of this service (for webhooks)
-const publicUrl : string = process.env.PUBLIC_URL;
+const publicUrl : string = process.env.PUBLIC_URL || `http://localhost:${port}`;
 
 // twilio credentials
 const twilioPhoneNumberSid : string = process.env.TWILIO_NUMBER_SID;

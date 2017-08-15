@@ -21,13 +21,13 @@ class TaskStatus extends Component {
         this.markTaskComplete(this.props.task);
       }
     }];
-    return <div className="task-status">
+    return <div>
       { this.props.task.status === 'assigned' ? <Dropdown
-        title={  this.props.task.status }
+        title={  <span className="task-status">{this.props.task.status}</span> }
         pullRight={ this.props.pullRight }
         id="task-status-menu"
         menuItems={menuLinks}
-      /> : <span className="readonly">{this.props.task.status}</span>}
+      /> : <span className="task-status readonly">{this.props.task.status}</span>}
     </div>
   }
 }

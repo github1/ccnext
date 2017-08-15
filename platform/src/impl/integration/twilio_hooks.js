@@ -1,8 +1,8 @@
 import * as normalizeUrl from 'normalize-url';
 import * as uuid from 'uuid';
 import {
-  create,
-  createTask,
+  upsert,
+  createTaskIfNotExists,
   updateTask,
   configureIncomingNumber,
   configureTaskRouter
@@ -49,7 +49,7 @@ export default (baseUrl, contextPath, phoneNumberSid, accountSid, authToken, cha
       if (event.name === 'IdentityRegisteredEvent') {
         // create workers from registered agents
         if (event.payload.role === 'agent') {
-          create(twilioContext.taskqueueConfig.workspaces['ccaas'].workers(), {friendlyName: event.streamId}, {
+          upsert(twilioContext.taskqueueConfig.workspaces['ccaas'].workers(), {friendlyName: event.streamId}, {
             friendlyName: event.streamId,
             multiTaskEnabled: true,
             attributes: JSON.stringify(event.payload, null, 2)
@@ -76,17 +76,19 @@ export default (baseUrl, contextPath, phoneNumberSid, accountSid, authToken, cha
         } else if (event.name === 'ChatEndedEvent') {
           delete twilioContext.chats[event.stream];
         } else if (event.name === 'TaskSubmittedEvent') {
-          createTask(twilioClient,
-            twilioContext.taskqueueConfig.workspaces['ccaas'].sid,
-            twilioContext.taskqueueConfig.workflows['ccaas-workflow'].sid,
-            event.payload.taskData
-          ).then((task) => {
-            taskService.amendTask(event.stream, {
-              twilioTaskSid: task.sid
+          if(!event.payload.taskData.twilioTaskSid) {
+            createTaskIfNotExists(twilioClient,
+              twilioContext.taskqueueConfig.workspaces['ccaas'].sid,
+              twilioContext.taskqueueConfig.workflows['ccaas-workflow'].sid,
+              event.payload.taskData
+            ).then((task) => {
+              taskService.amendTask(event.stream, {
+                twilioTaskSid: task.sid
+              });
+            }).catch((err) => {
+              console.error('failed to create task in twilio', err);
             });
-          }).catch((err) => {
-            console.error('failed to create task in twilio', err);
-          });
+          }
         } else if (event.name === 'TaskCompletedEvent') {
           if (event.payload.taskData.twilioTaskSid) {
             updateTask(twilioClient,
@@ -112,7 +114,7 @@ export default (baseUrl, contextPath, phoneNumberSid, accountSid, authToken, cha
       server.use(cookieParser());
 
       server.use(function (req, res, next) {
-        if (req.path.indexOf(contextPath) === 0) {
+        if (req.path.indexOf(contextPath) === 0 && req.path.indexOf('nosig') === -1) {
           // validate the x-twilio-signature header
           if (twilio.validateExpressRequest(req, authToken, {protocol: req.headers['x-forwarded-proto']})) {
             next();
@@ -155,12 +157,6 @@ export default (baseUrl, contextPath, phoneNumberSid, accountSid, authToken, cha
               'Content-Type': 'text/xml'
             });
             res.send(vr.toString());
-
-            /*-
-             res.send(new twilio.twiml.VoiceResponse()
-             .say({}, 'Not configured')
-             .toString());
-             */
             break;
           }
           default:
@@ -169,25 +165,67 @@ export default (baseUrl, contextPath, phoneNumberSid, accountSid, authToken, cha
         }
       });
 
+      const processedTasks = [];
+
       server.post(`${contextPath}/tasks/assignment`, (req, res) => {
         const taskAttributes = JSON.parse(req.body.TaskAttributes);
-        const workerAttributes = JSON.parse(req.body.WorkerAttributes);
         if (taskAttributes.channel === 'chat') {
           res.json({
             instruction: 'accept'
           });
-        } else {
+        } else if (taskAttributes.caller && processedTasks.indexOf(req.body.TaskSid) < 0) {
+          processedTasks.push(req.body.TaskSid);
           twilioContext.taskqueueConfig.workspaces['ccaas']
-            .workers().get(req.body.WorkerSid)
-            .reservations(req.body.ReservationSid)
-            .update({
-              instruction: 'dequeue',
-              dequeueTo: workerAttributes.phoneNumber,
-              dequeueFrom: twilioContext.phoneNumber,
-              dequeuePostWorkActivitySid: twilioContext.taskqueueConfig.activities['Idle'].sid
+            .tasks()
+            .get(req.body.TaskSid)
+            .fetch((err, twilioTask) => {
+              if (twilioTask.taskChannelUniqueName === 'voice') {
+                const workerAttributes = JSON.parse(req.body.WorkerAttributes);
+                taskAttributes.channel = 'voice';
+                taskAttributes.twilioTaskSid = req.body.TaskSid;
+                taskService
+                  .submitTask(taskAttributes.queue, taskAttributes)
+                  .then((task) => {
+                    taskAttributes.taskId = task.id;
+                    return twilioTask.update({
+                      attributes: JSON.stringify(taskAttributes)
+                    }).then(() => {
+                      return taskService.assignTask(task.id, workerAttributes.username);
+                    });
+                  })
+                  .then(() => {
+                    res.json({
+                      instruction: 'dequeue',
+                      to: workerAttributes.phoneNumber,
+                      from: twilioContext.phoneNumber,
+                      post_work_activity_sid: twilioContext.taskqueueConfig.activities['Idle'].sid, // eslint-disable-line camelcase
+                      status_callback_url: normalizeUrl(`${baseUrl}/${contextPath}/nosig/taskcallstatus/${taskAttributes.taskId}`), // eslint-disable-line camelcase
+                      status_callback_events: 'initiated,ringing,answered,completed' // eslint-disable-line camelcase
+                    });
+                  })
+                  .catch((err) => {
+                    console.error(err);
+                    res.json({});
+                  });
+              }
             });
-          res.json({});
+        } else {
+          res.status(400).json({});
         }
+      });
+
+      server.post(`${contextPath}/callstatus`, (req, res) => {
+        console.log('callstatus', req.body);
+        res.send({});
+      });
+
+      server.all(`${contextPath}/nosig/taskcallstatus/:taskId`, (req, res) => {
+        //console.log('taskcallstatus', req.method, req.headers, req.body, req.params);
+        taskService.amendTask(req.params.taskId, {
+          callStatus: req.body.CallStatus,
+          duration: req.body.Duration
+        });
+        res.send({});
       });
 
       server.post(`${contextPath}/tasks/callback`, (req, res) => {
@@ -198,15 +236,21 @@ export default (baseUrl, contextPath, phoneNumberSid, accountSid, authToken, cha
             const worker = req.body.WorkerName;
             taskService
               .submitTask(taskAttributes.queue, taskAttributes)
-              .then(() => {
-                return taskService.assignTask(taskAttributes.taskId, worker);
+              .then((task) => {
+                return taskService.assignTask(task.id, worker);
               })
               .catch((err) => {
                 console.error(err);
               });
           } else if (eventType === 'task.completed') {
             taskService
-              .markTaskComplete(taskAttributes.taskId, 'twilio-event')
+              .markTaskComplete(taskAttributes.taskId, JSON.stringify(req.body))
+              .catch((err) => {
+                console.error(err);
+              });
+          } else if (eventType === 'task.canceled') {
+            taskService
+              .cancelTask(taskAttributes.taskId, JSON.stringify(req.body))
               .catch((err) => {
                 console.error(err);
               });
@@ -222,15 +266,14 @@ export default (baseUrl, contextPath, phoneNumberSid, accountSid, authToken, cha
       return configureIncomingNumber(twilioClient,
         phoneNumberSid,
         normalizeUrl(`${baseUrl}/${contextPath}/voice`),
-        normalizeUrl(`${baseUrl}/${contextPath}/sms`))
+        normalizeUrl(`${baseUrl}/${contextPath}/sms`),
+        normalizeUrl(`${baseUrl}/${contextPath}/callstatus`))
         .then(incomingNumber => {
           return configureTaskRouter(twilioClient, 'ccaas', normalizeUrl(`${baseUrl}/${contextPath}`))
             .then((taskqueueConfig) => {
               twilioContext.phoneNumber = incomingNumber.phoneNumber;
               twilioContext.taskqueueConfig = taskqueueConfig;
-
               console.log('Using twilio phoneNumber:', twilioContext.phoneNumber);
-
               // subscribe to events after task router has been configured
               subscribeEvents();
             });

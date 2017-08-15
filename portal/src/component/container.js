@@ -4,7 +4,7 @@ import Logo from './logo';
 import NavMenu from './nav_menu';
 import CustomerChat from './customer_chat';
 import views from '../view';
-import { SIGN_OUT } from '../constants';
+import { SIGN_OUT, NAVIGATE } from '../constants';
 
 export default class extends Component {
   constructor(props) {
@@ -36,7 +36,10 @@ export default class extends Component {
     const menuLinks = {
       agent: [
         {text: 'Tasks', icon: 'check', handler: () => {
-          window.location = '/agent';
+          dispatch({
+            type: NAVIGATE,
+            redirect: '/agent'
+          });
         }},
         'divider',
         {text: 'Sign Out', icon: 'log-out', handler: () => {

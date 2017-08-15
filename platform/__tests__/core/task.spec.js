@@ -46,7 +46,7 @@ describe('Task', () => {
     });
     it('dispatches a task amended event', () => {
       expect(task.dispatch)
-        .toBeCalledWith('taskId', new TaskAmendedEvent({foo: 'bar'}));
+        .toBeCalledWith('taskId', new TaskAmendedEvent({foo: 'bar'}, {someData: 'someValue'}));
     });
     it('updates the tasks data', () => {
       expect(task.taskData.someData).toEqual('someOtherValue');

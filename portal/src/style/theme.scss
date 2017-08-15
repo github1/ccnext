@@ -89,6 +89,9 @@ hr {
   .panel-body {
     background-color: transparent;
   }
+  .panel-title {
+    text-transform: capitalize;
+  }
 }
 
 .panel-default:before {
