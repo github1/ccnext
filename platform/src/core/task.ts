@@ -18,24 +18,39 @@ export class TaskSubmittedEvent extends TaskEvent {
 }
 
 export class TaskAmendedEvent extends TaskEvent {
-  constructor(taskData : { [key:string]:string}) {
+  public amendedTaskData : { [key:string]:string};
+  constructor(amendedTaskData : { [key:string]:string}, taskData : { [key:string]:string}) {
     super(taskData);
+    this.amendedTaskData = amendedTaskData;
   }
 }
 
-export class TaskAssignedEvent extends TaskEvent {
-  constructor(worker : string, taskData : { [key:string]:string }) {
-    super(taskData);
-    this.worker = worker;
-  }
-}
-
-export class TaskCompletedEvent extends TaskEvent {
+export class TaskStatusChangedEvent extends TaskEvent {
+  public status : string;
   public reason : string;
-  constructor(reason : string, worker : string, taskData : { [key:string]:string}) {
+  constructor(status : string, reason : string, worker : string, taskData : { [key:string]:string}) {
     super(taskData);
+    this.status = status;
     this.reason = reason;
     this.worker = worker;
+  }
+}
+
+export class TaskAssignedEvent extends TaskStatusChangedEvent {
+  constructor(worker : string, taskData : { [key:string]:string }) {
+    super('assigned', 'Task Assigned', worker, taskData);
+  }
+}
+
+export class TaskCompletedEvent extends TaskStatusChangedEvent {
+  constructor(reason : string, worker : string, taskData : { [key:string]:string}) {
+    super('completed', reason, worker, taskData);
+  }
+}
+
+export class TaskCancelledEvent extends TaskStatusChangedEvent {
+  constructor(reason : string, worker : string, taskData : { [key:string]:string}) {
+    super('cancelled', reason, worker, taskData);
   }
 }
 
@@ -49,11 +64,13 @@ export class Task extends Entity {
       if (event instanceof TaskSubmittedEvent) {
         self.taskData = event.taskData;
       } else if (event instanceof TaskAmendedEvent) {
-        self.taskData = Object.assign({}, self.taskData, event.taskData);
+        self.taskData = Object.assign({}, self.taskData, event.amendedTaskData);
       } else if (event instanceof TaskAssignedEvent) {
         self.assignedWorker = event.worker;
-      } else if (event instanceof TaskCompletedEvent) {
-        self.isComplete = true;
+      } else if (event instanceof TaskStatusChangedEvent) {
+        if (['completed', 'cancelled'].indexOf(event.status) > -1) {
+          self.isComplete = true;
+        }
       }
     }));
   }
@@ -65,7 +82,9 @@ export class Task extends Entity {
   }
 
   public amend(data : { [key:string]:string}) : void {
-    this.dispatch(this.id, new TaskAmendedEvent(data));
+    const event : TaskAmendedEvent = new TaskAmendedEvent(data, this.taskData);
+    event.worker = this.assignedWorker;
+    this.dispatch(this.id, event);
   }
 
   public assign(worker : string) : void {
@@ -74,7 +93,9 @@ export class Task extends Entity {
     } else if (this.isComplete) {
       throw new Error('task is complete');
     }
-    this.dispatch(this.id, new TaskAssignedEvent(worker, this.taskData));
+    if(this.assignedWorker !== worker) {
+      this.dispatch(this.id, new TaskAssignedEvent(worker, this.taskData));
+    }
   }
 
   public complete(reason : string) : void {
@@ -83,6 +104,15 @@ export class Task extends Entity {
     }
     if (!this.isComplete) {
       this.dispatch(this.id, new TaskCompletedEvent(reason, this.assignedWorker, this.taskData));
+    }
+  }
+
+  public cancel(reason : string): void {
+    if (this.taskData === null) {
+      throw new Error('task not submitted yet');
+    }
+    if (!this.isComplete) {
+      this.dispatch(this.id, new TaskCancelledEvent(reason, this.assignedWorker, this.taskData));
     }
   }
 

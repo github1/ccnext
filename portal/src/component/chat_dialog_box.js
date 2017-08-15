@@ -22,9 +22,8 @@ class ChatDialogBox extends Component {
   focusInput() {
     const input = this.getChatInputDOMNode();
     if(input) {
-      if (this.props.readonly) {
-        input.disabled = true;
-      } else {
+      input.disabled = this.props.readonly;
+      if (!this.props.readonly) {
         input.focus();
       }
     }

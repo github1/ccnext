@@ -36,9 +36,11 @@ export function eventAPI(baseUrl : string, eventBus : EventBus) : { preConfigure
       });
 
       const unsubscribeFromStream = (streamId : string, connection : string) => {
-        const index = eventSubscriptions[streamId].indexOf(connection);
-        if (index > -1) {
-          eventSubscriptions[streamId].splice(index, 1);
+        if(eventSubscriptions[streamId]) {
+          const index = eventSubscriptions[streamId].indexOf(connection);
+          if (index > -1) {
+            eventSubscriptions[streamId].splice(index, 1);
+          }
         }
       };
 

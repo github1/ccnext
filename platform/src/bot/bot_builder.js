@@ -34,7 +34,7 @@ putSlot(lexmodelbuildingservice, topic).then(() => {
 }).then(() => {
   return putSlot(lexmodelbuildingservice, character);
 }).then(() => {
-  putSlot(lexmodelbuildingservice, cardType);
+  return putSlot(lexmodelbuildingservice, cardType);
 }).then(() => {
   return putIntent(lexmodelbuildingservice, Welcome);
 }).then(() => {

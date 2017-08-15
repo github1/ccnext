@@ -27,7 +27,7 @@ export class InMemoryAuthenticator implements Authenticator {
 
     entityRepository.load(Identity, 'demoagent')
       .then((identity : Identity) => {
-        identity.register('password1', 'Kermit', 'Frog', '+15555555555', 'agent');
+        identity.register('password1', 'Kermit', 'Frog', process.env.DEMO_AGENT_PHONE_NUMBER || '+15555555555', 'agent');
       })
       .catch((err : Error) => {
         console.error(err);

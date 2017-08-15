@@ -1,6 +1,6 @@
 /* tslint:disable:no-unsafe-any */
 import * as express from 'express';
-import { TaskEvent } from './../task';
+import { TaskEvent, TaskStatusChangedEvent, TaskAmendedEvent } from './../task';
 import { TaskService } from './../task_service';
 import { EventBus, EventRecord } from './../entity/entity';
 
@@ -10,26 +10,30 @@ export function taskAPI(eventBus : EventBus, taskService : TaskService) : { preC
 
   eventBus.subscribe(
     (event : EventRecord, isReplaying : boolean) => {
-      if (/^Task(Assigned|Completed)Event$/.test(event.name)) {
+      if(event.payload instanceof TaskEvent) {
+        let emitEventName : string;
         const taskEvent : TaskEvent = (<TaskEvent>event.payload);
-        const taskData = JSON.parse(JSON.stringify(taskEvent.taskData));
+        let taskData = JSON.parse(JSON.stringify(taskEvent.taskData));
         const taskId = taskData['taskId'];
         const worker = taskEvent.worker;
         taskAssignments[worker] = taskAssignments[worker] || {};
-        if (event.name === 'TaskAssignedEvent') {
-          taskData['status'] = 'assigned';
-          taskData['assignedAtTime'] = taskEvent.time;
-        } else if (event.name === 'TaskCompletedEvent') {
-          taskData['status'] = 'completed';
-          taskData['completedAtTime'] = taskEvent.time;
+        if (event.payload instanceof TaskStatusChangedEvent) {
+          const taskStatusChangedEvent : TaskStatusChangedEvent = (<TaskStatusChangedEvent>event.payload);
+          taskData['status'] = taskStatusChangedEvent.status;
+          taskData[`${taskStatusChangedEvent.status}AtTime`] = taskStatusChangedEvent.time;
+          emitEventName = 'WorkerTaskStatusUpdatedEvent';
+        } else if (event.payload instanceof TaskAmendedEvent) {
+          const taskAmendedEvent : TaskAmendedEvent = (<TaskAmendedEvent>event.payload);
+          taskData = Object.assign({}, taskData, taskAmendedEvent.amendedTaskData);
+          emitEventName = 'WorkerTaskDataUpdatedEvent';
         }
-        taskAssignments[worker][taskId] = Object.assign({}, taskAssignments[worker][taskId], taskData);
-        if (!isReplaying) {
+        if (!isReplaying && emitEventName) {
+          taskAssignments[worker][taskId] = Object.assign({}, taskAssignments[worker][taskId], taskData);
           eventBus.emit({
             stream: worker,
-            name: 'WorkerTaskUpdatedEvent',
+            name: emitEventName,
             payload: {
-              name: 'WorkerTaskUpdatedEvent',
+              name: emitEventName,
               task: taskAssignments[worker][taskId]
             }
           });
