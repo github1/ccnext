@@ -1,4 +1,4 @@
-validateGetAccountBalane
+
 import {topic} from "./slots/topic.js";
 import {accountHolder} from "./slots/account_holder.js";
 import {character} from "./slots/character.js";
@@ -11,13 +11,13 @@ let slotTypeMap = new Map ([ ['Topic', topic], ['AccountHolder', accountHolder],
 /*The function "isValidSlot()"" checks whether a slot is valid or not, whatever its type.
  It returns a boolean. */
 function parseLocalDate(date) {
-       /**
-        * Construct a date object in the local timezone by parsing the input date string, assuming a YYYY-MM-DD format.
-        * Note that the Date(dateString) constructor is explicitly avoided as it may implicitly assume a UTC timezone.
-        */
-  const dateComponents = date.split(/\-/);
+  /**
+  * Construct a date object in the local timezone by parsing the input date string, assuming a YYYY-MM-DD format.
+  * Note that the Date(dateString) constructor is explicitly avoided as it may implicitly assume a UTC timezone.
+  */
+  const dateComponents = date.split(/-/);
   return new Date(dateComponents[0], dateComponents[1] - 1, dateComponents[2]);
-   }
+}
 function isValidSlot( slot, slotType ) {
 
   switch (slotType) {
@@ -29,44 +29,44 @@ function isValidSlot( slot, slotType ) {
       }catch (err){
         return false;
       }
-      break;
+
     }
 
     case 'AMAZON.NUMBER':
       return true;
-      break;
+
 
 
     case 'AMAZON.FOUR_DIGIT_NUMBER':
       return true;
-      break;
+
 
     default :{
       let set = new Set ;
       slotTypeMap.get(slotType).enumerationValues.forEach( (val) => {
         set.add ( val.value.toLowerCase() );
-        });
+      });
       return set.has( slot.toLowerCase() ) ;
     }
-      }
+}
 }
 
 /*Format of the response built after a validation check of an intent's slots.
  "buildValidationResult()" enables to identify which slot is violated,
  and what message it should return to the end user.*/
- function buildValidationResult(isValid, violatedSlot, messageContent) {
-   return {
-     isValid,
-     violatedSlot,
-     message: { contentType: 'PlainText', content: messageContent },
-   };
+function buildValidationResult(isValid, violatedSlot, messageContent) {
+  return {
+    isValid,
+    violatedSlot,
+    message: { contentType: 'PlainText', content: messageContent },
+  };
 }
 /*Slots validation for the AskQuestion intent */
 function validateAskQuestion ( slots ){
   const questionTopicSlot = slots.QuestionTopic ;
 
   if ( !(isValidSlot(questionTopicSlot, 'Topic')) ){
-      return buildValidationResult ( false, 'QuestionTopic', `Sorry,  did not understand your request.You can ask me questions about your account such as "What is my balance?" or questions about our services like "How can I pay my bill?"`);
+    return buildValidationResult ( false, 'QuestionTopic', `Sorry,  did not understand your request.You can ask me questions about your account such as "What is my balance?" or questions about our services like "How can I pay my bill?"`);
   } else {
     return buildValidationResult( true, null, null) ;
   }
@@ -153,4 +153,4 @@ module.exports.validateAskQuestion = validateAskQuestion ;
 module.exports.validateGetAccountBalance = validateGetAccountBalance ;
 module.exports.validateGetTransactions = validateGetTransactions ;
 module.exports.validateLostCard = validateLostCard ;
-module.exports.validateMakePayment = validateMakePayment ; 
+module.exports.validateMakePayment = validateMakePayment ;
