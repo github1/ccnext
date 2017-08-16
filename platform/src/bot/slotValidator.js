@@ -1,4 +1,4 @@
-
+validateGetAccountBalane
 import {topic} from "./slots/topic.js";
 import {accountHolder} from "./slots/account_holder.js";
 import {character} from "./slots/character.js";
@@ -10,56 +10,56 @@ let slotTypeMap = new Map ([ ['Topic', topic], ['AccountHolder', accountHolder],
 
 /*The function "isValidSlot()"" checks whether a slot is valid or not, whatever its type.
  It returns a boolean. */
+function parseLocalDate(date) {
+       /**
+        * Construct a date object in the local timezone by parsing the input date string, assuming a YYYY-MM-DD format.
+        * Note that the Date(dateString) constructor is explicitly avoided as it may implicitly assume a UTC timezone.
+        */
+  const dateComponents = date.split(/\-/);
+  return new Date(dateComponents[0], dateComponents[1] - 1, dateComponents[2]);
+   }
 function isValidSlot( slot, slotType ) {
 
-    switch (slotType) {
+  switch (slotType) {
 
-      case 'AMAZON.DATE':
-          function parseLocalDate(date) {
-              /**
-               * Construct a date object in the local timezone by parsing the input date string, assuming a YYYY-MM-DD format.
-               * Note that the Date(dateString) constructor is explicitly avoided as it may implicitly assume a UTC timezone.
-               */
-              const dateComponents = date.split(/\-/);
-              return new Date(dateComponents[0], dateComponents[1] - 1, dateComponents[2]);
-          }
-          try {
-            return !(isNaN(parseLocalDate(slot).getTime()));
-          }catch (err){
-            return false;
-          }
-        //break;
+    case 'AMAZON.DATE':{
+
+      try {
+        return !(isNaN(parseLocalDate(slot).getTime()));
+      }catch (err){
+        return false;
+      }
+      break;
+    }
+
+    case 'AMAZON.NUMBER':
+      return true;
+      break;
 
 
-      case 'AMAZON.NUMBER':
-            return true;
-        //break;
+    case 'AMAZON.FOUR_DIGIT_NUMBER':
+      return true;
+      break;
 
-
-      case 'AMAZON.FOUR_DIGIT_NUMBER':
-            return true;
-      //break;
-
-      default :
-            let set = new Set ;
-            slotTypeMap.get(slotType).enumerationValues.forEach( (val) => {
-                set.add ( val.value.toLowerCase() );
-              }
-            );
-            return set.has( slot.toLowerCase() ) ;
-      };
-
+    default :{
+      let set = new Set ;
+      slotTypeMap.get(slotType).enumerationValues.forEach( (val) => {
+        set.add ( val.value.toLowerCase() );
+        });
+      return set.has( slot.toLowerCase() ) ;
+    }
+      }
 }
 
 /*Format of the response built after a validation check of an intent's slots.
  "buildValidationResult()" enables to identify which slot is violated,
  and what message it should return to the end user.*/
-function buildValidationResult(isValid, violatedSlot, messageContent) {
-    return {
-        isValid,
-        violatedSlot,
-        message: { contentType: 'PlainText', content: messageContent },
-    }
+ function buildValidationResult(isValid, violatedSlot, messageContent) {
+   return {
+     isValid,
+     violatedSlot,
+     message: { contentType: 'PlainText', content: messageContent },
+   };
 }
 /*Slots validation for the AskQuestion intent */
 function validateAskQuestion ( slots ){
@@ -74,7 +74,7 @@ function validateAskQuestion ( slots ){
 
 
 /*Slots validation for the GetAccountBalance intent */
-function validate_get_account_balance ( slots ) {
+function validateGetAccountBalance ( slots ) {
   const charOne = slots.charOne ;
   const charTwo = slots.charTwo ;
 
@@ -89,7 +89,7 @@ function validate_get_account_balance ( slots ) {
 
 
 /*Slots validation for the GetTransactions intent */
-function validate_get_transactions ( slots ) {
+function validateGetTransactions ( slots ) {
   const charOne = slots.charOne ;
   const charTwo = slots.charTwo ;
 
@@ -106,11 +106,11 @@ function validate_get_transactions ( slots ) {
 
 
 /*Slots validation for the LostCard intent */
-function validate_lost_card ( slots ) {
+function validateLostCard ( slots ) {
   const cardOwnerSlot = slots.cardOwner ;
   const dateOfBirthSlot = slots.dateOfBirth ;
   const incidentDateSlot = slots.incidentDate ;
-  const card_type = slots.cardType ;
+  const cardTypeSlot = slots.cardType ;
 
 
   if ( !(isValidSlot(cardOwnerSlot, 'AccountHolder')) ){
@@ -119,7 +119,7 @@ function validate_lost_card ( slots ) {
   if ( !(isValidSlot( dateOfBirthSlot, 'AMAZON.DATE')) || !isValidSlot(incidentDateSlot, 'AMAZON.DATE') ) {
     return buildValidationResult ( false, 'dateOfBirth', 'Sorry, the date of birth you entered is incorrect');
   }
-  if ( !(isValidSlot( card_type , 'CardType')) ) {
+  if ( !(isValidSlot( cardTypeSlot , 'CardType')) ) {
     return buildValidationResult ( false, 'cardType', ` Sorry, the card's type you entered is incorrect` );
   }
   return buildValidationResult( true, null, null) ;
@@ -147,3 +147,10 @@ function validateMakePayment (slots) {
   }
   return buildValidationResult( true, null, null) ;
 }
+
+
+module.exports.validateAskQuestion = validateAskQuestion ;
+module.exports.validateGetAccountBalance = validateGetAccountBalance ;
+module.exports.validateGetTransactions = validateGetTransactions ;
+module.exports.validateLostCard = validateLostCard ;
+module.exports.validateMakePayment = validateMakePayment ; 
