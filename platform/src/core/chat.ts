@@ -89,34 +89,6 @@ export class ChatErrorEvent extends ChatEvent {
   }
 }
 
-export interface ChatRequest {
-  message: string;
-  dialogCorrelationId: string;
-}
-
-export interface ChatResponse {
-  message: string;
-  state: State;
-  provider: string;
-  payload : {};
-}
-
-export type State = 'ElicitIntent' |
-  'ConfirmIntent' |
-  'ElicitSlot' |
-  'Fulfilled' |
-  'ReadyForFulfillment' |
-  'Failed' |
-  'Deferred';
-
-export interface ChatDestination {
-  send(request : ChatRequest) : Promise<ChatResponse>;
-}
-
-export interface ChatDestinationProvider {
-  getChat(id : string) : ChatDestination;
-}
-
 export class Chat extends Entity {
   private started : boolean;
   private participants : string[] = [];
@@ -202,15 +174,4 @@ export class Chat extends Entity {
     this.dispatch(this.id, new ChatEndedEvent());
   }
 
-}
-
-export class AgentChat implements ChatDestination {
-  public send() : Promise<ChatResponse> {
-    return Promise.resolve({
-      message: '',
-      state: (<State> 'Deferred'),
-      provider: 'human',
-      payload: {}
-    });
-  }
 }

@@ -13,12 +13,47 @@ describe('LexChatBot', () => {
   }));
 
 
-  it('helps the user work out how to use the bot', () => {
-    return bot.send({ dialogCorrelationId: dialogCorrelationId, message: 'How does this work?' })
-      .then((result) => {
-        expect(result.payload.intentName).toBe('Welcome');
-        expect(result.state).toBe('ReadyForFulfillment');
+  it('helps the user work out how to use the bot', (done) => {
+
+    const notExpected = () => {
+      expect(true).toEqual(false);
+    };
+    const expected = [];
+    const expectCall = () => {
+      let r;
+      expected.push(new Promise((resolve) => {
+        r = resolve;
+      }));
+      return () => {
+        r();
+      };
+    };
+
+    const chatResponse = {
+      reply: jest.fn(notExpected),
+      signalReadyForFulfillment: jest.fn(expectCall()),
+      signalFailed: jest.fn(notExpected),
+      nothing: jest.fn(notExpected),
+      storeConversationData: jest.fn(expectCall())
+    };
+
+    bot.send({
+      correlationId: dialogCorrelationId,
+      message: 'How does this work?'
+    }, chatResponse);
+
+    return Promise.all(expected).then(() => {
+      expect(chatResponse.signalReadyForFulfillment).toBeCalledWith({
+        dialogState: 'ReadyForFulfillment',
+        intentName: 'Welcome',
+        message: null,
+        sessionAttributes: {},
+        slotToElicit: null,
+        slots: {}
       });
+      done();
+    });
+
   });
 
 });
