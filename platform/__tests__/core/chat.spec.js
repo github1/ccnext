@@ -1,6 +1,7 @@
 import {
   Chat,
   ChatStartedEvent,
+  ChatParticipantIdentityLinkedEvent,
   ChatParticipantJoinedEvent,
   ChatParticipantLeftEvent,
   ChatEndedEvent,
@@ -79,6 +80,33 @@ describe('Chat', () => {
       expect(chat.dispatch)
         .toBeCalledWith('chatId', new ChatParticipantJoinedEvent('someone'));
       expect(chat.dispatch.mock.calls.length).toEqual(1);
+    });
+  });
+
+  describe('when a chat participant identity is linked', () => {
+    beforeEach(() => {
+      chat.join('someone');
+      chat.linkIdentity('someone', 'someIdentity');
+    });
+    it('dispatches a chat participant identity linked event', () => {
+      expect(chat.dispatch)
+        .toBeCalledWith('chatId', new ChatParticipantIdentityLinkedEvent('someone', 'someIdentity'));
+    });
+    it('links an identity only once', () => {
+      chat.linkIdentity('someone', 'someIdentity');
+      expect(chat.dispatch)
+        .toBeCalledWith('chatId', new ChatParticipantIdentityLinkedEvent('someone', 'someIdentity'));
+      expect(chat.dispatch.mock.calls.filter((call) => call[1] instanceof ChatParticipantIdentityLinkedEvent).length).toBe(1);
+    });
+    it('dispatches an event when an identity link changes', () => {
+      chat.linkIdentity('someone', 'someOtherIdentity');
+      expect(chat.dispatch)
+        .toBeCalledWith('chatId', new ChatParticipantIdentityLinkedEvent('someone', 'someIdentity'));
+      expect(chat.dispatch)
+        .toBeCalledWith('chatId', new ChatParticipantIdentityLinkedEvent('someone', 'someOtherIdentity'));
+      expect(chat.dispatch)
+        .toBeCalledWith('chatId', new ChatParticipantIdentityLinkedEvent('someone', 'someOtherIdentity'));
+      expect(chat.dispatch.mock.calls.filter((call) => call[1] instanceof ChatParticipantIdentityLinkedEvent).length).toBe(2);
     });
   });
 

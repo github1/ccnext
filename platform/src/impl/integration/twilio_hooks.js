@@ -9,6 +9,9 @@ import {
 } from './twilio_helpers';
 const cookieParser = require('cookie-parser');
 const twilio = require('twilio');
+import { IdentityRegisteredEvent } from '../../core/identity';
+import { ChatMessagePostedEvent, ChatEndedEvent } from '../../core/chat';
+import { TaskSubmittedEvent, TaskCompletedEvent } from '../../core/task';
 
 /**
  * Builds a service integration for twilio
@@ -34,25 +37,25 @@ export default (baseUrl, contextPath, phoneNumberSid, accountSid, authToken, cha
   const subscribeEvents = () => {
 
     const refreshChatContext = (event) => {
-      twilioContext.chats[event.stream] = twilioContext.chats[event.stream] || {};
-      twilioContext.chats[event.stream].isIncoming = false;
-      if ((event.payload.fromParticipant || '').indexOf('sms-incoming::') === 0) {
-        twilioContext.chats[event.stream].isIncoming = true;
-        twilioContext.chats[event.stream].incoming = event.payload.fromParticipant;
-        twilioContext.chats[event.stream].incomingNumber = (twilioContext.chats[event.stream].incoming + '').split(/::/)[1];
+      twilioContext.chats[event.streamId] = twilioContext.chats[event.streamId] || {};
+      twilioContext.chats[event.streamId].isIncoming = false;
+      if ((event.fromParticipant || '').indexOf('sms-incoming::') === 0) {
+        twilioContext.chats[event.streamId].isIncoming = true;
+        twilioContext.chats[event.streamId].incoming = event.fromParticipant;
+        twilioContext.chats[event.streamId].incomingNumber = (twilioContext.chats[event.streamId].incoming + '').split(/::/)[1];
       }
-      return twilioContext.chats[event.stream];
+      return twilioContext.chats[event.streamId];
     };
 
     eventBus.subscribe((event, isReplaying) => {
 
-      if (event.name === 'IdentityRegisteredEvent') {
+      if (event instanceof IdentityRegisteredEvent) {
         // create workers from registered agents
-        if (event.payload.role === 'agent') {
+        if (event.role === 'agent') {
           upsert(twilioContext.taskqueueConfig.workspaces['ccaas'].workers(), {friendlyName: event.streamId}, {
             friendlyName: event.streamId,
             multiTaskEnabled: true,
-            attributes: JSON.stringify(event.payload, null, 2)
+            attributes: JSON.stringify(event, null, 2)
           }).then((worker) => {
             console.log('added worker', worker.friendlyName);
             twilioContext.taskqueueConfig.workers[worker.friendlyName] = worker;
@@ -63,37 +66,37 @@ export default (baseUrl, contextPath, phoneNumberSid, accountSid, authToken, cha
       }
 
       if (!isReplaying) {
-        if (event.name === 'ChatMessagePostedEvent') {
+        if (event instanceof ChatMessagePostedEvent) {
           // Reply to chat messages with sms
           const chatContext = refreshChatContext(event);
           if (!chatContext.isIncoming && chatContext.incomingNumber) {
             twilioClient.messages.create({
               to: chatContext.incomingNumber,
               from: twilioContext.phoneNumber,
-              body: event.payload.text
+              body: event.text
             });
           }
-        } else if (event.name === 'ChatEndedEvent') {
-          delete twilioContext.chats[event.stream];
-        } else if (event.name === 'TaskSubmittedEvent') {
-          if(!event.payload.taskData.twilioTaskSid) {
+        } else if (event instanceof ChatEndedEvent) {
+          delete twilioContext.chats[event.streamId];
+        } else if (event instanceof TaskSubmittedEvent) {
+          if(!event.taskData.twilioTaskSid) {
             createTaskIfNotExists(twilioClient,
               twilioContext.taskqueueConfig.workspaces['ccaas'].sid,
               twilioContext.taskqueueConfig.workflows['ccaas-workflow'].sid,
-              event.payload.taskData
+              event.taskData
             ).then((task) => {
-              taskService.amendTask(event.stream, {
+              taskService.amendTask(event.streamId, {
                 twilioTaskSid: task.sid
               });
             }).catch((err) => {
               console.error('failed to create task in twilio', err);
             });
           }
-        } else if (event.name === 'TaskCompletedEvent') {
-          if (event.payload.taskData.twilioTaskSid) {
+        } else if (event instanceof TaskCompletedEvent) {
+          if (event.taskData.twilioTaskSid) {
             updateTask(twilioClient,
               twilioContext.taskqueueConfig.workspaces['ccaas'].sid,
-              event.payload.taskData.twilioTaskSid, {
+              event.taskData.twilioTaskSid, {
                 assignmentStatus: 'completed'
               })
               .catch((err) => {

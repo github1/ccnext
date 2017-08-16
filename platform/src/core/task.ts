@@ -1,15 +1,11 @@
 import { Entity, EntityEvent } from './entity/entity';
-import { Clock } from './clock';
 
-export class TaskEvent implements EntityEvent {
-  public time : number;
+export class TaskEvent extends EntityEvent {
   public taskData : { [key:string]:string};
   public worker : string;
-  public name : string;
   constructor(taskData : { [key:string]:string}) {
-    this.time = Clock.now();
+    super();
     this.taskData = taskData;
-    this.name = this.constructor.name;
   }
 }
 

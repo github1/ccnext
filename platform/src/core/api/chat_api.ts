@@ -1,17 +1,21 @@
 import * as express from 'express';
 import {
   EventBus,
-  EventRecord
+  EntityEvent
 } from '../entity/entity';
 import { IdentityRegisteredEvent } from '../identity';
-import { ChatMessagePostedEvent } from '../chat';
+import {
+  ChatMessagePostedEvent,
+  ChatParticipantJoinedEvent,
+  ChatParticipantLeftEvent
+} from '../chat';
 import { ChatService } from '../chat_service';
 
 export function chatAPI(eventBus : EventBus, chatService : ChatService) : { preConfigure: Function } {
 
   type Msg = { [key:string]:string };
 
-  type ChatLog = { [key:string]:EventRecord[] };
+  type ChatLog = { [key:string]:EntityEvent[] };
 
   const chatLog : ChatLog = {};
 
@@ -21,22 +25,20 @@ export function chatAPI(eventBus : EventBus, chatService : ChatService) : { preC
   };
 
   eventBus.subscribe(
-    (event : EventRecord) => {
-      if (event.name === 'ChatMessagePostedEvent') {
-        chatLog[event.stream] = chatLog[event.stream] || [];
-        const payload : ChatMessagePostedEvent = (<ChatMessagePostedEvent>event.payload);
-        if(/^sms-incoming/.test(payload.fromParticipant)) {
-          payload.fromParticipantRole = 'customer';
+    (event : EntityEvent) => {
+      if (event instanceof ChatMessagePostedEvent) {
+        chatLog[event.streamId] = chatLog[event.streamId] || [];
+        if(/^sms-incoming/.test(event.fromParticipant)) {
+          event.fromParticipantRole = 'customer';
         } else {
-          payload.fromParticipantRole = chatParticipantRoles[payload.fromParticipant];
+          event.fromParticipantRole = chatParticipantRoles[event.fromParticipant];
         }
-        chatLog[event.stream].push(event);
-      } else if (/^ChatParticipant(Joined|Left)Event$/.test(event.name)) {
-        chatLog[event.stream] = chatLog[event.stream] || [];
-        chatLog[event.stream].push(event);
-      } else if (event.name === 'IdentityRegisteredEvent') {
-        const payload : IdentityRegisteredEvent = (<IdentityRegisteredEvent> event.payload);
-        chatParticipantRoles[event.stream] = payload.role;
+        chatLog[event.streamId].push(event);
+      } else if (event instanceof ChatParticipantJoinedEvent || event instanceof ChatParticipantLeftEvent) {
+        chatLog[event.streamId] = chatLog[event.streamId] || [];
+        chatLog[event.streamId].push(event);
+      } else if (event instanceof IdentityRegisteredEvent) {
+        chatParticipantRoles[event.streamId] = event.role;
       }
     },
     {replay: true});
@@ -51,6 +53,9 @@ export function chatAPI(eventBus : EventBus, chatService : ChatService) : { preC
           chatService.postMessage(params.chatId, body.fromParticipant, body.text);
         } else {
           chatService.startChat(params.chatId, body.fromParticipant);
+        }
+        if(req.headers['user-id'] && req.headers['user-session-id']) {
+          chatService.linkIdentity(params.chatId, req.headers['user-id'].toString(), req.headers['user-session-id'].toString());
         }
         res.json({});
       });

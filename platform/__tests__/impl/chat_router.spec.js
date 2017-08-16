@@ -16,7 +16,9 @@ describe('ChatRouter', () => {
     getChat() {
       return {
         send(req, res) {
-          chatResponse(res);
+          if(req) {
+            chatResponse(res);
+          }
         }
       };
     }
@@ -26,11 +28,9 @@ describe('ChatRouter', () => {
     subscribe(handler) {
       while (events.length > 0) {
         handler([events.pop()].map((event) => {
-          return {
-            name: event.constructor.name,
-            stream: 'someChatId',
-            payload: event
-          };
+          event.name = event.constructor.name;
+          event.streamId = 'someChatId';
+          return event;
         })[0]);
       }
     }
