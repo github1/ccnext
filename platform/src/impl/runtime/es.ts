@@ -6,12 +6,8 @@ import {
   EventBus,
   EventBusSubscription
 } from '../../core/entity/entity';
-//import * as eventstore from 'eventstore';
+import * as eventstore from 'eventstore';
 import * as events from 'events';
-
-var es = require('eventstore')({
-  type: 'dynamodb'
-});
 
 module EventStoreLib {
   export type EventStoreType = {
@@ -19,7 +15,7 @@ module EventStoreLib {
     getEventStream : Function,
     getEvents : Function
   };
-  export type EventStoreTypeFactory = () => EventStoreType;
+  export type EventStoreTypeFactory = (options?: Object) => EventStoreType;
   export type Stream = { addEvent : Function, commit : Function, events : Event[] };
   export type Event = { name : string, payload : EntityEvent };
 }
@@ -63,9 +59,10 @@ export class LocalEventBus implements EventBus {
 }
 
 // @TODO - use persistent store
-//const es : EventStoreLib.EventStoreType = ((<EventStoreLib.EventStoreTypeFactory>eventstore)());
-// const es = new eventstore({type:'dynamodb'});
-// es.init();
+const es : EventStoreLib.EventStoreType = ((<EventStoreLib.EventStoreTypeFactory>eventstore)({
+  type:'dynamodb'
+}));
+es.init();
 
 export class EventStoreLibEventStore implements EventStore {
   public replay(id : string, handler : (event : EntityEvent, isReplaying? : boolean) => void, done? : () => void) : void {
