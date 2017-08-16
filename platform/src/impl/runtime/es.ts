@@ -15,7 +15,7 @@ module EventStoreLib {
     getEventStream : Function,
     getEvents : Function
   };
-  export type EventStoreTypeFactory = () => EventStoreType;
+  export type EventStoreTypeFactory = (options?: Object) => EventStoreType;
   export type Stream = { addEvent : Function, commit : Function, events : Event[] };
   export type Event = { name : string, payload : EntityEvent };
 }
@@ -59,7 +59,9 @@ export class LocalEventBus implements EventBus {
 }
 
 // @TODO - use persistent store
-const es : EventStoreLib.EventStoreType = ((<EventStoreLib.EventStoreTypeFactory>eventstore)());
+const es : EventStoreLib.EventStoreType = ((<EventStoreLib.EventStoreTypeFactory>eventstore)({
+  type:'dynamodb'
+}));
 es.init();
 
 export class EventStoreLibEventStore implements EventStore {
