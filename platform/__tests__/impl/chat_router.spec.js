@@ -6,15 +6,17 @@ import {
 
 describe('ChatRouter', () => {
 
-  let chatResponse = {};
+  let chatResponse = (res) => {
+    res.nothing();
+  };
   let events = [];
   let chatService = {};
 
   const chatDestinationProvider = {
     getChat() {
       return {
-        send() {
-          return Promise.resolve(chatResponse);
+        send(req, res) {
+          chatResponse(res);
         }
       };
     }
@@ -54,9 +56,7 @@ describe('ChatRouter', () => {
 
   describe('when a chat message is posted', () => {
     beforeAll(() => {
-      chatResponse = {
-        message: 'some response'
-      };
+      chatResponse = (res) => res.reply('some response');
     });
     it('posts the response to the chat', () => {
       expect(chatService.postMessage).toBeCalledWith('someChatId', 'aChatDest', 'some response');
@@ -65,10 +65,7 @@ describe('ChatRouter', () => {
 
   describe('when a response is failed', () => {
     beforeAll(() => {
-      chatResponse = {
-        message: 'some response',
-        state: 'Failed'
-      };
+      chatResponse = (res) => res.signalFailed();
       events.push(new ChatMessagePostedEvent('aMessageId', 'aCorrelationId', 'fromSomeone', 'hi'));
     });
     it('transfers to an agent queue', () => {
@@ -78,18 +75,25 @@ describe('ChatRouter', () => {
 
   describe('when a response is ready for fulfillment', () => {
     beforeAll(() => {
-      chatResponse = {
+      chatResponse = (res) => res.signalReadyForFulfillment({
         state: 'ReadyForFulfillment',
         payload: {
           slots: {
             Blarp: 'Blap'
           }
         }
-      };
+      });
     });
     it('it signals the chat is ready for fulfillment', () => {
       expect(chatService.signalReadyForFulfillment)
-        .toBeCalledWith('someChatId', 'fromSomeone', {slots: {Blarp: 'Blap'}});
+        .toBeCalledWith('someChatId', 'fromSomeone', {
+          state: 'ReadyForFulfillment',
+          payload: {
+            slots: {
+              Blarp: 'Blap'
+            }
+          }
+        });
     });
   });
 

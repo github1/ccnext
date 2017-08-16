@@ -2,11 +2,10 @@ import * as awsSdk from 'aws-sdk';
 import server from './impl/runtime/server';
 import { entityRepository, eventBus } from './impl/runtime/es';
 import twilio_hooks from './impl/integration/twilio_hooks';
-import { ChatDestinationProvider, AgentChat } from './core/chat';
 import { ChatService } from './core/chat_service';
 import { LexChatBot } from './impl/integration/lex_chatbot';
 import { TaskService } from './core/task_service';
-import { chatRouter } from './impl/chat_router';
+import { ChatDestinationProvider, NullChatDestination, chatRouter } from './impl/chat_router';
 import * as task_processor from './impl/task_processor';
 import * as fulfillment_processor from './impl/fulfillment_processor';
 import { IdentityService } from './core/identity_service';
@@ -43,10 +42,10 @@ const identityService : IdentityService = new IdentityService(
 
 const chatDesintationProvider : ChatDestinationProvider = {
   getChat(id : string) {
-    if (id === 'agentChatQueue') {
-      return new AgentChat();
+    if (id === 'CCaaSBot') {
+      return new LexChatBot(id, 'prod', awsLexRuntime);
     }
-    return new LexChatBot(id, 'prod', awsLexRuntime);
+    return new NullChatDestination();
   }
 };
 

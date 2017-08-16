@@ -1,5 +1,5 @@
 import awsSdk = require('aws-sdk');
-import { ChatDestination, ChatRequest, ChatResponse } from '../../core/chat';
+import { ChatDestination, ChatRequest, ChatResponse } from '../chat_router';
 
 export class LexChatBot implements ChatDestination {
   private botName : string;
@@ -14,28 +14,39 @@ export class LexChatBot implements ChatDestination {
     this.lexRuntime = lexRuntime;
   }
 
-  public send(request : ChatRequest) : Promise<ChatResponse> {
+  public send(request : ChatRequest, response : ChatResponse) : void {
     const params = {
       botName: this.botName,
       botAlias: this.botAlias,
-      userId: (request.dialogCorrelationId.replace(/[^0-9a-z._:-]+/i, '_')),
+      userId: (request.correlationId.replace(/[^0-9a-z._:-]+/i, '_')),
       inputText: request.message,
-      sessionAttributes: {}
+      sessionAttributes: request.conversationData || {}
     };
-    return new Promise((resolve : Function, reject : Function) => {
-      this.lexRuntime.postText(params, (err : Error,
-                                        data : awsSdk.LexRuntime.Types.PostTextResponse) => {
-        if (err == null) {
-          resolve({
-            message: data.message,
-            state: data.dialogState,
-            provider: 'lex',
-            payload: data
-          });
-        } else {
-          reject(err);
+    this.lexRuntime.postText(params, (err : Error,
+                                      data : awsSdk.LexRuntime.Types.PostTextResponse) => {
+      if (err == null) {
+        response.storeConversationData(data.sessionAttributes);
+        switch (data.dialogState) {
+          case 'ElicitIntent':
+          case 'ConfirmIntent':
+          case 'ElicitSlot':
+          case 'ConfirmSlot':
+            response.reply(data.message);
+            break;
+          case 'ReadyForFulfillment':
+            response.signalReadyForFulfillment(data);
+            break;
+          case 'Fulfilled':
+            response.nothing();
+            break;
+          case 'Failed':
+          default:
+            response.signalFailed(data.message);
+            break;
         }
-      });
+      } else {
+        response.signalError(err);
+      }
     });
   }
 
