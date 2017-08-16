@@ -48,7 +48,7 @@ function isValidSlot( slot, slotType ) {
       });
       return set.has( slot.toLowerCase() ) ;
     }
-}
+  }
 }
 
 /*Format of the response built after a validation check of an intent's slots.
