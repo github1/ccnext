@@ -1,8 +1,8 @@
 
-import {topic} from "./slots/Topic.js";
-import {accountHolder} from "./slots/AccountHolder.js";
-import {character} from "./slots/Character.js";
-import {cardType} from "./slots/CardType.js";
+import {topic} from "./slots/topic.js";
+import {accountHolder} from "./slots/account_holder.js";
+import {character} from "./slots/character.js";
+import {cardType} from "./slots/card_type.js";
 
 let slot_type_map = new Map ([ ['Topic', topic], ['AccountHolder', accountHolder], ['Character', character], ['CardType', cardType] ]);
 
@@ -24,21 +24,21 @@ function is_valid_slot( slot, slot_type ) {
               return new Date(dateComponents[0], dateComponents[1] - 1, dateComponents[2]);
           }
           try {
-            return !(isNan(parseLocaleDate(slot).getTime()));
+            return !(isNaN(parseLocalDate(slot).getTime()));
           }catch (err){
             return false;
           }
-        break;
+        //break;
 
 
       case 'AMAZON.NUMBER':
             return true;
-        break;
+        //break;
 
 
       case 'AMAZON.FOUR_DIGIT_NUMBER':
             return true;
-      break;
+      //break;
 
       default :
             let set = new Set ;
@@ -52,9 +52,9 @@ function is_valid_slot( slot, slot_type ) {
 }
 
 /*Format of the response built after a validation check of an intent's slots.
- "buildValidationResult()" enables to identify which slot is violated,
+ "build_validation_result()" enables to identify which slot is violated,
  and what message it should return to the end user.*/
-function buildValidationResult(isValid, violatedSlot, messageContent) {
+function build_validation_result(isValid, violatedSlot, messageContent) {
     return {
         isValid,
         violatedSlot,
@@ -66,9 +66,9 @@ function validate_ask_question ( slots ){
   const question_topic = slots.QuestionTopic ;
 
   if ( !(is_valid_slot(question_topic, 'Topic')) ){
-      return buildValidationResult ( false, 'QuestionTopic', `Sorry,  did not understand your request.You can ask me questions about your account such as "What is my balance?" or questions about our services like "How can I pay my bill?"`);
+      return build_validation_result ( false, 'QuestionTopic', `Sorry,  did not understand your request.You can ask me questions about your account such as "What is my balance?" or questions about our services like "How can I pay my bill?"`);
   } else {
-    return buildValidationResult( true, null, null) ;
+    return build_validation_result( true, null, null) ;
   }
 }
 
@@ -79,14 +79,12 @@ function validate_get_account_balance ( slots ) {
   const char_two = slots.charTwo ;
 
   if ( !is_valid_slot(char_one, 'Character') ) {
-    return buildValidationResult( false, 'charOne', `Sorry, that was incorrect, please give me the second character from your memorable word`) ;
+    return build_validation_result( false, 'charOne', `Sorry, that was incorrect, please give me the second character from your memorable word`) ;
   }
   if ( !is_valid_slot(char_two, 'Character') ) {
-    return buildValidationResult( false, 'charOne', `Sorry, that was incorrect, please give me the fifth character from your memorable word`) ;
+    return build_validation_result( false, 'charOne', `Sorry, that was incorrect, please give me the fifth character from your memorable word`) ;
   }
-  if (is_valid_slot(char_one, 'Character') && is_valid_slot(char_two, 'Character')){
-    return buildValidationResult( true, null, null) ;
-  }
+  return build_validation_result( true, null, null) ;
 }
 
 
@@ -96,13 +94,13 @@ function validate_get_transactions ( slots ) {
   const char_two = slots.charTwo ;
 
   if ( !is_valid_slot(char_one, 'Character') ) {
-    return buildValidationResult( false, 'charOne', `Sorry, that was incorrect, please give me the second character from your memorable word`) ;
+    return build_validation_result( false, 'charOne', `Sorry, that was incorrect, please give me the second character from your memorable word`) ;
   }
   if ( !is_valid_slot(char_two, 'Character') ) {
-    return buildValidationResult( false, 'charOne', `Sorry, that was incorrect, please give me the fifth character from your memorable word`) ;
+    return build_validation_result( false, 'charOne', `Sorry, that was incorrect, please give me the fifth character from your memorable word`) ;
   }
 
-  return buildValidationResult( true, null, null) ;
+  return build_validation_result( true, null, null) ;
 
 }
 
@@ -116,15 +114,15 @@ function validate_lost_card ( slots ) {
 
 
   if ( !(is_valid_slot(card_owner, 'AccountHolder')) ){
-    return buildValidationResult ( false, 'cardOwner', `Sorry, the name you entered is incorrect`);
+    return build_validation_result ( false, 'cardOwner', `Sorry, the name you entered is incorrect`);
   }
   if ( !(is_valid_slot( date_of_birth, 'AMAZON.DATE')) || !is_valid_slot(incident_date, 'AMAZON.DATE') ) {
-    return buildValidationResult ( false, 'dateOfBirth', 'Sorry, the date of birth you entered is incorrect');
+    return build_validation_result ( false, 'dateOfBirth', 'Sorry, the date of birth you entered is incorrect');
   }
   if ( !(is_valid_slot( card_type , 'CardType')) ) {
-    return buildValidationResult ( false, 'cardType', ` Sorry, the card's type you entered is incorrect` );
+    return build_validation_result ( false, 'cardType', ` Sorry, the card's type you entered is incorrect` );
   }
-  return buildValidationResult( true, null, null) ;
+  return build_validation_result( true, null, null) ;
 }
 
 
@@ -136,16 +134,16 @@ function validate_make_payment (slots) {
   const payment_date = slots.paymentDate ;
 
   if ( !(is_valid_slot( payee_slot, 'AccountHolder')) ){
-    return buildValidationResult (false, 'payee', 'Sorry the account holder you entered is not valid.')
+    return build_validation_result (false, 'payee', 'Sorry the account holder you entered is not valid.')
   }
   if ( !(is_valid_slot(amount_slot, 'AMAZON.NUMBER')) ){
-    return buildValidationResult ( false, 'amount', 'Sorry the number you entered is incorrect');
+    return build_validation_result ( false, 'amount', 'Sorry the number you entered is incorrect');
   }
   if ( !(is_valid_slot(from_account, 'AMAZON.FOUR_DIGIT_NUMBER')) ){
-    return buildValidationResult( false, 'fromAccount', 'Sorry the account number is incorrect');
+    return build_validation_result( false, 'fromAccount', 'Sorry the account number is incorrect');
   }
   if ( !( is_valid_slot(payment_date, 'AMAZON.DATE')) ){
-    return buildValidationResult( false, 'paymentDate', 'Sorry wrong date')
+    return build_validation_result( false, 'paymentDate', 'Sorry wrong date')
   }
-  return buildValidationResult( true, null, null) ;
+  return build_validation_result( true, null, null) ;
 }
