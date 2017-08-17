@@ -14,7 +14,7 @@ export class InMemoryAuthenticator implements Authenticator {
         const identityRegisteredEvent : IdentityRegisteredEvent = (<IdentityRegisteredEvent>event.payload);
         users[event.stream] = identityRegisteredEvent.password;
       }
-    });
+    }, {replay: true});
 
     // Register some users ...
     entityRepository.load(Identity, 'demouser')

@@ -13,7 +13,7 @@ export function identityAPI(jwtSecret : string, eventBus : EventBus, identitySer
     if (event.name === 'IdentityRegisteredEvent') {
       profiles[event.stream] = (<IdentityRegisteredEvent>event.payload);
     }
-  });
+  }, {replay: true});
 
   return {
     preConfigure(app : express.Application): void {
@@ -58,6 +58,7 @@ export function identityAPI(jwtSecret : string, eventBus : EventBus, identitySer
             });
           })
           .catch((error : Error) => {
+            console.error(error);
             res.status(403);
             res.json({
               message: `${error.message}`

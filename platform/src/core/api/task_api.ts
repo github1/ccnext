@@ -27,16 +27,18 @@ export function taskAPI(eventBus : EventBus, taskService : TaskService) : { preC
           taskData = Object.assign({}, taskData, taskAmendedEvent.amendedTaskData);
           emitEventName = 'WorkerTaskDataUpdatedEvent';
         }
-        if (!isReplaying && emitEventName) {
+        if(emitEventName) {
           taskAssignments[worker][taskId] = Object.assign({}, taskAssignments[worker][taskId], taskData);
-          eventBus.emit({
-            stream: worker,
-            name: emitEventName,
-            payload: {
+          if (!isReplaying) {
+            eventBus.emit({
+              stream: worker,
               name: emitEventName,
-              task: taskAssignments[worker][taskId]
-            }
-          });
+              payload: {
+                name: emitEventName,
+                task: taskAssignments[worker][taskId]
+              }
+            });
+          }
         }
       }
     },

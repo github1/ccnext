@@ -26,6 +26,11 @@ const twilioPhoneNumberSid : string = process.env.TWILIO_NUMBER_SID;
 const twilioAccountSid : string = process.env.TWILIO_ACCOUNT_SID;
 const twilioAuthToken : string = process.env.TWILIO_AUTH_TOKEN;
 
+// aws config
+awsSdk.config.update({
+  region: process.env.AWS_DEFAULT_REGION
+});
+
 // lex runtime
 const awsLexRuntime : awsSdk.LexRuntime = new awsSdk.LexRuntime({
   credentials: new awsSdk.Credentials(
