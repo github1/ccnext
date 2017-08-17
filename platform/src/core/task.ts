@@ -5,9 +5,11 @@ export class TaskEvent implements EntityEvent {
   public time : number;
   public taskData : { [key:string]:string};
   public worker : string;
+  public name : string;
   constructor(taskData : { [key:string]:string}) {
     this.time = Clock.now();
     this.taskData = taskData;
+    this.name = this.constructor.name;
   }
 }
 
