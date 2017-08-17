@@ -39,11 +39,16 @@ const awsLexRuntime : awsSdk.LexRuntime = new awsSdk.LexRuntime({
   region: process.env.AWS_DEFAULT_REGION
 });
 
-const JWT_SECRET : string = Buffer.from(twilioPhoneNumberSid, 'utf8').toString();
+awsSdk.config.update({
+  region: process.env.AWS_DEFAULT_REGION
+});
+
+const JWT_SECRET : string = twilioPhoneNumberSid.toString();
 
 const identityService : IdentityService = new IdentityService(
   entityRepository,
-  new InMemoryAuthenticator(entityRepository, eventBus));
+  new InMemoryAuthenticator(entityRepository, eventBus),
+  JWT_SECRET);
 
 const chatDesintationProvider : ChatDestinationProvider = {
   getChat(id : string) {
@@ -70,7 +75,7 @@ task_processor(eventBus, taskService, chatService);
 /* tslint:disable */
 
 const integrations : any = {
-  identity_api: identityAPI(JWT_SECRET, eventBus, identityService),
+  identity_api: identityAPI(eventBus, identityService),
   event_api: eventAPI(publicUrl, eventBus),
   chat_api: chatAPI(eventBus, chatService),
   task_api: taskAPI(eventBus, taskService)
@@ -89,6 +94,10 @@ if (publicUrl && publicUrl.indexOf('localhost') === -1) {
 } else {
   console.warn('[WARN] Invalid publicUrl provided, Unable to register twilio hooks!');
 }
+
+process.on('unhandledRejection', (reason : {}, p : {}) => {
+  console.log('Unhandled Rejection at: Promise', p, 'reason:', reason);
+});
 
 server(port, {
   integrations: integrations

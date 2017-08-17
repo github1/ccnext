@@ -2,41 +2,35 @@
 import * as express from 'express';
 import { TaskEvent, TaskStatusChangedEvent, TaskAmendedEvent } from './../task';
 import { TaskService } from './../task_service';
-import { EventBus, EventRecord } from './../entity/entity';
+import { EventBus, EntityEvent } from './../entity/entity';
 
 export function taskAPI(eventBus : EventBus, taskService : TaskService) : { preConfigure: Function } {
 
   const taskAssignments : {} = {};
 
   eventBus.subscribe(
-    (event : EventRecord, isReplaying : boolean) => {
-      if(event.payload instanceof TaskEvent) {
+    (event : EntityEvent, isReplaying : boolean) => {
+      if(event instanceof TaskEvent) {
         let emitEventName : string;
-        const taskEvent : TaskEvent = (<TaskEvent>event.payload);
-        let taskData = JSON.parse(JSON.stringify(taskEvent.taskData));
+        let taskData = JSON.parse(JSON.stringify(event.taskData));
         const taskId = taskData['taskId'];
-        const worker = taskEvent.worker;
+        const worker = event.worker;
         taskAssignments[worker] = taskAssignments[worker] || {};
-        if (event.payload instanceof TaskStatusChangedEvent) {
-          const taskStatusChangedEvent : TaskStatusChangedEvent = (<TaskStatusChangedEvent>event.payload);
-          taskData['status'] = taskStatusChangedEvent.status;
-          taskData[`${taskStatusChangedEvent.status}AtTime`] = taskStatusChangedEvent.time;
+        if (event instanceof TaskStatusChangedEvent) {
+          taskData['status'] = event.status;
+          taskData[`${event.status}AtTime`] = event.timestamp;
           emitEventName = 'WorkerTaskStatusUpdatedEvent';
-        } else if (event.payload instanceof TaskAmendedEvent) {
-          const taskAmendedEvent : TaskAmendedEvent = (<TaskAmendedEvent>event.payload);
-          taskData = Object.assign({}, taskData, taskAmendedEvent.amendedTaskData);
+        } else if (event instanceof TaskAmendedEvent) {
+          taskData = Object.assign({}, taskData, event.amendedTaskData);
           emitEventName = 'WorkerTaskDataUpdatedEvent';
         }
         if(emitEventName) {
           taskAssignments[worker][taskId] = Object.assign({}, taskAssignments[worker][taskId], taskData);
           if (!isReplaying) {
             eventBus.emit({
-              stream: worker,
+              streamId: worker,
               name: emitEventName,
-              payload: {
-                name: emitEventName,
-                task: taskAssignments[worker][taskId]
-              }
+              task: taskAssignments[worker][taskId]
             });
           }
         }

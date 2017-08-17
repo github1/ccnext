@@ -4,15 +4,10 @@ import {
   Credentials
 } from './authentication';
 import { Entity, EntityEvent } from './entity/entity';
-import { Clock } from './clock';
 
-export class AuthenticationEvent implements EntityEvent {
-  public timestamp : number;
-  public name : string;
-
+export class AuthenticationEvent extends EntityEvent {
   constructor() {
-    this.timestamp = Clock.now();
-    this.name = this.constructor.name;
+    super();
   }
 }
 
@@ -20,6 +15,11 @@ export class AuthenticationAttemptedEvent extends AuthenticationEvent {
 }
 
 export class AuthenticationSucceededEvent extends AuthenticationEvent {
+  public username : string;
+  constructor(username : string) {
+    super();
+    this.username = username;
+  }
 }
 
 export class AuthenticationFailedEvent extends AuthenticationEvent {
@@ -38,6 +38,7 @@ export class IdentityRegisteredEvent extends AuthenticationEvent {
   public lastName : string;
   public phoneNumber : string;
   public role : string;
+
   constructor(username : string, password : string, firstName : string, lastName : string, phoneNumber : string, role : string) {
     super();
     this.username = username;
@@ -51,7 +52,6 @@ export class IdentityRegisteredEvent extends AuthenticationEvent {
 
 export class Identity extends Entity {
 
-  private registered : boolean = false;
   private lastState : string;
   private failedAuthenticationAttempts : number = 0;
 
@@ -65,15 +65,13 @@ export class Identity extends Entity {
           } else {
             self.failedAuthenticationAttempts = 0;
           }
-        } else if(event instanceof IdentityRegisteredEvent) {
-          self.registered = true;
         }
         self.lastState = event.constructor.name;
       }
     }));
   }
 
-  public authenticate(credentials : Credentials, authenticator : Authenticator) : Promise<{}> {
+  public authenticate(credentials : Credentials, authenticator : Authenticator) : Promise<AuthenticationResult> {
     this.dispatch(
       this.id,
       new AuthenticationAttemptedEvent());
@@ -90,9 +88,9 @@ export class Identity extends Entity {
             if (result.success) {
               this.dispatch(
                 this.id,
-                new AuthenticationSucceededEvent()
+                new AuthenticationSucceededEvent(result.username)
               );
-              resolve();
+              resolve(result);
             } else {
               this.dispatch(
                 this.id,
@@ -112,8 +110,24 @@ export class Identity extends Entity {
     });
   }
 
+}
+
+export class Registration extends Entity {
+
+  private registered : boolean = false;
+
+  constructor(id : string) {
+    super(id, Entity.CONFIG((self : Registration, event : EntityEvent) : void => {
+      if (event instanceof AuthenticationEvent) {
+        if (event instanceof IdentityRegisteredEvent) {
+          self.registered = true;
+        }
+      }
+    }));
+  }
+
   public register(password : string, firstName : string, lastName : string, phoneNumber : string, role : string) : void {
-    if(!this.registered) {
+    if (!this.registered) {
       this.dispatch(this.id, new IdentityRegisteredEvent(this.id, password, firstName, lastName, phoneNumber, role));
     }
   }

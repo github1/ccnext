@@ -1,17 +1,16 @@
 import * as express from 'express';
-import { EventBus, EventRecord } from '../entity/entity';
-import { UsernamePasswordCredentials } from '../authentication';
+import { EventBus, EntityEvent } from '../entity/entity';
+import { Credentials, AnonymousCredentials, UsernamePasswordCredentials } from '../authentication';
 import { IdentityRegisteredEvent } from '../identity';
 import { IdentityService, IdentityVO } from '../identity_service';
-import * as jwts from 'jwt-simple';
 
-export function identityAPI(jwtSecret : string, eventBus : EventBus, identityService : IdentityService) : { preConfigure: Function } {
+export function identityAPI(eventBus : EventBus, identityService : IdentityService) : { preConfigure: Function } {
 
   const profiles : {[key: string]:IdentityRegisteredEvent} = {};
 
-  eventBus.subscribe((event : EventRecord) => {
-    if (event.name === 'IdentityRegisteredEvent') {
-      profiles[event.stream] = (<IdentityRegisteredEvent>event.payload);
+  eventBus.subscribe((event : EntityEvent) => {
+    if (event instanceof IdentityRegisteredEvent) {
+      profiles[event.streamId] = Object.assign({}, event, {password: ''});
     }
   }, {replay: true});
 
@@ -19,6 +18,8 @@ export function identityAPI(jwtSecret : string, eventBus : EventBus, identitySer
     preConfigure(app : express.Application): void {
 
       app.use((req : express.Request, res : express.Response, next : express.NextFunction) : void => {
+        req.headers['user-id'] = '';
+        req.headers['user-session-id'] = '';
         if (req.path.indexOf('/api') === 0) {
           const bypass : boolean = [
             '/api/authenticate',
@@ -30,8 +31,9 @@ export function identityAPI(jwtSecret : string, eventBus : EventBus, identitySer
             .filter((result : boolean) : boolean => result)[0];
           if (req.headers['jwt']) {
             try {
-              const jwt : IdentityVO = <IdentityVO> jwts.decode(req.headers['jwt'], jwtSecret);
-              req.headers['user-id'] = jwt.username;
+              const identityVO : IdentityVO = identityService.decode(req.headers['jwt'].toString());
+              req.headers['user-id'] = identityVO.username;
+              req.headers['user-session-id'] = identityVO.sessionId;
               next();
             } catch (err) {
               res.status(401).send({status: 401});
@@ -50,11 +52,14 @@ export function identityAPI(jwtSecret : string, eventBus : EventBus, identitySer
 
       app.post('/api/authenticate', (req : express.Request, res : express.Response) : void => {
         const body : AuthenticateRequestBody = <AuthenticateRequestBody> req.body;
+        const credentials : Credentials = body.username && body.password ?
+          new UsernamePasswordCredentials(body.username, body.password) :
+          new AnonymousCredentials();
         identityService
-          .authenticate(body.username, new UsernamePasswordCredentials(body.username, body.password))
+          .authenticate(credentials)
           .then((identity : IdentityVO) => {
             res.json({
-              token: jwts.encode(profiles[identity.username], jwtSecret)
+              token: identity.jwt
             });
           })
           .catch((error : Error) => {
@@ -76,7 +81,7 @@ export function identityAPI(jwtSecret : string, eventBus : EventBus, identitySer
       });
 
       app.get('/api/profile', (req : express.Request, res : express.Response) : void => {
-        res.json(profiles[`${req.headers['user-id']}`]);
+        res.json(profiles[req.headers['user-id'].toString()]);
       });
 
     }

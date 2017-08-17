@@ -18,7 +18,7 @@ module EventStoreLib {
   };
   export type EventStoreTypeFactory = (options?: Object) => EventStoreType;
   export type Stream = { addEvent : Function, commit : Function, events : Event[], eventsToDispatch : Event[] };
-  export type EventPayload = { name : string };
+  export type EventPayload = { streamId : string, name : string };
   export type Event = { name : string, streamId : string, aggregateId: string, payload : EventPayload };
 }
 
@@ -72,19 +72,20 @@ es.init();
 const hydrateEventStream = (events : EventStoreLib.Event[]) => {
   return Promise.all((events||[]).map((event : EventStoreLib.Event) => {
     return new Promise((resolve : Function) => {
+      event.payload.streamId = event.streamId || event.aggregateId;
       if(USE_DYNAMO_DB) {
         // ensure types are restored after deserialization
         typeLoader(event.payload.name, (resolvedType : Function) => {
           resolve({
             name: event.payload.name,
-            stream: event.streamId || event.aggregateId,
+            streamId: event.streamId || event.aggregateId,
             payload: <EventStoreLib.EventPayload> createInstanceFromJson(resolvedType, event.payload)
           });
         });
       } else {
         resolve({
           name: event.payload.name,
-          stream: event.streamId || event.aggregateId,
+          streamId: event.streamId || event.aggregateId,
           payload: event.payload
         });
       }
@@ -119,7 +120,7 @@ export class EventStoreLibEventStore implements EventStore {
       } else {
         hydrateEventStream(events).then((results : EventStoreLib.Event[]) => {
           results.forEach((event : EventStoreLib.Event) => {
-            handler(<EntityEvent> event, true);
+            handler(<EntityEvent> event.payload, true);
           });
           if(done) {
             done();
@@ -136,20 +137,26 @@ export const eventStore : EventStore = new EventStoreLibEventStore();
 
 export const eventBus : EventBus = new LocalEventBus(eventStore);
 
-function eventDispatcher(streamId : string, event : EntityEvent) : void {
-  es.getEventStream(streamId, (err : Error, stream : EventStoreLib.Stream) => {
-    if (err) {
-      console.log(err);
-    }
-    stream.addEvent(event);
-    stream.commit((err : Error, stream : EventStoreLib.Stream) => {
-      hydrateEventStream(stream.eventsToDispatch).then((events : EventStoreLib.Event[]) => {
-        events.forEach((event : EventStoreLib.Event) => {
-          eventBus.emit(event);
+function eventDispatcher(streamId : string, event : EntityEvent) : Promise<void> {
+  return new Promise<void>((resolve : Function) => {
+    es.getEventStream(streamId, (err : Error, stream : EventStoreLib.Stream) => {
+      if (err) {
+        console.log(err);
+        resolve();
+      } else {
+        stream.addEvent(event);
+        stream.commit((err : Error, stream : EventStoreLib.Stream) => {
+          hydrateEventStream(stream.eventsToDispatch).then((events : EventStoreLib.Event[]) => {
+            events.forEach((event : EventStoreLib.Event) => {
+              eventBus.emit(event.payload);
+            });
+            resolve();
+          }).catch((err : Error) => {
+            console.error(err);
+            resolve();
+          });
         });
-      }).catch((err : Error) => {
-        console.error(err);
-      });
+      }
     });
   });
 }
