@@ -27,7 +27,6 @@ let makePayment = {
       priority: 1,
       sampleUtterances: [
         "Pay it to {payee}",
-        "{payee}",
         "Send it to {payee}",
         "to {payee}"
       ]
@@ -52,10 +51,8 @@ let makePayment = {
       },
       priority: 1,
       sampleUtterances: [
-        "Send them £{amount}",
-        "£{amount}",
-        "{amount}",
-        "Send {payee} £{amount}"
+        "Send them {amount}",
+        "Send {payee} {amount}"
       ]
     },
     {
@@ -78,7 +75,6 @@ let makePayment = {
       },
       priority: 1,
       sampleUtterances: [
-        "{fromAccount}",
         "{fromAccount} please",
         "from {fromAccount} please"
       ]
@@ -103,16 +99,15 @@ let makePayment = {
       },
       priority: 1,
       sampleUtterances: [
-        "{paymentDate} please",
-        "{paymentDate}"
+        "{paymentDate} please"
       ]
     }
   ],
   sampleUtterances: [
-    "Can I send £{amount} to {payee}, {paymentDate} from account ending in {fromAccount}",
-    "I would like to send £{amount} to {payee}, {paymentDate} from my account ending in {fromAccount}",
-    "Can I send £{amount} to {payee} please",
-    "I'd like to send {payee} £{amount}",
+    "Can I send {amount} to {payee} {paymentDate} from account ending in {fromAccount}",
+    "I would like to send {amount} to {payee} {paymentDate} from my account ending in {fromAccount}",
+    "Can I send {amount} to {payee} please",
+    "I'd like to send {payee} {amount}",
     "Can I send money from {fromAccount} to {payee} please",
     "Can I send some money to {payee}",
     "Can I make a payment please"
