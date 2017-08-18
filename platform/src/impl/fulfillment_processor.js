@@ -5,9 +5,10 @@ import { WELCOME_MESSAGE, TRANSACTIONS } from './consts.js';
 module.exports = (eventBus, chatService) => {
 
   eventBus.subscribe((event) => {
+    console.log(event);
     if (event instanceof ChatReadyForFulfillmentEvent) {
       // In reality, most cases would make calls to our APIs before returning a message
-      switch (event.intentName) {
+      switch (event.payload.intentName) {
         case "Welcome":
           chatService.postMessage(
             event.streamId,
@@ -60,7 +61,6 @@ module.exports = (eventBus, chatService) => {
         chatService.endChat(event.streamId);
         }
       }
-    }
   });
 };
 
