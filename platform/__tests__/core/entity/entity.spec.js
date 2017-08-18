@@ -2,8 +2,8 @@ import {
   BaseEntityRepository
 } from '../../../src/core/entity/entity';
 import {
-  Task
-} from '../../../src/core/task';
+  Chat
+} from '../../../src/core/chat';
 
 
 describe('BaseEntityRepository', () => {
@@ -25,9 +25,9 @@ describe('BaseEntityRepository', () => {
         }
       };
       const repo = new BaseEntityRepository(dispatcher, store);
-      return repo.load(Task, '123').then((task) => {
-        task.submit();
-        return 'from_loaded_task_';
+      return repo.load(Chat, '123').then((chat) => {
+        chat.start('someUser');
+        return 'loaded_entity';
       }).then((value) => {
         return new Promise((resolve) => {
           setTimeout(() => {
@@ -37,7 +37,7 @@ describe('BaseEntityRepository', () => {
       }).then((value) => {
         return 'events_dispatched_from_' + value;
       }).then((value) => {
-        expect(value).toEqual('events_dispatched_from_arbitrary_async_call_from_loaded_task_');
+        expect(value).toEqual('events_dispatched_from_arbitrary_async_call_loaded_entity');
       });
     });
   });

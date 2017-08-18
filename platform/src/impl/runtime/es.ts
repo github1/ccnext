@@ -17,7 +17,7 @@ module EventStoreLib {
     getEvents : Function
   };
   export type EventStoreTypeFactory = (options?: Object) => EventStoreType;
-  export type Stream = { addEvent : Function, commit : Function, events : Event[], eventsToDispatch : Event[] };
+  export type Stream = { addEvent : Function, addEvents : Function, commit : Function, events : Event[], eventsToDispatch : Event[] };
   export type EventPayload = { streamId : string, name : string };
   export type Event = { name : string, streamId : string, aggregateId: string, payload : EventPayload };
 }
@@ -137,24 +137,29 @@ export const eventStore : EventStore = new EventStoreLibEventStore();
 
 export const eventBus : EventBus = new LocalEventBus(eventStore);
 
-function eventDispatcher(streamId : string, event : EntityEvent) : Promise<void> {
+function eventDispatcher(streamId : string, events : EntityEvent[]) : Promise<void> {
   return new Promise<void>((resolve : Function) => {
     es.getEventStream(streamId, (err : Error, stream : EventStoreLib.Stream) => {
       if (err) {
         console.log(err);
         resolve();
       } else {
-        stream.addEvent(event);
+        stream.addEvents(events);
         stream.commit((err : Error, stream : EventStoreLib.Stream) => {
-          hydrateEventStream(stream.eventsToDispatch).then((events : EventStoreLib.Event[]) => {
-            events.forEach((event : EventStoreLib.Event) => {
-              eventBus.emit(event.payload);
+          if(err) {
+            console.log(err);
+            resolve();
+          } else {
+            hydrateEventStream(stream.eventsToDispatch).then((events : EventStoreLib.Event[]) => {
+              events.forEach((event : EventStoreLib.Event) => {
+                eventBus.emit(event.payload);
+              });
+              resolve();
+            }).catch((err : Error) => {
+              console.error(err);
+              resolve();
             });
-            resolve();
-          }).catch((err : Error) => {
-            console.error(err);
-            resolve();
-          });
+          }
         });
       }
     });
