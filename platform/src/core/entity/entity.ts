@@ -5,13 +5,14 @@ export class EntityEvent {
   public streamId : string;
   public name : string;
   public timestamp : number;
+
   constructor() {
     this.name = this.constructor.name;
     this.timestamp = Clock.now();
   }
 }
 
-export type EventDispatcher = (streamId : string, event : EntityEvent) => Promise<void>;
+export type EventDispatcher = (streamId : string, events : EntityEvent[]) => Promise<void>;
 
 export type VoidEventDispatcher = (streamId : string, event : EntityEvent) => void;
 
@@ -40,11 +41,16 @@ export interface EntityRepository {
 export class ChainInterceptorPromise<T> extends Promise<T> {
   private promise : Promise<T>;
   private afterChain : Function;
+
   constructor(promise : Promise<T>, afterChain : Function) {
-    super((resolve : Function)=>{ resolve(); });
+    super((resolve : Function)=> {
+      resolve();
+    });
     this.promise = promise;
-    this.afterChain = afterChain || function(){};
+    this.afterChain = afterChain || function () {
+      };
   }
+
   public then(a : any) : ChainInterceptorPromise<T> {
     return new ChainInterceptorPromise<T>(this.promise.then(a).then((a) => {
       return this.afterChain(a).then(() => Promise.resolve(a));
@@ -64,11 +70,12 @@ export class BaseEntityRepository implements EntityRepository {
   }
 
   public load(construct : {new(arg : string)}, id : string) : Promise<Entity> {
-    const allDispatched : Promise<void>[] = [];
+    const eventsToDispatch : EntityEvent[] = [];
     return new ChainInterceptorPromise(new Promise((resolve : Function) => {
       const entity : Entity = (<Entity> new construct(id));
       entity.init((streamId : string, event : EntityEvent) : void => {
-        allDispatched.push(this.eventDispatcher(streamId, event));
+        event.streamId = streamId;
+        eventsToDispatch.push(event);
         entity.apply(event);
       });
       this.eventStore.replay(
@@ -80,11 +87,15 @@ export class BaseEntityRepository implements EntityRepository {
           resolve(entity);
         });
     }), () => {
-      const flushTo : Promise<void>[] = [];
-      while(allDispatched.length > 0) {
-        flushTo.push(allDispatched.shift());
+      if (eventsToDispatch.length === 0) {
+        return Promise.resolve();
+      } else {
+        const flushTo : EntityEvent[] = [];
+        while (eventsToDispatch.length > 0) {
+          flushTo.push(eventsToDispatch.shift());
+        }
+        return this.eventDispatcher(id, flushTo);
       }
-      return Promise.all(flushTo);
     });
   }
 
