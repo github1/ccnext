@@ -1,13 +1,13 @@
 import { ChatReadyForFulfillmentEvent } from '../core/chat';
 
-import { WELCOME_MESSAGE } from './consts.js';
+import { WELCOME_MESSAGE, TRANSACTIONS } from './consts.js';
 
 module.exports = (eventBus, chatService) => {
 
   eventBus.subscribe((event) => {
     if (event instanceof ChatReadyForFulfillmentEvent) {
-      // implement real fulfillment logic here
-      switch (event.payload.intentName) {
+      // In reality, most cases would make calls to our APIs before returning a message
+      switch (event.intentName) {
         case "Welcome":
           chatService.postMessage(
             event.streamId,
@@ -15,32 +15,62 @@ module.exports = (eventBus, chatService) => {
             WELCOME_MESSAGE
           );
           break;
-        // case "AskQuestion":
-        // let answer = validateAskQuestion(event.payload.payload.)
-        //   chatService.postMessage(
-        //     event.streamId,
-        //     event.queue,
-        //     answer
-        //   );
-        //   break;
+        case "AskQuestion":
+          let answer = "here is your answer";
+          chatService.postMessage(
+            event.streamId,
+            event.queue,
+            answer
+          );
+          break;
+        case "GetAccountBalance":
+          chatService.postMessage(
+            event.streamId,
+            event.queue,
+            `${event.requester}, your account balance is £3245.73. Is there anything else I can do for you today?`
+          );
+          break;
+        case "GetTransactions":
+          chatService.postMessage(
+            event.streamId,
+            event.queue,
+            `Your last few transactions are:\n${TRANSACTIONS.map(function(transaction) {return `Vendor: ${transaction.vendor}, Amount: ${transaction.amount}.`})} Is there anything else I can help you with?`
+          );
+          break;
+        case "LostCard":
+          chatService.postMessage(
+            event.streamId,
+            event.queue,
+            `OK ${event.requester}, your ${event.payload.slots.cardType} has been disabled. Is there anything else I can help you with today?`
+          );
+          break;
+        case "MakePayment":
+          let slots = event.payload.slots;
+          chatService.postMessage(
+            event.streamId,
+            event.queue,
+            `OK ${event.requester}, I have set up a payment of £${slots.amount} to ${slots.payee} on ${slots.paymentDate} from your account ending in ${slots.fromAccount}. Anything else I can do for you?`
+          );
+          break;
         default:
         chatService.postMessage(
           event.streamId,
           event.queue,
           `${event.intentName} fulfilled!`);
         chatService.endChat(event.streamId);
+        }
       }
     }
   });
 };
 
-// example of escalating to agent
+// // example of escalating to agent
 // chatService.postMessage(
-//   event.stream,
-//   event.payload.queue,
+//   event.streamId,
+//   event.queue,
 //   'I\'m sorry, something went wrong, let me pass you over to a human agent');
 // setTimeout(function() {
 //   // give it time to catch up
-//   chatService.leaveChat(event.stream, event.payload.queue);
-//   chatService.transferTo(event.stream, 'agentChatQueue');
+//   chatService.leaveChat(event.streamId, event.queue);
+//   chatService.transferTo(event.streamId, 'agentChatQueue');
 // }, 500);
