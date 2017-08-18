@@ -131,7 +131,6 @@ const sideEffect = (command, model) => {
       }
       break;
     case RECEIVE_ENTITY_EVENT:
-      console.log('ree', command);
       if (command.name === 'ChatMessagePostedEvent') {
         if (command.fromParticipant !== identity().username) {
           setTimeout(() => {
