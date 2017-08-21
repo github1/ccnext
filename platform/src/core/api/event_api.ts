@@ -2,7 +2,7 @@ import * as express from 'express';
 import * as expressWS from 'express-ws';
 import {
   EventBus,
-  EventRecord
+  EntityEvent
 } from '../entity/entity';
 
 type WebSocket  = { on: Function, send : Function };
@@ -24,9 +24,9 @@ export function eventAPI(baseUrl : string, eventBus : EventBus) : { preConfigure
 
       const eventSubscriptions : { [key:string]:string[] } = {};
 
-      eventBus.subscribe((event : EventRecord) => {
-        if (eventSubscriptions[event.stream]) {
-          eventSubscriptions[event.stream]
+      eventBus.subscribe((event : EntityEvent) => {
+        if (eventSubscriptions[event.streamId]) {
+          eventSubscriptions[event.streamId]
             .forEach((wsConnectionId : string) => {
               if (wsConnections[wsConnectionId]) {
                 wsConnections[wsConnectionId].send(JSON.stringify(event));

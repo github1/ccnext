@@ -19,6 +19,17 @@ export class ChatService {
       });
   }
 
+  public linkIdentity(chatId : string, participant : string, identityId : string) : void {
+    this.entityRepository
+      .load(Chat, chatId)
+      .then((chat : Chat) => {
+        chat.linkIdentity(participant, identityId);
+      })
+      .catch((error : Error) => {
+        throw error;
+      });
+  }
+
   public postMessage(chatId : string, fromParticipant : string, text : string) : void {
     this.entityRepository
       .load(Chat, chatId)

@@ -1,5 +1,4 @@
 import { render } from 'react-dom';
-import jwts from 'jwt-simple';
 import page from 'page';
 import Container from './component/container';
 import './style/theme.scss';
@@ -85,12 +84,9 @@ const sideEffect = (command, model) => {
         },
         message: (msg) => {
           const message = JSON.parse(msg.data);
-          dispatch({
-            type: RECEIVE_ENTITY_EVENT,
-            stream: message.stream,
-            name: message.name,
-            event: message.payload
-          });
+          dispatch(Object.assign({}, message, {
+            type: RECEIVE_ENTITY_EVENT
+          }));
         }
       });
 
@@ -136,36 +132,36 @@ const sideEffect = (command, model) => {
       break;
     case RECEIVE_ENTITY_EVENT:
       if (command.name === 'ChatMessagePostedEvent') {
-        if (command.event.fromParticipant !== identity().username) {
+        if (command.fromParticipant !== identity().username) {
           setTimeout(() => {
             dispatch({
               type: INCOMING_CHAT_MESSAGE_POSTED,
-              messageId: command.event.messageId,
-              id: command.stream,
-              from: command.event.fromParticipant,
-              text: command.event.text
+              messageId: command.messageId,
+              id: command.streamId,
+              from: command.fromParticipant,
+              text: command.text
             });
           }, 500);
         } else {
           dispatch({
             type: OUTGOING_CHAT_MESSAGE_POSTED,
-            messageId: command.event.messageId,
-            id: command.stream,
-            from: command.event.fromParticipant,
-            text: command.event.text
+            messageId: command.messageId,
+            id: command.streamId,
+            from: command.fromParticipant,
+            text: command.text
           });
         }
       } else if (/^ChatParticipant(Joined|Left)Event$/.test(command.name)) {
         const eventType = /^ChatParticipant(Joined|Left)Event$/.exec(command.name)[1];
         dispatch({
           type: CHAT_STATUS_POSTED,
-          messageId: `${JSON.stringify(command.event)}`,
+          messageId: `${JSON.stringify(command)}`,
           messageType: 'status',
-          id: command.stream,
-          text: `${command.event.participant} has ${eventType.toLowerCase()} the chat`
+          id: command.streamId,
+          text: `${command.participant} has ${eventType.toLowerCase()} the chat`
         });
       } else if (command.name === 'WorkerTaskStatusUpdatedEvent') {
-        populateTasks(command.event.task).then((tasks) => {
+        populateTasks(command.task).then((tasks) => {
           const url = `/agent/task/${tasks[0].taskId}`;
           growl({
             title: `Task ${tasks[0].status}`,
@@ -184,7 +180,7 @@ const sideEffect = (command, model) => {
       } else if (command.name === 'WorkerTaskDataUpdatedEvent') {
         dispatch({
           type: TASK_RECEIVED,
-          task: command.event.task
+          task: command.task
         });
       }
       break;
@@ -218,7 +214,7 @@ const sideEffect = (command, model) => {
             });
           });
         }).catch((err) => {
-          console.log(err);
+          signout();
           dispatch({
             type: AUTHENTICATION_FAILED
           });

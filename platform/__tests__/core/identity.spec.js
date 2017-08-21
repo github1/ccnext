@@ -4,8 +4,7 @@ import {
   AuthenticationSucceededEvent,
   AuthenticationFailedEvent,
   AuthenticationLockedEvent,
-  AuthenticationErrorEvent,
-  IdentityRegisteredEvent
+  AuthenticationErrorEvent
 } from '../../src/core/identity';
 import { UsernamePasswordCredentials } from '../../src/core/authentication';
 import { Clock } from '../../src/core/clock';
@@ -27,8 +26,9 @@ describe('Identity', () => {
   });
 
   const authenticatorYields = (result) => ({
-    authenticateUsernamePassword: () => {
+    authenticateUsernamePassword: (username) => {
       return result instanceof Error ? Promise.reject(result) : Promise.resolve({
+        username: username,
         success: result
       });
     }
@@ -42,7 +42,7 @@ describe('Identity', () => {
           expect(identity.dispatch)
             .toBeCalledWith('someId', new AuthenticationAttemptedEvent());
           expect(identity.dispatch)
-            .toBeCalledWith('someId', new AuthenticationSucceededEvent());
+            .toBeCalledWith('someId', new AuthenticationSucceededEvent('a'));
         });
     });
   });
@@ -92,16 +92,6 @@ describe('Identity', () => {
             .toBeCalledWith('someId', new AuthenticationErrorEvent());
         });
     });
-  });
-
-  it('can be registered once', () => {
-    identity.register('somePassword', 'aFirstName', 'aLastName', 'aPhoneNumber', 'aRole');
-    identity.register('somePassword', 'aFirstName', 'aLastName', 'aPhoneNumber', 'aRole');
-    expect(identity.dispatch)
-      .toBeCalledWith('someId',
-        new IdentityRegisteredEvent('someId', 'somePassword', 'aFirstName', 'aLastName', 'aPhoneNumber', 'aRole'));
-    expect(identity.dispatch.mock.calls.length).toBe(1);
-
   });
 
 });

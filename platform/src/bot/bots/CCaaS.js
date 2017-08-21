@@ -8,7 +8,7 @@ let CCaaS = {
       {
         content: "I'm sorry, I can't deal with your request this time, let me pass you over to a human agent", /* required */
         contentType: "PlainText" /* required */
-      },
+      }
       /* more items */
     ]
   },
@@ -16,14 +16,14 @@ let CCaaS = {
     maxAttempts: 2, /* required */
     messages: [ /* required */
       {
-        content: "Sorry, I don't understand what you mean, you can ask me to perform account services, or ask a question about our company.", /* required */
+        content: "Sorry, I don't understand what you means, you can ask me to perform account services, or ask a question about our company.", /* required */
         contentType: "PlainText" /* required */
       },
       {
         content: "I'm sorry, I'm not sure what you mean. Try asking a question like \"can you show me my balance?\".",
         contentType: "PlainText"
       }
-    ],
+    ]
   },
   idleSessionTTLInSeconds: 500,
   intents: [

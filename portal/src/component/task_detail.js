@@ -23,16 +23,16 @@ export class TaskDetail extends Component {
       if (/^ChatParticipant(Joined|Left)Event$/.test(chatLog.name)) {
         const eventType = /^ChatParticipant(Joined|Left)Event$/.exec(chatLog.name)[1];
         return {
-          messageId: `${JSON.stringify(chatLog.payload)}`,
+          messageId: `${JSON.stringify(chatLog)}`,
           messageType: 'status',
-          text: `${chatLog.payload.participant} has ${eventType.toLowerCase()} the chat`
+          text: `${chatLog.participant} has ${eventType.toLowerCase()} the chat`
         }
       }
       return {
-        messageId: chatLog.payload.messageId,
-        direction: chatLog.payload.fromParticipantRole === 'customer' ? 'incoming' : 'outgoing',
-        from: chatLog.payload.fromParticipant,
-        text: chatLog.payload.text
+        messageId: chatLog.messageId,
+        direction: chatLog.fromParticipantRole === 'customer' ? 'incoming' : 'outgoing',
+        from: chatLog.fromParticipant,
+        text: chatLog.text
       }
     };
     const prepareChatMessages = (task) => {
