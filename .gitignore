@@ -7,3 +7,4 @@ node_modules
 *.map
 *nohist*
 .env
+.DS_Store
