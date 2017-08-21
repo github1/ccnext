@@ -1,6 +1,10 @@
 const AWS = require('aws-sdk');
 
-const {putSlot, putIntent, putBot} = require("./functions/put.js");
+const {
+  putSlot,
+  putIntent,
+  putBot,
+  putBotAlias } = require("./functions/put.js");
 
 const topic = require("./slots/topic.js");
 const accountHolder = require("./slots/account_holder.js");
@@ -29,24 +33,41 @@ AWS.config.update({
 
 const lexmodelbuildingservice = new AWS.LexModelBuildingService();
 
-putSlot(lexmodelbuildingservice, topic).then(() => {
-  return putSlot(lexmodelbuildingservice, accountHolder);
+const lexmodel = {};
+
+Promise.all([
+  topic,
+  accountHolder,
+  character,
+  cardType
+].map(slot => {
+  return putSlot(lexmodelbuildingservice, lexmodel, slot);
+})).then(() => {
+  return Promise.all([
+    Welcome,
+    AskQuestion,
+    MakePayment,
+    GetAccountBalance,
+    GetTransactions,
+    LostCard
+  ].map(intent=> {
+    return putIntent(lexmodelbuildingservice, lexmodel, intent);
+  }));
 }).then(() => {
-  return putSlot(lexmodelbuildingservice, character);
+  return putBot(lexmodelbuildingservice, lexmodel, CCaaS);
 }).then(() => {
-  return putSlot(lexmodelbuildingservice, cardType);
+  return putBotAlias(lexmodelbuildingservice, lexmodel, {
+    botName: CCaaS.name,
+    name: 'prod'
+  });
 }).then(() => {
-  return putIntent(lexmodelbuildingservice, Welcome);
-}).then(() => {
-  return putIntent(lexmodelbuildingservice, AskQuestion);
-}).then(() => {
-  return putIntent(lexmodelbuildingservice, MakePayment);
-}).then(() => {
-  return putIntent(lexmodelbuildingservice, GetAccountBalance);
-}).then(() => {
-  return putIntent(lexmodelbuildingservice, GetTransactions);
-}).then(() => {
-  return putIntent(lexmodelbuildingservice, LostCard);
-}).then(() => {
-  return putBot(lexmodelbuildingservice, CCaaS);
+  console.log('Published');
+  Object.keys(lexmodel).map((type) => {
+    Object.keys(lexmodel[type]).map((key) => {
+      console.log(`  ${type} ${key} v${lexmodel[type][key].version}`);
+    });
+  });
+}).catch(err => {
+  console.error(err);
 });
+
