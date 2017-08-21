@@ -1,5 +1,5 @@
 import ajax from './ajax';
-import { identity, jwt } from './identity';
+import { identity } from './identity';
 import { getChatLog, startChat, leaveChat } from './chat';
 import { subscribeTo } from './events';
 
@@ -7,10 +7,7 @@ export const getTasks = () => {
   const id = identity();
   return ajax({
     url: `/api/worker/${id.username}/tasks`,
-    method: 'get',
-    headers: {
-      jwt: jwt()
-    }
+    method: 'get'
   }).then((result) => {
     return Object.keys(result).map((taskId) => result[taskId]);
   }).then((tasks) => populateTasks(tasks));
@@ -21,9 +18,6 @@ export const markTaskComplete = (task, reason) => {
   return ajax({
     url: `/api/tasks/${task.taskId}`,
     method: 'post',
-    headers: {
-      jwt: jwt()
-    },
     data: {
       command: 'complete',
       reason: reason

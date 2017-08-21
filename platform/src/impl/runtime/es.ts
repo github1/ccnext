@@ -8,6 +8,7 @@ import {
 } from '../../core/entity/entity';
 import * as eventstore from 'eventstore';
 import * as events from 'events';
+import { typeLoader, createInstanceFromJson } from './typeLoader';
 
 module EventStoreLib {
   export type EventStoreType = {
@@ -16,8 +17,9 @@ module EventStoreLib {
     getEvents : Function
   };
   export type EventStoreTypeFactory = (options?: Object) => EventStoreType;
-  export type Stream = { addEvent : Function, commit : Function, events : Event[] };
-  export type Event = { name : string, payload : EntityEvent };
+  export type Stream = { addEvent : Function, addEvents : Function, commit : Function, events : Event[], eventsToDispatch : Event[] };
+  export type EventPayload = { streamId : string, name : string };
+  export type Event = { name : string, streamId : string, aggregateId: string, payload : EventPayload };
 }
 
 class LocalEventBusSubscription implements EventBusSubscription {
@@ -58,11 +60,38 @@ export class LocalEventBus implements EventBus {
   }
 }
 
-// @TODO - use persistent store
-const es : EventStoreLib.EventStoreType = ((<EventStoreLib.EventStoreTypeFactory>eventstore)({
-  type:'dynamodb'
-}));
+const USE_DYNAMO_DB : boolean = !(/false/i.test((process.env.USE_DYNAMO_DB || 'false')));
+
+const esCongig : Object = USE_DYNAMO_DB ? {
+  type:'dynamodb',
+  useUndispatchedEventsTable: false
+} : {};
+const es : EventStoreLib.EventStoreType = ((<EventStoreLib.EventStoreTypeFactory>eventstore)(esCongig));
 es.init();
+
+const hydrateEventStream = (events : EventStoreLib.Event[]) => {
+  return Promise.all((events||[]).map((event : EventStoreLib.Event) => {
+    return new Promise((resolve : Function) => {
+      event.payload.streamId = event.streamId || event.aggregateId;
+      if(USE_DYNAMO_DB) {
+        // ensure types are restored after deserialization
+        typeLoader(event.payload.name, (resolvedType : Function) => {
+          resolve({
+            name: event.payload.name,
+            streamId: event.streamId || event.aggregateId,
+            payload: <EventStoreLib.EventPayload> createInstanceFromJson(resolvedType, event.payload)
+          });
+        });
+      } else {
+        resolve({
+          name: event.payload.name,
+          streamId: event.streamId || event.aggregateId,
+          payload: event.payload
+        });
+      }
+    });
+  }));
+};
 
 export class EventStoreLibEventStore implements EventStore {
   public replay(id : string, handler : (event : EntityEvent, isReplaying? : boolean) => void, done? : () => void) : void {
@@ -70,13 +99,16 @@ export class EventStoreLibEventStore implements EventStore {
       if (err) {
         console.log(err);
       } else {
-        const history : EntityEvent[] = stream.events.map((record : EventStoreLib.Event) => record.payload);
-        history.forEach((entityEvent : EntityEvent) => {
-          handler(entityEvent, true);
+        hydrateEventStream(stream.events).then((results : EventStoreLib.Event[]) => {
+          results.forEach((event : EventStoreLib.Event) => {
+            handler(<EntityEvent> event.payload, true);
+          });
+          if (done) {
+            done();
+          }
+        }).catch((err : Error) => {
+          console.error(err);
         });
-      }
-      if(done) {
-        done();
       }
     });
   }
@@ -86,15 +118,16 @@ export class EventStoreLibEventStore implements EventStore {
       if (err) {
         console.log(err);
       } else {
-        events.map((record : EventStoreLib.Event) => {
-          record.name = record.payload.constructor.name;
-          return record;
-        }).forEach((entityEvent : EntityEvent) => {
-          handler(entityEvent, true);
+        hydrateEventStream(events).then((results : EventStoreLib.Event[]) => {
+          results.forEach((event : EventStoreLib.Event) => {
+            handler(<EntityEvent> event.payload, true);
+          });
+          if(done) {
+            done();
+          }
+        }).catch((err : Error) => {
+          console.error(err);
         });
-      }
-      if(done) {
-        done();
       }
     });
   }
@@ -104,18 +137,32 @@ export const eventStore : EventStore = new EventStoreLibEventStore();
 
 export const eventBus : EventBus = new LocalEventBus(eventStore);
 
-function eventDispatcher(streamId : string, event : EntityEvent) : void {
-  es.getEventStream(streamId, (err : Error, stream : EventStoreLib.Stream) => {
-    if (err) {
-      console.log(err);
-    }
-    stream.addEvent(event);
-    eventBus.emit({
-      name: event.constructor.name,
-      stream: streamId,
-      payload: event
+function eventDispatcher(streamId : string, events : EntityEvent[]) : Promise<void> {
+  return new Promise<void>((resolve : Function) => {
+    es.getEventStream(streamId, (err : Error, stream : EventStoreLib.Stream) => {
+      if (err) {
+        console.log(err);
+        resolve();
+      } else {
+        stream.addEvents(events);
+        stream.commit((err : Error, stream : EventStoreLib.Stream) => {
+          if(err) {
+            console.log(err);
+            resolve();
+          } else {
+            hydrateEventStream(stream.eventsToDispatch).then((events : EventStoreLib.Event[]) => {
+              events.forEach((event : EventStoreLib.Event) => {
+                eventBus.emit(event.payload);
+              });
+              resolve();
+            }).catch((err : Error) => {
+              console.error(err);
+              resolve();
+            });
+          }
+        });
+      }
     });
-    stream.commit();
   });
 }
 

@@ -1,9 +1,20 @@
 import { v4 } from 'uuid';
+import { Clock } from '../clock';
 
-export interface EntityEvent {
+export class EntityEvent {
+  public streamId : string;
+  public name : string;
+  public timestamp : number;
+
+  constructor() {
+    this.name = this.constructor.name;
+    this.timestamp = Clock.now();
+  }
 }
 
-export type EventDispatcher = (streamId : string, event : EntityEvent) => void;
+export type EventDispatcher = (streamId : string, events : EntityEvent[]) => Promise<void>;
+
+export type VoidEventDispatcher = (streamId : string, event : EntityEvent) => void;
 
 export type EventHandler = (entity : Entity, event : EntityEvent) => void;
 
@@ -16,17 +27,37 @@ export interface EventBusSubscription {
   unsubscribe() : void;
 }
 
-export type EventRecord = { name: string, stream : string, payload: {} };
-
 export interface EventBus {
   subscribe(listener : (event : EntityEvent, isReplaying? : boolean) => void,
             options? : { [key:string]: string | boolean }) : EventBusSubscription;
-  emit(event : EntityEvent) : void;
+  emit(event : {}) : void;
 }
 
 export interface EntityRepository {
   load(construct : {new(arg : string)}, id : string) : Promise<Entity>;
 }
+
+/* tslint:disable */
+export class ChainInterceptorPromise<T> extends Promise<T> {
+  private promise : Promise<T>;
+  private afterChain : Function;
+
+  constructor(promise : Promise<T>, afterChain : Function) {
+    super((resolve : Function)=> {
+      resolve();
+    });
+    this.promise = promise;
+    this.afterChain = afterChain || function () {
+      };
+  }
+
+  public then(a : any) : ChainInterceptorPromise<T> {
+    return new ChainInterceptorPromise<T>(this.promise.then(a).then((a) => {
+      return this.afterChain(a).then(() => Promise.resolve(a));
+    }), this.afterChain);
+  }
+}
+/* tslint:enable */
 
 export class BaseEntityRepository implements EntityRepository {
 
@@ -39,10 +70,12 @@ export class BaseEntityRepository implements EntityRepository {
   }
 
   public load(construct : {new(arg : string)}, id : string) : Promise<Entity> {
-    return new Promise((resolve : Function) => {
+    const eventsToDispatch : EntityEvent[] = [];
+    return new ChainInterceptorPromise(new Promise((resolve : Function) => {
       const entity : Entity = (<Entity> new construct(id));
-      entity.init((streamId : string, event : EntityEvent) => {
-        this.eventDispatcher(streamId, event);
+      entity.init((streamId : string, event : EntityEvent) : void => {
+        event.streamId = streamId;
+        eventsToDispatch.push(event);
         entity.apply(event);
       });
       this.eventStore.replay(
@@ -53,6 +86,16 @@ export class BaseEntityRepository implements EntityRepository {
         () : void => {
           resolve(entity);
         });
+    }), () => {
+      if (eventsToDispatch.length === 0) {
+        return Promise.resolve();
+      } else {
+        const flushTo : EntityEvent[] = [];
+        while (eventsToDispatch.length > 0) {
+          flushTo.push(eventsToDispatch.shift());
+        }
+        return this.eventDispatcher(id, flushTo);
+      }
     });
   }
 
@@ -82,7 +125,7 @@ export class EventProcessor {
 export class Entity {
   protected id : string;
   protected config : EventProcessor;
-  protected dispatch : EventDispatcher;
+  protected dispatch : VoidEventDispatcher;
 
   constructor(id : string,
               config : EventProcessor) {
@@ -94,7 +137,7 @@ export class Entity {
     return new EventProcessor().apply(newHandler);
   }
 
-  public init(dispatch : EventDispatcher) : void {
+  public init(dispatch : VoidEventDispatcher) : void {
     this.dispatch = dispatch;
   }
 

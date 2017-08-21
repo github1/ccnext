@@ -1,6 +1,6 @@
 import {
   EventBus,
-  EventRecord
+  EntityEvent
 } from '../core/entity/entity';
 import {
   ChatTransferredEvent,
@@ -37,23 +37,30 @@ export class NullChatDestination implements ChatDestination {
   }
 }
 
+type ChatData = {
+  queue? : string,
+  conversationData? : { [key:string]:{ [key:string]:string } }
+};
+
+const chatStates : { [key:string]:ChatData } = {};
+
 class BoundChatResponse implements ChatResponse {
   private chatId : string;
   private chatQueue : string;
   private fromParticipant : string;
   private chatService : ChatService;
-  private conversationData : {[key:string]:string};
+  private correlationId : string;
 
   constructor(chatId : string,
               chatQueue : string,
               fromParticipant : string,
               chatService : ChatService,
-              conversationData : {[key:string]:string}) {
+              correlationId : string) {
     this.chatId = chatId;
     this.chatQueue = chatQueue;
     this.fromParticipant = fromParticipant;
     this.chatService = chatService;
-    this.conversationData = conversationData;
+    this.correlationId = correlationId;
   }
 
   public reply(text : string) : void {
@@ -82,7 +89,8 @@ class BoundChatResponse implements ChatResponse {
 
   public storeConversationData(data : { [key:string]:string }) : void {
     if (data) {
-      Object.assign(this.conversationData, data);
+      chatStates[this.chatId]
+        .conversationData[this.correlationId] = Object.assign(chatStates[this.chatId].conversationData[this.correlationId], data);
     }
   }
 
@@ -92,22 +100,15 @@ export const chatRouter = (eventBus : EventBus,
                            chatDestinationProvider : ChatDestinationProvider,
                            chatService : ChatService) : void => {
 
-  type ChatState = {
-    queue? : string,
-    conversationData? : { [key:string]:{ [key:string]:string } }
-  };
-
-  const chatStates : { [key:string]:ChatState } = {};
-
-  const getChatState = (chatId : string) : ChatState => {
+  const getChatData = (chatId : string) : ChatData => {
     if (chatStates[chatId] === undefined) {
       chatStates[chatId] = {conversationData: {}};
     }
     return chatStates[chatId];
   };
 
-  const getChatConversationState = (chatId : string, correlationId? : string) : {[key:string]:string} => {
-    const chatState : ChatState = getChatState(chatId);
+  const getChatConversationData = (chatId : string, correlationId? : string) : {[key:string]:string} => {
+    const chatState : ChatData = getChatData(chatId);
     if (correlationId) {
       if (chatState.conversationData[correlationId] === undefined) {
         chatState.conversationData[correlationId] = {};
@@ -117,30 +118,26 @@ export const chatRouter = (eventBus : EventBus,
   };
 
   eventBus.subscribe(
-    (event : EventRecord) => {
-      if (event.name === 'ChatTransferredEvent') {
-        // store current chat queue
-        const chatEvent : ChatTransferredEvent = (<ChatTransferredEvent>event.payload);
-        getChatState(event.stream).queue = chatEvent.toQueue;
-      } else if (event.name === 'ChatMessagePostedEvent') {
-        const chatQueue : string = getChatState(event.stream).queue;
+    (event : EntityEvent) => {
+      if (event instanceof ChatTransferredEvent) {
+        // store current chat queue;
+        getChatData(event.streamId).queue = event.toQueue;
+      } else if (event instanceof ChatMessagePostedEvent) {
+        const chatQueue : string = getChatData(event.streamId).queue;
         if (chatQueue) {
-          const chatEvent : ChatMessagePostedEvent = (<ChatMessagePostedEvent>event.payload);
-          if (chatEvent.fromParticipant === chatQueue) {
-            // don't reply to messages sent generically from the same chatQueue
+          if (event.fromParticipant === chatQueue) {
+            // don't reply to messages sent from the same chatQueue
             return;
           }
-          const conversationData : { [key:string]:string } = getChatConversationState(event.stream, chatEvent.correlationId);
+          const conversationData : { [key:string]:string } = getChatConversationData(event.streamId, event.correlationId);
+          conversationData['fromParticipantIdentityId'] = event.fromParticipantIdentityId;
           chatDestinationProvider
             .getChat(chatQueue)
-            .send(
-              {
-                message: chatEvent.text,
-                correlationId: chatEvent.correlationId,
-                conversationData: conversationData
-              },
-              new BoundChatResponse(event.stream, chatQueue, chatEvent.fromParticipant, chatService, conversationData)
-            );
+            .send({
+              message: event.text,
+              correlationId: event.correlationId,
+              conversationData: conversationData
+            }, new BoundChatResponse(event.streamId, chatQueue, event.fromParticipant, chatService, event.correlationId));
         }
       }
     });
