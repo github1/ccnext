@@ -15,6 +15,7 @@ module.exports = (eventBus, chatService) => {
             event.queue,
             WELCOME_MESSAGE
           );
+          chatService.endChat(event.streamId);
           break;
         case "AskQuestion":
           let answer = "here is your answer";
@@ -23,6 +24,7 @@ module.exports = (eventBus, chatService) => {
             event.queue,
             answer
           );
+          chatService.endChat(event.streamId);
           break;
         case "GetAccountBalance":
           chatService.postMessage(
@@ -30,6 +32,7 @@ module.exports = (eventBus, chatService) => {
             event.queue,
             `${event.requester}, your account balance is £3245.73. Is there anything else I can do for you today?`
           );
+          chatService.endChat(event.streamId);
           break;
         case "GetTransactions":
           chatService.postMessage(
@@ -37,6 +40,7 @@ module.exports = (eventBus, chatService) => {
             event.queue,
             `Your last few transactions are:\n${TRANSACTIONS.map(function(transaction) {return `Vendor: ${transaction.vendor}, Amount: ${transaction.amount}.`})} Is there anything else I can help you with?`
           );
+          chatService.endChat(event.streamId);
           break;
         case "LostCard":
           chatService.postMessage(
@@ -44,6 +48,7 @@ module.exports = (eventBus, chatService) => {
             event.queue,
             `OK ${event.requester}, your ${event.payload.slots.cardType} has been disabled. Is there anything else I can help you with today?`
           );
+          chatService.endChat(event.streamId);
           break;
         case "MakePayment":
           let slots = event.payload.slots;
@@ -52,13 +57,14 @@ module.exports = (eventBus, chatService) => {
             event.queue,
             `OK ${event.requester}, I have set up a payment of £${slots.amount} to ${slots.payee} on ${slots.paymentDate} from your account ending in ${slots.fromAccount}. Anything else I can do for you?`
           );
+          chatService.endChat(event.streamId);
           break;
         default:
-        chatService.postMessage(
-          event.streamId,
-          event.queue,
-          `${event.intentName} fulfilled!`);
-        chatService.endChat(event.streamId);
+          chatService.postMessage(
+            event.streamId,
+            event.queue,
+            `${event.intentName} fulfilled!`);
+          chatService.endChat(event.streamId);
         }
       }
   });
