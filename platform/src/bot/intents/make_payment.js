@@ -51,8 +51,7 @@ let makePayment = {
       },
       priority: 1,
       sampleUtterances: [
-        "Send them {amount}",
-        "Send {payee} {amount}"
+        "Send them {amount}"
       ]
     },
     {
@@ -106,6 +105,8 @@ let makePayment = {
   sampleUtterances: [
     "Can I send {amount} to {payee} {paymentDate} from account ending in {fromAccount}",
     "I would like to send {amount} to {payee} {paymentDate} from my account ending in {fromAccount}",
+    "Can I send {amount} to {payee} on {paymentDate} from account ending in {fromAccount}",
+    "I would like to send {amount} to {payee} on {paymentDate} from my account ending in {fromAccount}",
     "Can I send {amount} to {payee} please",
     "I'd like to send {payee} {amount}",
     "Can I send money from {fromAccount} to {payee} please",
