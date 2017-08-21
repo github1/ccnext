@@ -10,22 +10,11 @@ function elicitSlot(sessionAttributes, intentName, slots, slotToElicit, message)
   return {
     sessionAttributes,
     dialogAction: {
-        type: 'ElicitSlot',
-        intentName,
-        slots,
-        slotToElicit,
-        message
-    }
-  };
-}
-
-function close(sessionAttributes, fulfillmentState, message) {
-  return {
-    sessionAttributes,
-    dialogAction: {
-        type: 'Close',
-        fulfillmentState,
-        message
+      type: 'ElicitSlot',
+      intentName,
+      slots,
+      slotToElicit,
+      message
     }
   };
 }
@@ -34,8 +23,8 @@ function delegate(sessionAttributes, slots) {
   return {
     sessionAttributes,
     dialogAction: {
-        type: 'Delegate',
-        slots
+      type: 'Delegate',
+      slots
     }
   };
 }
@@ -225,7 +214,7 @@ function validateMakePayment (slots){
 
 function dialogManagement ( intentRequest , callback ){
   let sessionAttributes = intentRequest.sessionAttributes || {} ;
-  let authenticated = sessionAttributes.authenticated || false ;
+  //let authenticated = sessionAttributes.authenticated || false ;
   let slots = intentRequest.currentIntent.slots ;
 
   if (intentRequest.invocationSource == 'DialogCodeHook') {
@@ -247,7 +236,7 @@ function dialogManagement ( intentRequest , callback ){
       callback( elicitSlot ( sessionAttributes, intentRequest.currentIntent.name, slots, validationResult.violatedSlot, validationResult.message)) ;
       return ;
     }  if (intentRequest.currentIntent.name == 'GetAccountBalance' || intentRequest.currentIntent.name == 'GetTransactions' ){
-      authenticated = true  ;
+      sessionAttributes.authenticated = true  ;
       console.log('Successful authentication') ;
     }
 
@@ -262,7 +251,7 @@ function dialogManagement ( intentRequest , callback ){
 function dispatch (intentRequest, callback) {
 
   console.log(`dispatch userId=${intentRequest.userId}, intentName=${intentRequest.currentIntent.name}`) ;
-  const intentName = intentRequest.currentIntent.name ;
+  //const intentName = intentRequest.currentIntent.name ;
 
   //Dispatch to your skill's intent handlers
   return dialogManagement ( intentRequest, callback);
