@@ -2,46 +2,42 @@
 
 const cardTypeSet = new Set (["debit", "freedom reward", "platinum", "initial"]);
 const topicSet = new Set(["pay my bill", "change my address", "change my mailing preferences", "make a complaint"]);
-const validator_functions = new Map ().set('AskQuestion', validateAskQuestion )
-                                    .set('GetAccountBalance', validateCharacters)
-                                    .set('GetTransactions', validateCharacters)
-                                    .set('LostCard', validateLostCard)
-                                    .set('MakePayment', validateMakePayment);
+const validatorFunctions = new Map ().set('AskQuestion', validateAskQuestion ).set('GetAccountBalance', validateCharacters).set('GetTransactions', validateCharacters).set('LostCard', validateLostCard).set('MakePayment', validateMakePayment);
 
 // --------------------- Response Helpers -----------------------
 
 function elicitSlot(sessionAttributes, intentName, slots, slotToElicit, message) {
-    return {
-        sessionAttributes,
-        dialogAction: {
-            type: 'ElicitSlot',
-            intentName,
-            slots,
-            slotToElicit,
-            message
-        }
+  return {
+    sessionAttributes,
+    dialogAction: {
+        type: 'ElicitSlot',
+        intentName,
+        slots,
+        slotToElicit,
+        message
     }
+  };
 }
 
 function close(sessionAttributes, fulfillmentState, message) {
-    return {
-        sessionAttributes,
-        dialogAction: {
-            type: 'Close',
-            fulfillmentState,
-            message
-        }
-    };
+  return {
+    sessionAttributes,
+    dialogAction: {
+        type: 'Close',
+        fulfillmentState,
+        message
+    }
+  };
 }
 
 function delegate(sessionAttributes, slots) {
-    return {
-        sessionAttributes,
-        dialogAction: {
-            type: 'Delegate',
-            slots
-        }
-    };
+  return {
+    sessionAttributes,
+    dialogAction: {
+        type: 'Delegate',
+        slots
+    }
+  };
 }
 
 function buildTypeValidationMessage(isValid, violatedSlotType, reasonWhy){
@@ -56,35 +52,30 @@ function buildTypeValidationMessage(isValid, violatedSlotType, reasonWhy){
 }
 
 function buildValidationResult(isValid, violatedSlot, messageContent){
-    if (messageContent == null) {
-        return {
-            isValid,
-            violatedSlot
-        };
-    }
+  if (messageContent == null) {
     return {
-        isValid,
-        violatedSlot,
-        message: {
-            contentType: 'PlainText',
-            content:messageContent
-        }
+      isValid,
+      violatedSlot
     };
+  }
+  return {
+    isValid,
+    violatedSlot,
+    message: {
+      contentType: 'PlainText',
+      content:messageContent
+    }
+  };
 }
 
 function parseLocalDate(date) {
-    /**
-     * Construct a date object in the local timezone by parsing the input date string, assuming a YYYY-MM-DD format.
-     * Note that the Date(dateString) constructor is explicitly avoided as it may implicitly assume a UTC timezone.
-     */
-    const dateComponents = date.split(/\-/);
-    return new Date(dateComponents[0], dateComponents[1] - 1, dateComponents[2]);
 
+  const dateComponents = date.split(/-/);
+  return new Date(dateComponents[0], dateComponents[1] - 1, dateComponents[2]);
 }
 
 function isAlpha(str) {
   var code, i, len;
-
   for (i = 0, len = str.length; i < len; i++) {
     code = str.charCodeAt(i);
     if (!(code > 64 && code < 91) && // upper alpha (A-Z)
@@ -93,7 +84,7 @@ function isAlpha(str) {
     }
   }
   return true;
-};
+}
 
 function hasWhiteSpace(s) {
   return s.indexOf(' ') >= 0;
@@ -105,7 +96,7 @@ function isValidSlot ( slot, slotType ) {
 
     case 'cardType':
       if (!(cardTypeSet.has(slot.toLowerCase()))) {
-          return buildTypeValidationMessage(false, 'cardType', `wrongCardType`);
+        return buildTypeValidationMessage(false, 'cardType', `wrongCardType`);
       }
       return buildTypeValidationMessage(true, null, null );
 
@@ -113,42 +104,31 @@ function isValidSlot ( slot, slotType ) {
       if (!(isAlpha(slot)) ) {
         return buildTypeValidationMessage (false, 'character', `notAlpha`);
       } else if (slot.length > 1) {
-        console.log("slot.length");
-
-          console.log(slot.length);
         return buildTypeValidationMessage (false, 'character', `wrongLength`);
       }
       return buildTypeValidationMessage(true, null, null);
 
     case 'topic':
       if (!(topicSet.has(slot.toLowerCase()))) {
-          return buildTypeValidationMessage(false, 'topic', `undefinedTopic`);
+        return buildTypeValidationMessage(false, 'topic', `undefinedTopic`);
       }
       return buildTypeValidationMessage(true, null, null );
 
     case 'accountHolder' :
-
       if (!hasWhiteSpace(slot)){
-              return buildTypeValidationMessage (false, 'accountHolder', `notWhiteSpace` );
-            }else {
-              let res = slot.split(" ") ;
-              if (res.length >2){
-              	if(!(isAlpha(res.join('')))) {
-               return buildTypeValidationMessage (false, 'accountHolder', `notAlpha` );
-          			}
-              }else {
-              	return buildTypeValidationMessage (false, 'accountHolder', `oneAlphaOneSpace` )
-              }
-         }
-       return buildTypeValidationMessage(true, null, null );
-
-      if (!hasWhiteSpace(slot)){
-        return buildTypeValidationMessage (false, 'accountHolder', `notWhiteSpace` )
-      }else if(!(isAlpha(slot.replace(/ +/g, "")))) {
-        buildTypeValidationMessage (false, 'accountHolder', `notAlpha` );
+        return buildTypeValidationMessage (false, 'accountHolder', `notWhiteSpace` );
+      }else {
+        let res = slot.split(" ") ;
+        if (res.length >2){
+          if(!(isAlpha(res.join('')))) {
+            return buildTypeValidationMessage (false, 'accountHolder', `notAlpha` );
+          }
+        }else {
+          return buildTypeValidationMessage (false, 'accountHolder', `oneAlphaOneSpace` );
+        }
       }
-
       return buildTypeValidationMessage(true, null, null );
+
     case 'AMAZON.DATE' :
       if ((isNaN(parseLocalDate(slot).getTime()))){
         return buildTypeValidationMessage( false, 'AMAZON.TIME', `undefinedDate`);
@@ -190,7 +170,7 @@ function validateAskQuestion( slots) {
   const topicSlotState = isValidSlot(slots.QuestionTopic, 'topic') ;
 
   if (slots.QuestionTopic && !(topicSlotState.isValid)){
-    return buildValidationResult( false, 'QuestionTopic', `Sorry, I didn't quite understand what you meant. Can you try a different question ?`)
+    return buildValidationResult( false, 'QuestionTopic', `Sorry, I didn't quite understand what you meant. Can you try a different question ?`);
   }
   return buildValidationResult(true, null, null);
 }
@@ -227,8 +207,8 @@ function validateLostCard (slots) {
 function validateMakePayment (slots){
   const payeeState = isValidSlot(slots.payee, 'AccountHolder');
   const paymentDateState = isValidSlot(slots.paymentDate, 'AMAZON.DATE');
-  const amountSlot = slots.amount;
-  const fromAccountSlot = slots.fromAccount;
+  //const amountSlot = slots.amount;
+  //const fromAccountSlot = slots.fromAccount;
 
   if (slots.payee && !(payeeState.isValid) ){
     return buildValidationResult(false, 'payee', `You must have typed a wrong name. Please try again.`);
@@ -244,44 +224,36 @@ function validateMakePayment (slots){
 }
 
 function dialogManagement ( intentRequest , callback ){
-      let sessionAttributes = intentRequest.sessionAttributes || {} ;
-      let authenticated = sessionAttributes.authenticated || false ;
-      let slots = intentRequest.currentIntent.slots ;
+  let sessionAttributes = intentRequest.sessionAttributes || {} ;
+  let authenticated = sessionAttributes.authenticated || false ;
+  let slots = intentRequest.currentIntent.slots ;
 
-      if (intentRequest.invocationSource = 'DialogCodeHook') {
-          const validationResult = validator_functions.get(intentRequest.currentIntent.name)(intentRequest.currentIntent.slots);
-          console.log(validationResult);
-          if ( !validationResult.isValid ) {
-              console.log('A slot is violated !')
-              slots[`${validationResult.violatedSlot}`] = null ;
-              console.log('sessionAttributes');
-              console.log(sessionAttributes);
-              console.log('intentRequest.currentIntent.name');
-              console.log(intentRequest.currentIntent.name);
-              console.log('slots');
-              console.log(slots);
-              console.log('validationResult.violatedSlot');
-              console.log(validationResult.violatedSlot);
-              console.log('validationResult.message')
-              console.log(validationResult.message)
-              callback( elicitSlot ( sessionAttributes, intentRequest.currentIntent.name, slots, validationResult.violatedSlot, validationResult.message)) ;
-              return ;
-          }  if (intentRequest.currentIntent.name == 'GetAccountBalance' || intentRequest.currentIntent.name == 'GetTransactions' ){
-              sessionAttributes.authenticated = true  ;
-              console.log('Successful authentication') ;
-          }
-      console.log('here it is');
-      console.log(intentRequest.sessionAttributes)
-
-          return callback(delegate(intentRequest.sessionAttributes, slots));
-      }
-
-      return (close(intentRequest.sessionAttributes, 'Fulfilled',createMessage('heya')));
-          console.log(`CALL THE FULFILLMENT HANDLER UNDER   =${intentRequest}`);
-      callback( close( sessionAttributes, 'Fulfilled',
-      { contentType : 'PlainText', content :'Glad I could help. Let me know if you need something else.'}))
-
+  if (intentRequest.invocationSource == 'DialogCodeHook') {
+    let validationResult = validatorFunctions.get(intentRequest.currentIntent.name)(intentRequest.currentIntent.slots);
+    console.log(validationResult);
+    if ( !validationResult.isValid ) {
+      console.log('A slot is violated !');
+      slots[`${validationResult.violatedSlot}`] = null ;
+      console.log('sessionAttributes');
+      console.log(sessionAttributes);
+      console.log('intentRequest.currentIntent.name');
+      console.log(intentRequest.currentIntent.name);
+      console.log('slots');
+      console.log(slots);
+      console.log('validationResult.violatedSlot');
+      console.log(validationResult.violatedSlot);
+      console.log('validationResult.message');
+      console.log(validationResult.message);
+      callback( elicitSlot ( sessionAttributes, intentRequest.currentIntent.name, slots, validationResult.violatedSlot, validationResult.message)) ;
+      return ;
+    }  if (intentRequest.currentIntent.name == 'GetAccountBalance' || intentRequest.currentIntent.name == 'GetTransactions' ){
+      authenticated = true  ;
+      console.log('Successful authentication') ;
     }
+
+    return callback(delegate(intentRequest.sessionAttributes, slots));
+  }
+}
 
 /**
 * Called when the user specifies an intent for this skill
@@ -294,7 +266,7 @@ function dispatch (intentRequest, callback) {
 
   //Dispatch to your skill's intent handlers
   return dialogManagement ( intentRequest, callback);
-  throw new Error (`Ìntent with name ${intentName} not supported`);
+
 }
 
 //---------------------------------Main Handler -----------------------------
@@ -306,7 +278,7 @@ function dispatch (intentRequest, callback) {
 exports.handler =  (event, context, callback ) => {
   try {
     process.env.TZ = 'America/New-York' ;
-    dispatch (event, (response) => callback( null, callback));
+    dispatch (event, (response) => callback( null, response));
   }
   catch (err) {
     callback(err);
