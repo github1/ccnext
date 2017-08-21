@@ -9,6 +9,9 @@ module.exports = (eventBus, chatService) => {
     if (event instanceof ChatReadyForFulfillmentEvent) {
       // In reality, most cases would make calls to our APIs before returning a message
       switch (event.payload.intentName) {
+        let slots = event.payload.slots;
+        let topic = slots.QuestionTopic;
+        let answer = TOPICS[topic].answer || `I'm sorry, I don't have the answer, check out our FAQ's!`;
         case "Welcome":
           chatService.postMessage(
             event.streamId,
@@ -18,8 +21,6 @@ module.exports = (eventBus, chatService) => {
           chatService.endChat(event.streamId);
           break;
         case "AskQuestion":
-          let topic = event.payload.slots.QuestionTopic;
-          let answer = TOPICS[topic].answer;
           chatService.postMessage(
             event.streamId,
             event.queue,
@@ -39,7 +40,7 @@ module.exports = (eventBus, chatService) => {
           chatService.postMessage(
             event.streamId,
             event.queue,
-            `Your last few transactions are:\n${TRANSACTIONS.map(function(transaction) {return `Vendor: ${transaction.vendor}, Amount: ${transaction.amount}.`})} Is there anything else I can help you with?`
+            `Your last few transactions are:\n${TRANSACTIONS.map(function(transaction) {return `Vendor: ${transaction.vendor}, Amount: ${transaction.amount}.`};)} Is there anything else I can help you with?`
           );
           chatService.endChat(event.streamId);
           break;
@@ -52,7 +53,6 @@ module.exports = (eventBus, chatService) => {
           chatService.endChat(event.streamId);
           break;
         case "MakePayment":
-          let slots = event.payload.slots;
           chatService.postMessage(
             event.streamId,
             event.queue,
@@ -66,8 +66,8 @@ module.exports = (eventBus, chatService) => {
             event.queue,
             `${event.intentName} fulfilled!`);
           chatService.endChat(event.streamId);
-        }
       }
+    }
   });
 };
 
