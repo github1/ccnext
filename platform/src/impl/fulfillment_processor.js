@@ -1,6 +1,6 @@
 import { ChatReadyForFulfillmentEvent } from '../core/chat';
 
-import { WELCOME_MESSAGE, TRANSACTIONS } from './consts.js';
+import { WELCOME_MESSAGE, TRANSACTIONS, TOPICS } from './consts.js';
 
 module.exports = (eventBus, chatService) => {
 
@@ -18,7 +18,8 @@ module.exports = (eventBus, chatService) => {
           chatService.endChat(event.streamId);
           break;
         case "AskQuestion":
-          let answer = "here is your answer";
+          let topic = event.payload.slots.QuestionTopic;
+          let answer = TOPICS[topic].answer;
           chatService.postMessage(
             event.streamId,
             event.queue,
