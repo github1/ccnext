@@ -8,7 +8,7 @@ import {
 } from '../../core/entity/entity';
 import * as eventstore from 'eventstore';
 import * as events from 'events';
-import { typeLoader, createInstanceFromJson } from './typeLoader';
+import { resolveInstanceFromJson } from './type_loader';
 
 module EventStoreLib {
   export type EventStoreType = {
@@ -75,12 +75,15 @@ const hydrateEventStream = (events : EventStoreLib.Event[]) => {
       event.payload.streamId = event.streamId || event.aggregateId;
       if(USE_DYNAMO_DB) {
         // ensure types are restored after deserialization
-        typeLoader(event.payload.name, (resolvedType : Function) => {
-          resolve({
-            name: event.payload.name,
-            streamId: event.streamId || event.aggregateId,
-            payload: <EventStoreLib.EventPayload> createInstanceFromJson(resolvedType, event.payload)
-          });
+        (<Promise<EventStoreLib.EventPayload>> resolveInstanceFromJson(event.payload))
+          .then((resolved : EventStoreLib.EventPayload) => {
+            resolve({
+              name: event.payload.name,
+              streamId: event.streamId || event.aggregateId,
+              payload: resolved
+            });
+          }).catch((error : Error) => {
+          console.error(error);
         });
       } else {
         resolve({
