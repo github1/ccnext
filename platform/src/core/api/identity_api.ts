@@ -1,6 +1,11 @@
 import * as express from 'express';
 import { EventBus, EntityEvent } from '../entity/entity';
-import { Credentials, AnonymousCredentials, UsernamePasswordCredentials } from '../authentication';
+import {
+  Credentials,
+  AnonymousCredentials,
+  UsernamePasswordCredentials,
+  MemorableWordCredentials
+} from '../authentication';
 import { IdentityRegisteredEvent } from '../identity';
 import { IdentityService, IdentityVO } from '../identity_service';
 
@@ -33,6 +38,7 @@ export function identityAPI(eventBus : EventBus, identityService : IdentityServi
             try {
               const identityVO : IdentityVO = identityService.decode(req.headers['jwt'].toString());
               req.headers['user-id'] = identityVO.username;
+              req.headers['user-role'] = identityVO.role;
               req.headers['user-session-id'] = identityVO.sessionId;
               next();
             } catch (err) {
@@ -51,10 +57,20 @@ export function identityAPI(eventBus : EventBus, identityService : IdentityServi
       });
 
       app.post('/api/authenticate', (req : express.Request, res : express.Response) : void => {
+        const sessionId : string = req.headers['user-session-id'].toString();
         const body : AuthenticateRequestBody = <AuthenticateRequestBody> req.body;
-        const credentials : Credentials = body.username && body.password ?
-          new UsernamePasswordCredentials(body.username, body.password) :
-          new AnonymousCredentials();
+        const credentials : Credentials = (() : Credentials => {
+          if (body.username && body.password) {
+            return new UsernamePasswordCredentials(body.username, body.password, sessionId);
+          }
+          else if (body.memorableWordPositionsRequested) {
+            return new MemorableWordCredentials(
+              body.username,
+              body.memorableWordPositionsRequested.split(',').map(parseInt),
+              body.memorableWordChars.split(','));
+          }
+          return new AnonymousCredentials();
+        })();
         identityService
           .authenticate(credentials)
           .then((identity : IdentityVO) => {
@@ -74,7 +90,7 @@ export function identityAPI(eventBus : EventBus, identityService : IdentityServi
       app.post('/api/register', (req : express.Request, res : express.Response) : void => {
         const body : RegisterRequestBody = <RegisterRequestBody> req.body;
         identityService
-          .register(body.username, body.password, body.firstName, body.lastName, body.phoneNumber, body.role);
+          .register(body.username, body.password, body.firstName, body.lastName, body.phoneNumber, body.role, body.memorableWord);
         res.json({
           username: body.username
         });
@@ -90,7 +106,9 @@ export function identityAPI(eventBus : EventBus, identityService : IdentityServi
 
 type AuthenticateRequestBody = {
   username : string,
-  password : string
+  password : string,
+  memorableWordPositionsRequested : string,
+  memorableWordChars : string
 };
 
 type RegisterRequestBody = {
@@ -99,5 +117,6 @@ type RegisterRequestBody = {
   firstName : string,
   lastName : string,
   phoneNumber : string,
-  role : string
+  role : string,
+  memorableWord : string
 };

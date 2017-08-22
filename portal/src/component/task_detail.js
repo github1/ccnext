@@ -23,15 +23,15 @@ export class TaskDetail extends Component {
       if (/^ChatParticipant(Joined|Left)Event$/.test(chatLog.name)) {
         const eventType = /^ChatParticipant(Joined|Left)Event$/.exec(chatLog.name)[1];
         return {
-          messageId: `${JSON.stringify(chatLog)}`,
+          messageId: `${chatLog.name}-${chatLog.timestamp}-${chatLog.participant.handle}`,
           messageType: 'status',
-          text: `${chatLog.participant} has ${eventType.toLowerCase()} the chat`
+          text: `${chatLog.participant.handle} has ${eventType.toLowerCase()} the chat`
         }
       }
       return {
         messageId: chatLog.messageId,
-        direction: chatLog.fromParticipantRole === 'customer' ? 'incoming' : 'outgoing',
-        from: chatLog.fromParticipant,
+        direction: chatLog.fromParticipant.role === 'customer' ? 'incoming' : 'outgoing',
+        from: chatLog.fromParticipant.handle,
         text: chatLog.text
       }
     };

@@ -10,7 +10,7 @@ import {
 const cookieParser = require('cookie-parser');
 const twilio = require('twilio');
 import { IdentityRegisteredEvent } from '../../core/identity';
-import { ChatMessagePostedEvent, ChatEndedEvent } from '../../core/chat';
+import { ChatParticipantVO, ChatMessagePostedEvent, ChatEndedEvent } from '../../core/chat';
 import { TaskSubmittedEvent, TaskCompletedEvent } from '../../core/task';
 
 /**
@@ -39,10 +39,11 @@ export default (baseUrl, contextPath, phoneNumberSid, accountSid, authToken, cha
     const refreshChatContext = (event) => {
       twilioContext.chats[event.streamId] = twilioContext.chats[event.streamId] || {};
       twilioContext.chats[event.streamId].isIncoming = false;
-      if ((event.fromParticipant || '').indexOf('sms-incoming::') === 0) {
+      if (event.fromParticipant.phoneNumber &&
+        event.fromParticipant.sessionId &&
+        event.fromParticipant.sessionId.indexOf('sms-incoming::') === 0) {
         twilioContext.chats[event.streamId].isIncoming = true;
-        twilioContext.chats[event.streamId].incoming = event.fromParticipant;
-        twilioContext.chats[event.streamId].incomingNumber = (twilioContext.chats[event.streamId].incoming + '').split(/::/)[1];
+        twilioContext.chats[event.streamId].incomingNumber = event.fromParticipant.phoneNumber;
       }
       return twilioContext.chats[event.streamId];
     };
@@ -79,7 +80,7 @@ export default (baseUrl, contextPath, phoneNumberSid, accountSid, authToken, cha
         } else if (event instanceof ChatEndedEvent) {
           delete twilioContext.chats[event.streamId];
         } else if (event instanceof TaskSubmittedEvent) {
-          if(!event.taskData.twilioTaskSid) {
+          if (!event.taskData.twilioTaskSid) {
             createTaskIfNotExists(twilioClient,
               twilioContext.taskqueueConfig.workspaces['ccaas'].sid,
               twilioContext.taskqueueConfig.workflows['ccaas-workflow'].sid,
@@ -138,14 +139,15 @@ export default (baseUrl, contextPath, phoneNumberSid, accountSid, authToken, cha
         switch (req.params.channel) {
           case 'sms':
           {
-            const fromParticipant = `sms-incoming::${req.body.From}`;
-            const text = req.body.Body;
             let chatId = req.cookies['x-conversation-id'];
             if (!req.cookies['x-conversation-id']) {
               res.cookie('x-conversation-id', chatId = uuid.v4());
             }
+            const incomingPhoneNumber = req.body.From;
+            const fromParticipantId = `sms-incoming::${chatId}`;
+            const text = req.body.Body;
             chatService
-              .postMessage(chatId, fromParticipant, text);
+              .postMessage(chatId, new ChatParticipantVO(incomingPhoneNumber, 'visitor', fromParticipantId, incomingPhoneNumber), text);
             res.send('<Response></Response>');
             break;
           }

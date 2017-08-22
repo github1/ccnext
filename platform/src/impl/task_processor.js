@@ -15,7 +15,7 @@ module.exports = (eventBus, taskService, chatService) => {
       }
     } else if (event instanceof TaskCompletedEvent) {
       if (event.taskData.chatId) {
-        chatService.endChat(event.taskData.chatId);
+        chatService.transferTo(event.taskData.chatId, 'CCaaSBot');
       }
     }
   });

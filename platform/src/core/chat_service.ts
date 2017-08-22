@@ -1,4 +1,4 @@
-import { Chat } from './chat';
+import { Chat, ChatParticipantVO } from './chat';
 import { EntityRepository } from './entity/entity';
 
 export class ChatService {
@@ -8,35 +8,33 @@ export class ChatService {
     this.entityRepository = entityRepository;
   }
 
-  public startChat(chatId : string, user : string) : void {
+  public startChat(chatId : string, participant : ChatParticipantVO) : void {
     this.entityRepository
       .load(Chat, chatId)
       .then((chat : Chat) => {
-        chat.start(user);
+        chat.start();
+        chat.join(participant);
       })
       .catch((error : Error) => {
         throw error;
       });
   }
 
-  public linkIdentity(chatId : string, participant : string, identityId : string) : void {
-    this.entityRepository
+  public joinChat(chatId : string, participant : ChatParticipantVO) : Promise<void> {
+    return this.entityRepository
       .load(Chat, chatId)
       .then((chat : Chat) => {
-        chat.linkIdentity(participant, identityId);
-      })
-      .catch((error : Error) => {
-        throw error;
+        chat.join(participant);
       });
   }
 
-  public postMessage(chatId : string, fromParticipant : string, text : string) : void {
+  public postMessage(chatId : string, participant : ChatParticipantVO, text : string) : void {
     this.entityRepository
       .load(Chat, chatId)
       .then((chat : Chat) => {
         chat.defaultQueue('CCaaSBot');
         chat
-          .postMessage(fromParticipant, text)
+          .postMessage(participant, text)
           .catch((error : Error) => {
             console.error(error);
           });
@@ -57,11 +55,14 @@ export class ChatService {
       });
   }
 
-  public signalReadyForFulfillment(chatId : string, onBehalfOf : string, payload : {}) : void {
+  public signalReadyForFulfillment(chatId : string,
+                                   fulfillForParticipant: ChatParticipantVO,
+                                   fulfillerParticipant: ChatParticipantVO,
+                                   payload : {}) : void {
     this.entityRepository
       .load(Chat, chatId)
       .then((chat : Chat) => {
-        chat.signalReadyForFulfillment(onBehalfOf, payload);
+        chat.signalReadyForFulfillment(fulfillForParticipant, fulfillerParticipant, payload);
       })
       .catch((error : Error) => {
         throw error;
@@ -79,11 +80,11 @@ export class ChatService {
       });
   }
 
-  public leaveChat(chatId : string, participant : string) : void {
+  public leaveChat(chatId : string, participantSessionId : string) : void {
     this.entityRepository
       .load(Chat, chatId)
       .then((chat : Chat) => {
-        chat.leave(participant);
+        chat.leave(participantSessionId);
       })
       .catch((error : Error) => {
         throw error;

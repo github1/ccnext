@@ -10,13 +10,12 @@ import {
   preventZoom,
   growl
 } from './browser_utils';
-import { identity, authenticate, signout, register } from './api/identity.js';
+import { identity, authenticateAnonymous, authenticate, profile, signout, register } from './api/identity.js';
 import { startChat, leaveChat, postChatMessage } from './api/chat.js';
 import { getTasks, markTaskComplete, populateTasks } from './api/tasks.js';
 import { openEventStream, subscribeTo, unsubscribe } from './api/events';
 
 import {
-  INIT,
   REALTIME_CONNECTION_ESTABLISHED,
   RECEIVE_ENTITY_EVENT,
   NAVIGATE,
@@ -71,11 +70,15 @@ const model = () => {
 };
 
 const sideEffect = (command, model) => {
+  const id = identity();
+  if (!id.sessionId) {
+    authenticateAnonymous().then((data) => {
+      dispatch(command);
+    });
+    return;
+  }
   switch (command.type) {
     case NAVIGATE:
-    case INIT:
-      const id = identity();
-
       openEventStream({
         open: () => {
           dispatch({
@@ -116,11 +119,13 @@ const sideEffect = (command, model) => {
         perform();
       } else {
         if (id.role !== 'visitor') {
-          dispatch({
-            type: AUTHENTICATION_SUCCESS,
-            user: id
-          }).then(() => {
-            subscribeTo(id.username).then(() => perform());
+          profile().then((user) => {
+            dispatch({
+              type: AUTHENTICATION_SUCCESS,
+              user: user
+            }).then(() => {
+              subscribeTo(id.username).then(() => perform());
+            });
           });
         } else {
           dispatch({
@@ -132,13 +137,13 @@ const sideEffect = (command, model) => {
       break;
     case RECEIVE_ENTITY_EVENT:
       if (command.name === 'ChatMessagePostedEvent') {
-        if (command.fromParticipant !== identity().username) {
+        if (command.fromParticipant.sessionId !== id.sessionId) {
           setTimeout(() => {
             dispatch({
               type: INCOMING_CHAT_MESSAGE_POSTED,
               messageId: command.messageId,
               id: command.streamId,
-              from: command.fromParticipant,
+              from: command.fromParticipant.handle,
               text: command.text
             });
           }, 500);
@@ -147,7 +152,7 @@ const sideEffect = (command, model) => {
             type: OUTGOING_CHAT_MESSAGE_POSTED,
             messageId: command.messageId,
             id: command.streamId,
-            from: command.fromParticipant,
+            from: command.fromParticipant.handle,
             text: command.text
           });
         }
@@ -155,10 +160,10 @@ const sideEffect = (command, model) => {
         const eventType = /^ChatParticipant(Joined|Left)Event$/.exec(command.name)[1];
         dispatch({
           type: CHAT_STATUS_POSTED,
-          messageId: `${JSON.stringify(command)}`,
+          messageId: `${command.name}-${command.timestamp}-${command.participant.handle}`,
           messageType: 'status',
           id: command.streamId,
-          text: `${command.participant} has ${eventType.toLowerCase()} the chat`
+          text: `${command.participant.handle} has ${eventType.toLowerCase()} the chat`
         });
       } else if (command.name === 'WorkerTaskStatusUpdatedEvent') {
         populateTasks(command.task).then((tasks) => {
@@ -171,11 +176,11 @@ const sideEffect = (command, model) => {
             type: TASK_RECEIVED,
             task: tasks[0]
           })
-          .then(() => {
-            if(tasks[0].status === 'assigned' && tasks[0].channel === 'voice') {
-              page.redirect('/agent/task/' + tasks[0].taskId);
-            }
-          });
+            .then(() => {
+              if (tasks[0].status === 'assigned' && tasks[0].channel === 'voice') {
+                page.redirect('/agent/task/' + tasks[0].taskId);
+              }
+            });
         });
       } else if (command.name === 'WorkerTaskDataUpdatedEvent') {
         dispatch({
@@ -203,17 +208,19 @@ const sideEffect = (command, model) => {
         dispatch({
           type: AUTHENTICATION_STARTED
         });
-        authenticate(command.username, command.password).then((id) => {
-          return dispatch({
-            type: AUTHENTICATION_SUCCESS,
-            user: id
-          }).then(() => {
-            // subscribe to events addressed to this user
-            return subscribeTo(command.username).then(() => {
-              page.redirect('/');
+        authenticate(command.username, command.password).then(() => {
+          profile().then((user) => {
+            return dispatch({
+              type: AUTHENTICATION_SUCCESS,
+              user: user
+            }).then(() => {
+              // subscribe to events addressed to this user
+              return subscribeTo(command.username).then(() => {
+                page.redirect('/');
+              });
             });
           });
-        }).catch((err) => {
+        }).catch(() => {
           signout();
           dispatch({
             type: AUTHENTICATION_FAILED
@@ -228,8 +235,8 @@ const sideEffect = (command, model) => {
         type: CLEAR_USER
       }).then(() => {
         dispatch({
-          type: INIT,
-          redirect: '/landing'
+          type: NAVIGATE,
+          redirect: '/home'
         });
       });
       break;
@@ -237,7 +244,7 @@ const sideEffect = (command, model) => {
     {
       const chatId = uuid.v4();
       subscribeTo(chatId).then(() => {
-        return startChat(chatId, identity().username)
+        return startChat(chatId)
       }).then(() => {
         dispatch({
           type: CHAT_JOINED,
@@ -250,7 +257,7 @@ const sideEffect = (command, model) => {
     case LEAVE_CHAT:
       Object.keys(model.chatSessions).forEach((chatId) => {
         if (chatId === command.id || typeof command.id === 'undefined') {
-          leaveChat(chatId, identity().username).then(() => {
+          leaveChat(chatId).then(() => {
             dispatch({
               type: CHAT_LEFT,
               id: chatId
@@ -260,11 +267,8 @@ const sideEffect = (command, model) => {
       });
       break;
     case POST_OUTGOING_CHAT_MESSAGE:
-    {
-      const fromParticipant = identity().username;
-      postChatMessage(command.id, fromParticipant, command.text);
+      postChatMessage(command.id, command.text);
       break;
-    }
     case LOAD_TASKS:
       getTasks()
         .then((tasks) => {
@@ -425,7 +429,7 @@ window.onload = function () {
     function (e) {
       if (e.key === 'Escape') {
         dispatch({
-          type: END_CHAT
+          type: LEAVE_CHAT
         });
       }
     }, true);
@@ -439,7 +443,7 @@ window.onload = function () {
 
   page('/', () => {
     window.dispatch({
-      type: INIT
+      type: NAVIGATE
     });
   });
 

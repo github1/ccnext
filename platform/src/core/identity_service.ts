@@ -47,11 +47,17 @@ export class IdentityService {
       });
   }
 
-  public register(username : string, password : string, firstName : string, lastName : string, phoneNumber : string, role : string) : void {
+  public register(username : string,
+                  password : string,
+                  firstName : string,
+                  lastName : string,
+                  phoneNumber : string,
+                  role : string,
+                  memorableWord : string) : void {
     this.entityRepository
       .load(Registration, username)
       .then((registration : Registration) => {
-        registration.register(password, firstName, lastName, phoneNumber, role);
+        registration.register(password, firstName, lastName, phoneNumber, role, memorableWord);
       })
       .catch((error : Error) => {
         console.error(error);

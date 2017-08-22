@@ -3,6 +3,7 @@ import {
   EntityEvent
 } from '../core/entity/entity';
 import {
+  ChatParticipantVO,
   ChatTransferredEvent,
   ChatMessagePostedEvent
 } from '../core/chat';
@@ -47,13 +48,14 @@ const chatStates : { [key:string]:ChatData } = {};
 class BoundChatResponse implements ChatResponse {
   private chatId : string;
   private chatQueue : string;
-  private fromParticipant : string;
+  private fromParticipant : ChatParticipantVO;
   private chatService : ChatService;
   private correlationId : string;
+  private selfParticipant : ChatParticipantVO;
 
   constructor(chatId : string,
               chatQueue : string,
-              fromParticipant : string,
+              fromParticipant : ChatParticipantVO,
               chatService : ChatService,
               correlationId : string) {
     this.chatId = chatId;
@@ -61,18 +63,23 @@ class BoundChatResponse implements ChatResponse {
     this.fromParticipant = fromParticipant;
     this.chatService = chatService;
     this.correlationId = correlationId;
+    this.selfParticipant = new ChatParticipantVO(this.chatQueue, 'bot', this.chatQueue);
   }
 
   public reply(text : string) : void {
-    this.chatService.postMessage(this.chatId, this.chatQueue, text);
+    this.chatService.joinChat(this.chatId, this.selfParticipant).then(() => {
+      this.chatService.postMessage(this.chatId, this.selfParticipant, text);
+    }).catch((err: Error) => {
+      console.error(err);
+    });
   }
 
   public signalReadyForFulfillment(data : {}) : void {
-    this.chatService.signalReadyForFulfillment(this.chatId, this.fromParticipant, data);
+    this.chatService.signalReadyForFulfillment(this.chatId, this.fromParticipant, this.selfParticipant, data);
   }
 
   public signalFailed(text : string) : void {
-    this.chatService.postMessage(this.chatId, this.chatQueue, text);
+    this.reply(text);
     this.chatService.leaveChat(this.chatId, this.chatQueue);
     this.chatService.transferTo(this.chatId, 'agentChatQueue');
   }
@@ -125,12 +132,12 @@ export const chatRouter = (eventBus : EventBus,
       } else if (event instanceof ChatMessagePostedEvent) {
         const chatQueue : string = getChatData(event.streamId).queue;
         if (chatQueue) {
-          if (event.fromParticipant === chatQueue) {
+          if (event.fromParticipant.handle === chatQueue) {
             // don't reply to messages sent from the same chatQueue
             return;
           }
           const conversationData : { [key:string]:string } = getChatConversationData(event.streamId, event.correlationId);
-          conversationData['fromParticipantIdentityId'] = event.fromParticipantIdentityId;
+          conversationData['fromParticipantSessionId'] = event.fromParticipant.sessionId;
           chatDestinationProvider
             .getChat(chatQueue)
             .send({
