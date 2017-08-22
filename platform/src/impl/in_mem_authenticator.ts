@@ -18,7 +18,7 @@ export class InMemoryAuthenticator implements Authenticator {
     // Register some users ...
     entityRepository.load(Registration, 'demouser')
       .then((registration : Registration) => {
-        registration.register('password1', 'John', 'Doe', '+15555555555', 'customer');
+        registration.register('password1', 'John', 'Doe', '+15555555555', 'customer', 'someword');
       })
       .catch((err : Error) => {
         console.error(err);
@@ -26,7 +26,7 @@ export class InMemoryAuthenticator implements Authenticator {
 
     entityRepository.load(Registration, 'demoagent')
       .then((registration : Registration) => {
-        registration.register('password1', 'Kermit', 'Frog', process.env.DEMO_AGENT_PHONE_NUMBER || '+15555555555', 'agent');
+        registration.register('password1', 'Kermit', 'Frog', process.env.DEMO_AGENT_PHONE_NUMBER || '+15555555555', 'agent', 'someword');
       })
       .catch((err : Error) => {
         console.error(err);
@@ -42,6 +42,24 @@ export class InMemoryAuthenticator implements Authenticator {
       username: username,
       role: registrations[username].role,
       success: registrations[username].password === password
+    });
+  }
+
+  public authenticateMemorableWord(username : string,
+                                   positionsRequested : number[],
+                                   positionChars : string[]) : Promise<AuthenticationResult> {
+    const validatePositions = (word : string) : boolean => {
+      return JSON.stringify(positionChars) === JSON.stringify(positionsRequested
+        .map((pos : number) => word[pos]));
+    };
+    return Promise.resolve(!registrations[username] ? {
+      username: username,
+      role: 'unknown',
+      success: false
+    } : {
+      username: username,
+      role: registrations[username].role,
+      success: validatePositions(registrations[username].memorableWord)
     });
   }
 

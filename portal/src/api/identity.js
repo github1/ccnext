@@ -39,6 +39,13 @@ export const authenticate = (username, password) => {
   }).then(res => storeUserToken(res.token));
 };
 
+export const profile = () => {
+  return ajax({
+    url: '/api/profile',
+    method: 'get'
+  });
+};
+
 export const signout = () => {
   fallbackStorage.removeItem('user-token');
 };

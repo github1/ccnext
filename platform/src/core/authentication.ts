@@ -8,6 +8,7 @@ export interface AuthenticationResult {
 
 export interface Authenticator {
   authenticateUsernamePassword(username : string, password : string) : Promise<AuthenticationResult>;
+  authenticateMemorableWord(username : string, positionsRequested : number[], positionChars : string[]) : Promise<AuthenticationResult>;
 }
 
 export abstract class Credentials {
@@ -50,5 +51,22 @@ export class UsernamePasswordCredentials extends Credentials {
 
   public authenticate(authenticator : Authenticator) : Promise<AuthenticationResult> {
     return authenticator.authenticateUsernamePassword(this.username, this.password);
+  }
+}
+
+export class MemorableWordCredentials extends Credentials {
+  private username : string;
+  private positionsRequested : number[];
+  private positionChars : string[];
+
+  constructor(username : string, positionsRequested : number[], positionChars : string[], sessionId? : string) {
+    super(sessionId);
+    this.username = username;
+    this.positionsRequested = positionsRequested;
+    this.positionChars = positionChars;
+  }
+
+  public authenticate(authenticator : Authenticator) : Promise<AuthenticationResult> {
+    return authenticator.authenticateMemorableWord(this.username, this.positionsRequested, this.positionChars);
   }
 }

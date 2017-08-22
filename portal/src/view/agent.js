@@ -42,6 +42,11 @@ export default class extends Component {
               <TaskStatus task={selectedTask} pullRight={true}/>
             </div>
           </div>
+          <div className="panel panel-default">
+            <div className="panel-heading">
+              <h3 className="panel-title">Customer Details</h3>
+            </div>
+          </div>
         </div>
         <div className="agent-content">
           <TaskDetail task={selectedTask}

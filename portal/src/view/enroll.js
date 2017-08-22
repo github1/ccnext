@@ -34,6 +34,7 @@ export default class extends Component {
     const username = findDOMNode(this.refs['username']).value;
     const password = findDOMNode(this.refs['password']).value;
     const role = findDOMNode(this.refs['role']).value;
+    const memorableWord = findDOMNode(this.refs['memorableWord']).value;
 
     const errors = {};
     if (firstName.trim().length === 0) {
@@ -50,6 +51,11 @@ export default class extends Component {
     }
     if (password.trim().length === 0) {
       errors['password'] = 'Required';
+    }
+    if(memorableWord.trim().length === 0) {
+      errors['memorableWord'] = 'Required';
+    } else if (memorableWord.trim().length < 8) {
+      errors['memorableWord'] = 'Minimum length 8 characters';
     }
 
     const fullPhoneNumber = dialCode + (phoneNumber.replace(/[^0-9]+/ig, ''));
@@ -152,6 +158,23 @@ export default class extends Component {
                    placeholder="Password"
                    className="form-control"
                    name="password"
+                   onKeyPress={
+                                    (event) => {
+                                        if(event.key === 'Enter') {
+                                            this.register();
+                                        }
+                                    }}
+            />
+          </div>
+          <div className={ this.formGroupStyle('memorableWord') }>
+            <input ref='memorableWord'
+                   type="text"
+                   placeholder="Memorable word (minimum 8 characters)"
+                   className="form-control"
+                   name="memorableWord"
+                   autoComplete="off"
+                   autoCorrect="off"
+                   autoCapitalize="none"
                    onKeyPress={
                                     (event) => {
                                         if(event.key === 'Enter') {

@@ -10,7 +10,7 @@ import {
   preventZoom,
   growl
 } from './browser_utils';
-import { identity, authenticateAnonymous, authenticate, signout, register } from './api/identity.js';
+import { identity, authenticateAnonymous, authenticate, profile, signout, register } from './api/identity.js';
 import { startChat, leaveChat, postChatMessage } from './api/chat.js';
 import { getTasks, markTaskComplete, populateTasks } from './api/tasks.js';
 import { openEventStream, subscribeTo, unsubscribe } from './api/events';
@@ -71,7 +71,7 @@ const model = () => {
 
 const sideEffect = (command, model) => {
   const id = identity();
-  if(!id.sessionId) {
+  if (!id.sessionId) {
     authenticateAnonymous().then((data) => {
       dispatch(command);
     });
@@ -119,11 +119,13 @@ const sideEffect = (command, model) => {
         perform();
       } else {
         if (id.role !== 'visitor') {
-          dispatch({
-            type: AUTHENTICATION_SUCCESS,
-            user: id
-          }).then(() => {
-            subscribeTo(id.username).then(() => perform());
+          profile().then((user) => {
+            dispatch({
+              type: AUTHENTICATION_SUCCESS,
+              user: user
+            }).then(() => {
+              subscribeTo(id.username).then(() => perform());
+            });
           });
         } else {
           dispatch({
@@ -174,11 +176,11 @@ const sideEffect = (command, model) => {
             type: TASK_RECEIVED,
             task: tasks[0]
           })
-          .then(() => {
-            if(tasks[0].status === 'assigned' && tasks[0].channel === 'voice') {
-              page.redirect('/agent/task/' + tasks[0].taskId);
-            }
-          });
+            .then(() => {
+              if (tasks[0].status === 'assigned' && tasks[0].channel === 'voice') {
+                page.redirect('/agent/task/' + tasks[0].taskId);
+              }
+            });
         });
       } else if (command.name === 'WorkerTaskDataUpdatedEvent') {
         dispatch({
@@ -206,17 +208,19 @@ const sideEffect = (command, model) => {
         dispatch({
           type: AUTHENTICATION_STARTED
         });
-        authenticate(command.username, command.password).then((id) => {
-          return dispatch({
-            type: AUTHENTICATION_SUCCESS,
-            user: id
-          }).then(() => {
-            // subscribe to events addressed to this user
-            return subscribeTo(command.username).then(() => {
-              page.redirect('/');
+        authenticate(command.username, command.password).then(() => {
+          profile().then((user) => {
+            return dispatch({
+              type: AUTHENTICATION_SUCCESS,
+              user: user
+            }).then(() => {
+              // subscribe to events addressed to this user
+              return subscribeTo(command.username).then(() => {
+                page.redirect('/');
+              });
             });
           });
-        }).catch((err) => {
+        }).catch(() => {
           signout();
           dispatch({
             type: AUTHENTICATION_FAILED
@@ -263,10 +267,8 @@ const sideEffect = (command, model) => {
       });
       break;
     case POST_OUTGOING_CHAT_MESSAGE:
-    {
       postChatMessage(command.id, command.text);
       break;
-    }
     case LOAD_TASKS:
       getTasks()
         .then((tasks) => {

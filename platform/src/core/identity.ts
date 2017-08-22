@@ -39,9 +39,16 @@ export class IdentityRegisteredEvent extends AuthenticationEvent {
   public firstName : string;
   public lastName : string;
   public phoneNumber : string;
+  public memorableWord : string;
   public role : string;
 
-  constructor(username : string, password : string, firstName : string, lastName : string, phoneNumber : string, role : string) {
+  constructor(username : string,
+              password : string,
+              firstName : string,
+              lastName : string,
+              phoneNumber : string,
+              role : string,
+              memorableWord : string) {
     super();
     this.username = username;
     this.password = password;
@@ -49,6 +56,7 @@ export class IdentityRegisteredEvent extends AuthenticationEvent {
     this.lastName = lastName;
     this.phoneNumber = phoneNumber;
     this.role = role;
+    this.memorableWord = memorableWord;
   }
 }
 
@@ -128,9 +136,15 @@ export class Registration extends Entity {
     }));
   }
 
-  public register(password : string, firstName : string, lastName : string, phoneNumber : string, role : string) : void {
+  public register(password : string,
+                  firstName : string,
+                  lastName : string,
+                  phoneNumber : string,
+                  role : string,
+                  memorableWord : string) : void {
     if (!this.registered) {
-      this.dispatch(this.id, new IdentityRegisteredEvent(this.id, password, firstName, lastName, phoneNumber, role));
+      this.dispatch(this.id,
+        new IdentityRegisteredEvent(this.id, password, firstName, lastName, phoneNumber, role, memorableWord));
     }
   }
 
