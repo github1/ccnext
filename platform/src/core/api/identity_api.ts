@@ -33,6 +33,7 @@ export function identityAPI(eventBus : EventBus, identityService : IdentityServi
             try {
               const identityVO : IdentityVO = identityService.decode(req.headers['jwt'].toString());
               req.headers['user-id'] = identityVO.username;
+              req.headers['user-role'] = identityVO.role;
               req.headers['user-session-id'] = identityVO.sessionId;
               next();
             } catch (err) {

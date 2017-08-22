@@ -1,5 +1,25 @@
 import { Entity, EntityEvent, uuid } from './entity/entity';
 
+export class ChatParticipantVO {
+  public handle : string;
+  public role : string;
+  public sessionId : string;
+  public phoneNumber : string;
+
+  constructor(handle : string, role : string, sessionId : string, phoneNumber? : string) {
+    this.handle = handle;
+    this.role = role;
+    this.sessionId = sessionId;
+    this.phoneNumber = phoneNumber;
+  }
+  public isModified(other : ChatParticipantVO) : boolean {
+    if(other.sessionId !== this.sessionId) {
+      throw new Error('Session ids do not match');
+    }
+    return other.handle !== this.handle || other.role !== this.role;
+  }
+}
+
 export class ChatEvent extends EntityEvent {
   constructor() {
     super();
@@ -7,40 +27,37 @@ export class ChatEvent extends EntityEvent {
 }
 
 export class ChatStartedEvent extends ChatEvent {
-  public startedParticipant : string;
-
-  constructor(startedParticipant : string) {
+  constructor() {
     super();
-    this.startedParticipant = startedParticipant;
   }
 }
 
 export class ChatParticipantJoinedEvent extends ChatEvent {
-  public participant : string;
+  public participant : ChatParticipantVO;
 
-  constructor(participant : string) {
+  constructor(participant : ChatParticipantVO) {
     super();
     this.participant = participant;
   }
 }
 
 export class ChatParticipantLeftEvent extends ChatEvent {
-  public participant : string;
+  public participant : ChatParticipantVO;
 
-  constructor(participant : string) {
+  constructor(participant : ChatParticipantVO) {
     super();
     this.participant = participant;
   }
 }
 
-export class ChatParticipantIdentityLinkedEvent extends ChatEvent {
-  public participant : string;
-  public identityId : string;
+export class ChatParticipantModifiedEvent extends ChatEvent {
+  public fromParticipant : ChatParticipantVO;
+  public toParticipant : ChatParticipantVO;
 
-  constructor(participant : string, identityId : string) {
+  constructor(fromParticipant : ChatParticipantVO, toParticipant : ChatParticipantVO) {
     super();
-    this.participant = participant;
-    this.identityId = identityId;
+    this.fromParticipant = fromParticipant;
+    this.toParticipant = toParticipant;
   }
 }
 
@@ -61,12 +78,10 @@ export class ChatTransferredEvent extends ChatEvent {
 export class ChatMessagePostedEvent extends ChatEvent {
   public messageId : string;
   public correlationId : string;
-  public fromParticipant : string;
-  public fromParticipantRole : string;
-  public fromParticipantIdentityId : string;
+  public fromParticipant : ChatParticipantVO;
   public text : string;
 
-  constructor(messageId : string, correlationId : string, fromParticipant : string, text : string) {
+  constructor(messageId : string, correlationId : string, fromParticipant : ChatParticipantVO, text : string) {
     super();
     this.messageId = messageId;
     this.correlationId = correlationId;
@@ -76,13 +91,15 @@ export class ChatMessagePostedEvent extends ChatEvent {
 }
 
 export class ChatReadyForFulfillmentEvent extends ChatEvent {
-  public requester : string;
+  public requester : ChatParticipantVO;
+  public fulfiller : ChatParticipantVO;
   public queue : string;
   public payload : {};
 
-  constructor(requester : string, queue : string, payload : {}) {
+  constructor(requester : ChatParticipantVO, fulfiller : ChatParticipantVO, queue : string, payload : {}) {
     super();
     this.requester = requester;
+    this.fulfiller = fulfiller;
     this.queue = queue;
     this.payload = payload;
   }
@@ -99,7 +116,7 @@ export class ChatErrorEvent extends ChatEvent {
 
 export class Chat extends Entity {
   private started : boolean;
-  private participants : { [key:string]:string } = {};
+  private participants : { [key:string]:ChatParticipantVO } = {};
   private chatQueue : string;
   private fulfillmentSequence : number = 0;
   private chatSequence : number = 1;
@@ -109,11 +126,11 @@ export class Chat extends Entity {
       if (event instanceof ChatStartedEvent) {
         self.started = true;
       } else if (event instanceof ChatParticipantJoinedEvent) {
-        self.participants[event.participant] = null;
-      } else if (event instanceof ChatParticipantIdentityLinkedEvent) {
-        self.participants[event.participant] = event.identityId;
+        self.participants[event.participant.sessionId] = event.participant;
       } else if (event instanceof ChatParticipantLeftEvent) {
-        delete self.participants[event.participant];
+        delete self.participants[event.participant.sessionId];
+      } else if (event instanceof ChatParticipantModifiedEvent) {
+        self.participants[event.toParticipant.sessionId] = event.toParticipant;
       } else if (event instanceof ChatTransferredEvent) {
         self.chatQueue = event.toQueue;
       } else if (event instanceof ChatReadyForFulfillmentEvent) {
@@ -124,39 +141,34 @@ export class Chat extends Entity {
     }));
   }
 
-  public start(user : string) : void {
+  public start() : void {
     if (!this.started) {
-      this.dispatch(this.id, new ChatStartedEvent(user));
+      this.dispatch(this.id, new ChatStartedEvent());
     }
-    this.join(user);
   }
 
-  public join(participant : string) : void {
-    if (!this.participants.hasOwnProperty(participant)) {
+  public join(participant : ChatParticipantVO) : void {
+    if (this.participants.hasOwnProperty(participant.sessionId)) {
+      const existingParticipant : ChatParticipantVO = this.participants[participant.sessionId];
+      if(existingParticipant.isModified(participant)) {
+        this.dispatch(this.id, new ChatParticipantModifiedEvent(existingParticipant, participant));
+      }
+    } else {
       this.dispatch(this.id, new ChatParticipantJoinedEvent(participant));
     }
   }
 
-  public linkIdentity(participant : string, identityId : string) : void {
-    if (this.participants[participant] !== identityId) {
-      this.dispatch(this.id, new ChatParticipantIdentityLinkedEvent(participant, identityId));
+  public leave(participantSessionId : string) : void {
+    if (this.participants.hasOwnProperty(participantSessionId)) {
+      this.dispatch(this.id, new ChatParticipantLeftEvent(this.participants[participantSessionId]));
     }
   }
 
-  public leave(participant : string) : void {
-    if (this.participants.hasOwnProperty(participant)) {
-      this.dispatch(this.id, new ChatParticipantLeftEvent(participant));
-    }
-  }
-
-  public postMessage(fromParticipant : string, text : string) : Promise<{}> {
+  public postMessage(participant : ChatParticipantVO, text : string) : Promise<{}> {
     if (this.chatQueue) {
       return new Promise((resolve : Function) : void => {
-        this.start(fromParticipant);
-        const event : ChatMessagePostedEvent = new ChatMessagePostedEvent(uuid(), `${this.id}_${this.chatSequence}`, fromParticipant, text);
-        if(this.participants.hasOwnProperty(fromParticipant) && this.participants[fromParticipant] !== null) {
-          event.fromParticipantIdentityId = this.participants[fromParticipant];
-        }
+        this.start();
+        const event : ChatMessagePostedEvent = new ChatMessagePostedEvent(uuid(), `${this.id}_${this.chatSequence}`, participant, text);
         this.dispatch(this.id, event);
         resolve();
       });
@@ -177,9 +189,9 @@ export class Chat extends Entity {
     }
   }
 
-  public signalReadyForFulfillment(onBehalfOf : string, payload : {}) : void {
-    if(this.fulfillmentSequence !== this.chatSequence) {
-      this.dispatch(this.id, new ChatReadyForFulfillmentEvent(onBehalfOf, this.chatQueue, payload));
+  public signalReadyForFulfillment(fulfillForParticipant: ChatParticipantVO, fulfillerParticipant: ChatParticipantVO, payload : {}) : void {
+    if (this.fulfillmentSequence !== this.chatSequence) {
+      this.dispatch(this.id, new ChatReadyForFulfillmentEvent(fulfillForParticipant, fulfillerParticipant, this.chatQueue, payload));
     }
   }
 

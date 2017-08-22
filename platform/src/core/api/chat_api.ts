@@ -3,42 +3,49 @@ import {
   EventBus,
   EntityEvent
 } from '../entity/entity';
-import { IdentityRegisteredEvent } from '../identity';
+import { AuthenticationSucceededEvent } from '../identity';
 import {
+  ChatParticipantVO,
   ChatMessagePostedEvent,
   ChatParticipantJoinedEvent,
-  ChatParticipantLeftEvent
+  ChatParticipantLeftEvent,
+  ChatParticipantModifiedEvent
 } from '../chat';
 import { ChatService } from '../chat_service';
 
 export function chatAPI(eventBus : EventBus, chatService : ChatService) : { preConfigure: Function } {
 
   type Msg = { [key:string]:string };
+  type ChatLogEntry = { [key:string]:EntityEvent[] };
 
-  type ChatLog = { [key:string]:EntityEvent[] };
-
-  const chatLog : ChatLog = {};
-
-  const chatParticipantRoles : Msg = {
-    visitor: 'customer',
-    CCaaSBot: 'bot'
-  };
+  const chatParticipants : { [key:string]:Set<string> } = {};
+  const chatLog : ChatLogEntry = {};
 
   eventBus.subscribe(
     (event : EntityEvent) => {
-      if (event instanceof ChatMessagePostedEvent) {
+      if (event instanceof ChatMessagePostedEvent ||
+        event instanceof ChatParticipantJoinedEvent ||
+        event instanceof ChatParticipantLeftEvent ||
+        event instanceof ChatParticipantModifiedEvent) {
         chatLog[event.streamId] = chatLog[event.streamId] || [];
-        if(/^sms-incoming/.test(event.fromParticipant)) {
-          event.fromParticipantRole = 'customer';
-        } else {
-          event.fromParticipantRole = chatParticipantRoles[event.fromParticipant];
+        chatLog[event.streamId].push(event);
+        if (event instanceof ChatParticipantJoinedEvent) {
+          chatParticipants[event.participant.sessionId] = chatParticipants[event.participant.sessionId] || new Set<string>();
+          chatParticipants[event.participant.sessionId].add(event.streamId);
+        } else if (event instanceof ChatParticipantLeftEvent) {
+          if (chatParticipants[event.participant.sessionId]) {
+            chatParticipants[event.participant.sessionId].delete(event.streamId);
+          }
         }
-        chatLog[event.streamId].push(event);
-      } else if (event instanceof ChatParticipantJoinedEvent || event instanceof ChatParticipantLeftEvent) {
-        chatLog[event.streamId] = chatLog[event.streamId] || [];
-        chatLog[event.streamId].push(event);
-      } else if (event instanceof IdentityRegisteredEvent) {
-        chatParticipantRoles[event.streamId] = event.role;
+      } else if (event instanceof AuthenticationSucceededEvent) {
+        if(chatParticipants[event.streamId]) {
+          chatParticipants[event.streamId].forEach((chatId : string) => {
+            chatService.joinChat(chatId, new ChatParticipantVO(event.username, event.role, event.streamId))
+              .catch((err : Error) => {
+                console.error(err);
+              });
+          });
+        }
       }
     },
     {replay: true});
@@ -49,20 +56,21 @@ export function chatAPI(eventBus : EventBus, chatService : ChatService) : { preC
       app.post('/api/chat/:chatId', (req : express.Request, res : express.Response) : void => {
         const body : Msg = <Msg> req.body;
         const params : Msg = <Msg> req.params;
+        const userId : string = req.headers['user-id'].toString();
+        const userRole : string = req.headers['user-role'].toString();
+        const userSessionId : string = req.headers['user-session-id'].toString();
+        const chatParticipant : ChatParticipantVO = new ChatParticipantVO(userId, userRole, userSessionId);
         if (body.text) {
-          chatService.postMessage(params.chatId, body.fromParticipant, body.text);
+          chatService.postMessage(params.chatId, chatParticipant, body.text);
         } else {
-          chatService.startChat(params.chatId, body.fromParticipant);
-        }
-        if(req.headers['user-id'] && req.headers['user-session-id']) {
-          chatService.linkIdentity(params.chatId, req.headers['user-id'].toString(), req.headers['user-session-id'].toString());
+          chatService.startChat(params.chatId, chatParticipant);
         }
         res.json({});
       });
 
-      app.delete('/api/chat/:chatId/participant/:participant', (req : express.Request, res : express.Response) : void => {
+      app.delete('/api/chat/:chatId', (req : express.Request, res : express.Response) : void => {
         const params : Msg = <Msg> req.params;
-        chatService.leaveChat(params.chatId, params.participant);
+        chatService.leaveChat(params.chatId, req.headers['user-session-id'].toString());
         res.status(204).json({});
       });
 

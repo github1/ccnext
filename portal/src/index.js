@@ -135,13 +135,13 @@ const sideEffect = (command, model) => {
       break;
     case RECEIVE_ENTITY_EVENT:
       if (command.name === 'ChatMessagePostedEvent') {
-        if (command.fromParticipant !== identity().username) {
+        if (command.fromParticipant.sessionId !== id.sessionId) {
           setTimeout(() => {
             dispatch({
               type: INCOMING_CHAT_MESSAGE_POSTED,
               messageId: command.messageId,
               id: command.streamId,
-              from: command.fromParticipant,
+              from: command.fromParticipant.handle,
               text: command.text
             });
           }, 500);
@@ -150,7 +150,7 @@ const sideEffect = (command, model) => {
             type: OUTGOING_CHAT_MESSAGE_POSTED,
             messageId: command.messageId,
             id: command.streamId,
-            from: command.fromParticipant,
+            from: command.fromParticipant.handle,
             text: command.text
           });
         }
@@ -158,10 +158,10 @@ const sideEffect = (command, model) => {
         const eventType = /^ChatParticipant(Joined|Left)Event$/.exec(command.name)[1];
         dispatch({
           type: CHAT_STATUS_POSTED,
-          messageId: `${JSON.stringify(command)}`,
+          messageId: `${command.name}-${command.timestamp}-${command.participant.handle}`,
           messageType: 'status',
           id: command.streamId,
-          text: `${command.participant} has ${eventType.toLowerCase()} the chat`
+          text: `${command.participant.handle} has ${eventType.toLowerCase()} the chat`
         });
       } else if (command.name === 'WorkerTaskStatusUpdatedEvent') {
         populateTasks(command.task).then((tasks) => {
@@ -240,7 +240,7 @@ const sideEffect = (command, model) => {
     {
       const chatId = uuid.v4();
       subscribeTo(chatId).then(() => {
-        return startChat(chatId, identity().username)
+        return startChat(chatId)
       }).then(() => {
         dispatch({
           type: CHAT_JOINED,
@@ -253,7 +253,7 @@ const sideEffect = (command, model) => {
     case LEAVE_CHAT:
       Object.keys(model.chatSessions).forEach((chatId) => {
         if (chatId === command.id || typeof command.id === 'undefined') {
-          leaveChat(chatId, identity().username).then(() => {
+          leaveChat(chatId).then(() => {
             dispatch({
               type: CHAT_LEFT,
               id: chatId
@@ -264,8 +264,7 @@ const sideEffect = (command, model) => {
       break;
     case POST_OUTGOING_CHAT_MESSAGE:
     {
-      const fromParticipant = identity().username;
-      postChatMessage(command.id, fromParticipant, command.text);
+      postChatMessage(command.id, command.text);
       break;
     }
     case LOAD_TASKS:

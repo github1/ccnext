@@ -5,7 +5,6 @@ import { WELCOME_MESSAGE, TRANSACTIONS, TOPICS } from './consts.js';
 module.exports = (eventBus, chatService) => {
 
   eventBus.subscribe((event) => {
-    console.log(event);
     if (event instanceof ChatReadyForFulfillmentEvent) {
       const slots = event.payload.slots;
       const answer = slots.QuestionTopic ? TOPICS[slots.QuestionTopic].answer : null;
@@ -14,7 +13,7 @@ module.exports = (eventBus, chatService) => {
         case "Welcome":
           chatService.postMessage(
             event.streamId,
-            event.queue,
+            event.fulfiller,
             WELCOME_MESSAGE
           );
           chatService.endChat(event.streamId);
@@ -22,7 +21,7 @@ module.exports = (eventBus, chatService) => {
         case "AskQuestion":
           chatService.postMessage(
             event.streamId,
-            event.queue,
+            event.fulfiller,
             answer
           );
           chatService.endChat(event.streamId);
@@ -30,15 +29,15 @@ module.exports = (eventBus, chatService) => {
         case "GetAccountBalance":
           chatService.postMessage(
             event.streamId,
-            event.queue,
-            `${event.requester}, your account balance is £3245.73. Is there anything else I can do for you today?`
+            event.fulfiller,
+            `${event.requester.handle}, your account balance is £3245.73. Is there anything else I can do for you today?`
           );
           chatService.endChat(event.streamId);
           break;
         case "GetTransactions":
           chatService.postMessage(
             event.streamId,
-            event.queue,
+            event.fulfiller,
             `Your last few transactions are:\n${TRANSACTIONS.map(function(transaction) {return ` Vendor: ${transaction.vendor}, Amount: ${transaction.amount}`;})} Is there anything else I can help you with?`
           );
           chatService.endChat(event.streamId);
@@ -46,7 +45,7 @@ module.exports = (eventBus, chatService) => {
         case "LostCard":
           chatService.postMessage(
             event.streamId,
-            event.queue,
+            event.fulfiller,
             `OK ${event.requester}, your ${event.payload.slots.cardType} has been disabled. Is there anything else I can help you with today?`
           );
           chatService.endChat(event.streamId);
@@ -54,7 +53,7 @@ module.exports = (eventBus, chatService) => {
         case "MakePayment":
           chatService.postMessage(
             event.streamId,
-            event.queue,
+            event.fulfiller,
             `OK ${event.requester}, I have set up a payment of £${slots.amount} to ${slots.payee} on ${slots.paymentDate} from your account ending in ${slots.fromAccount}. Anything else I can do for you?`
           );
           chatService.endChat(event.streamId);
@@ -62,7 +61,7 @@ module.exports = (eventBus, chatService) => {
         default:
           chatService.postMessage(
             event.streamId,
-            event.queue,
+            event.fulfiller,
             `${event.intentName} fulfilled!`);
           chatService.endChat(event.streamId);
       }

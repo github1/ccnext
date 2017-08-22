@@ -16,9 +16,11 @@ export class AuthenticationAttemptedEvent extends AuthenticationEvent {
 
 export class AuthenticationSucceededEvent extends AuthenticationEvent {
   public username : string;
-  constructor(username : string) {
+  public role : string;
+  constructor(username : string, role : string) {
     super();
     this.username = username;
+    this.role = role;
   }
 }
 
@@ -88,7 +90,7 @@ export class Identity extends Entity {
             if (result.success) {
               this.dispatch(
                 this.id,
-                new AuthenticationSucceededEvent(result.username)
+                new AuthenticationSucceededEvent(result.username, result.role)
               );
               resolve(result);
             } else {

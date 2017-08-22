@@ -8,31 +8,27 @@ export const getChatLog = (chatId) => {
   });
 };
 
-export const startChat = (chatId, fromParticipant) => {
+export const startChat = (chatId) => {
   return ajax({
     url: `/api/chat/${chatId}`,
-    method: 'post',
-    data: {
-      fromParticipant: fromParticipant
-    }
+    method: 'post'
   });
 };
 
-export const leaveChat = (chatId, participant) => {
+export const leaveChat = (chatId) => {
   return ajax({
-    url: `/api/chat/${chatId}/participant/${participant}`,
+    url: `/api/chat/${chatId}`,
     method: 'delete'
   }).then(() => {
     return unsubscribe(chatId);
   });
 };
 
-export const postChatMessage = (chatId, fromParticipant, text) => {
+export const postChatMessage = (chatId, text) => {
   return ajax({
     url: `/api/chat/${chatId}`,
     method: 'post',
     data: {
-      fromParticipant: fromParticipant,
       text: text
     }
   });

@@ -1,7 +1,8 @@
 import { chatRouter } from '../../src/impl/chat_router';
 import {
   ChatTransferredEvent,
-  ChatMessagePostedEvent
+  ChatMessagePostedEvent,
+  ChatParticipantVO
 } from '../../src/core/chat';
 
 describe('ChatRouter', () => {
@@ -11,12 +12,14 @@ describe('ChatRouter', () => {
   };
   let events = [];
   let chatService = {};
+  let chatCustomer = new ChatParticipantVO('fromSomeone', 'customer', 'theSessionId');
+  let chatBot = new ChatParticipantVO('aChatDest', 'bot', 'aChatDest');
 
   const chatDestinationProvider = {
     getChat() {
       return {
         send(req, res) {
-          if(req) {
+          if (req) {
             chatResponse(res);
           }
         }
@@ -37,10 +40,11 @@ describe('ChatRouter', () => {
   };
 
   beforeEach(() => {
-    events.push(new ChatMessagePostedEvent('aMessageId', 'aCorrelationId', 'fromSomeone', 'hi'));
+    events.push(new ChatMessagePostedEvent('aMessageId', 'aCorrelationId', chatCustomer, 'hi'));
     events.push(new ChatTransferredEvent('', 'aChatDest'));
     chatService = {
       postMessage: jest.fn(),
+      joinChat: () => Promise.resolve(),
       transferTo: jest.fn(),
       leaveChat: jest.fn(),
       signalReadyForFulfillment: jest.fn()
@@ -59,14 +63,14 @@ describe('ChatRouter', () => {
       chatResponse = (res) => res.reply('some response');
     });
     it('posts the response to the chat', () => {
-      expect(chatService.postMessage).toBeCalledWith('someChatId', 'aChatDest', 'some response');
+      expect(chatService.postMessage).toBeCalledWith('someChatId', chatBot, 'some response');
     });
   });
 
   describe('when a response is failed', () => {
     beforeAll(() => {
       chatResponse = (res) => res.signalFailed();
-      events.push(new ChatMessagePostedEvent('aMessageId', 'aCorrelationId', 'fromSomeone', 'hi'));
+      events.push(new ChatMessagePostedEvent('aMessageId', 'aCorrelationId', chatCustomer, 'hi'));
     });
     it('transfers to an agent queue', () => {
       expect(chatService.transferTo).toBeCalledWith('someChatId', 'agentChatQueue');
@@ -86,7 +90,7 @@ describe('ChatRouter', () => {
     });
     it('it signals the chat is ready for fulfillment', () => {
       expect(chatService.signalReadyForFulfillment)
-        .toBeCalledWith('someChatId', 'fromSomeone', {
+        .toBeCalledWith('someChatId', chatCustomer, chatBot, {
           state: 'ReadyForFulfillment',
           payload: {
             slots: {
