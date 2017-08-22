@@ -32,6 +32,10 @@ let CCaaS = {
       intentVersion: '1'
     },
     {
+      intentName: 'SpeakToAgent',
+      intentVersion: '1'
+    },
+    {
       intentName: 'AskQuestion',
       intentVersion: '1'
     },

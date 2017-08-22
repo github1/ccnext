@@ -17,6 +17,7 @@ const GetAccountBalance = require("./intents/get_account_balance.js");
 const GetTransactions = require("./intents/get_transactions.js");
 const MakePayment = require("./intents/make_payment.js");
 const LostCard = require("./intents/lost_card.js");
+const SpeakToAgent = require("./intents/speak_to_agent.js");
 
 const CCaaS = require("./bots/CCaaS.js");
 
@@ -49,7 +50,8 @@ Promise.all([
     MakePayment,
     GetAccountBalance,
     GetTransactions,
-    LostCard
+    LostCard,
+    SpeakToAgent
   ].map(intent=> {
     return putIntent(lexmodelbuildingservice, lexmodel, intent);
   }));

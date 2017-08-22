@@ -170,6 +170,7 @@ export class Chat extends Entity {
     if (this.chatQueue) {
       return new Promise((resolve : Function) : void => {
         this.start();
+        this.join(participant);
         const event : ChatMessagePostedEvent = new ChatMessagePostedEvent(uuid(), `${this.id}_${this.chatSequence}`, participant, text);
         this.dispatch(this.id, event);
         resolve();

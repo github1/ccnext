@@ -157,13 +157,15 @@ const sideEffect = (command, model) => {
           });
         }
       } else if (/^ChatParticipant(Joined|Left)Event$/.test(command.name)) {
-        const eventType = /^ChatParticipant(Joined|Left)Event$/.exec(command.name)[1];
+        const eventType = /^ChatParticipant(Joined|Left)Event$/.exec(command.name)[1].toLowerCase();
         dispatch({
           type: CHAT_STATUS_POSTED,
           messageId: `${command.name}-${command.timestamp}-${command.participant.handle}`,
           messageType: 'status',
+          eventType: eventType,
+          participant: command.participant,
           id: command.streamId,
-          text: `${command.participant.handle} has ${eventType.toLowerCase()} the chat`
+          text: `${command.participant.handle} has ${eventType} the chat`
         });
       } else if (command.name === 'WorkerTaskStatusUpdatedEvent') {
         populateTasks(command.task).then((tasks) => {
@@ -364,10 +366,16 @@ const update = (event, model) => {
           text: event.text
         });
       }
+      if(event.messageType === 'status' && ['visitor','customer'].indexOf(event.participant.role) > -1) {
+        chatSession.customer = event.participant;
+      }
       break;
     }
     case TASKS_LOADED:
       model.tasks = event.tasks;
+      event.tasks.forEach(task => {
+        loadChatLog(task.chatId, task.chatLog, model);
+      });
       break;
     case TASK_RECEIVED:
       const index = model.tasks.findIndex((task) => {
@@ -381,12 +389,55 @@ const update = (event, model) => {
       if (model.selectedTask && model.selectedTask.taskId === event.task.taskId) {
         model.selectedTask = event.task;
       }
+      loadChatLog(event.task.chatId, event.task.chatLog, model);
       break;
     case TASK_SELECTED:
       model.selectedTask = event.taskId;
       break;
   }
   return model;
+};
+
+const loadChatLog = (chatId, chatLog, model) => {
+  if(!chatId || !chatLog) {
+    return;
+  }
+  const chatLogToMessage = (chatLog) => {
+    if (/^ChatParticipant(Joined|Left)Event$/.test(chatLog.name)) {
+      const eventType = /^ChatParticipant(Joined|Left)Event$/.exec(chatLog.name)[1];
+      return {
+        messageId: `${chatLog.name}-${chatLog.timestamp}-${chatLog.participant.handle}`,
+        messageType: 'status',
+        eventType: eventType,
+        participant: chatLog.participant,
+        text: `${chatLog.participant.handle} has ${eventType.toLowerCase()} the chat`
+      }
+    }
+    return {
+      messageId: chatLog.messageId,
+      direction: ['customer','visitor'].indexOf(chatLog.fromParticipant.role) > -1 ? 'incoming' : 'outgoing',
+      from: chatLog.fromParticipant.handle,
+      text: chatLog.text
+    }
+  };
+  model.chatSessions[chatId] = model.chatSessions[chatId] || {};
+  const session = model.chatSessions[chatId];
+  let messages = chatLog ? chatLog.map(chatLogToMessage) : [];
+  if (session && session.messages) {
+    session.messages.forEach((msg) => {
+      if (messages.findIndex((logMsg) => {
+          return logMsg.messageId === msg.messageId;
+        }) === -1) {
+        messages.push(msg);
+      }
+    });
+  }
+  messages.forEach(msg => {
+    if(msg.messageType === 'status' && ['customer','visitor'].indexOf(msg.participant.role) > -1) {
+      session.customer = msg.participant;
+    }
+  });
+  session.messages = messages;
 };
 
 let rendering = false;

@@ -29,6 +29,12 @@ export default class extends Component {
       return task.taskId === this.props.model.selectedTask;
     })[0];
     if (selectedTask) {
+      let customerHandle = 'Unknown';
+      if(selectedTask.channel === 'chat') {
+        if(this.props.model.chatSessions[selectedTask.chatId] && this.props.model.chatSessions[selectedTask.chatId].customer) {
+          customerHandle = this.props.model.chatSessions[selectedTask.chatId].customer.handle;
+        }
+      }
       return <div className="agent-body">
         <div className="agent-sidebar">
           <div className="panel panel-default">
@@ -45,6 +51,9 @@ export default class extends Component {
           <div className="panel panel-default">
             <div className="panel-heading">
               <h3 className="panel-title">Customer Details</h3>
+            </div>
+            <div className="panel-body small">
+              <div>{ customerHandle }</div>
             </div>
           </div>
         </div>

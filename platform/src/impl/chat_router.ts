@@ -67,11 +67,7 @@ class BoundChatResponse implements ChatResponse {
   }
 
   public reply(text : string) : void {
-    this.chatService.joinChat(this.chatId, this.selfParticipant).then(() => {
-      this.chatService.postMessage(this.chatId, this.selfParticipant, text);
-    }).catch((err: Error) => {
-      console.error(err);
-    });
+    this.chatService.postMessage(this.chatId, this.selfParticipant, text);
   }
 
   public signalReadyForFulfillment(data : {}) : void {
