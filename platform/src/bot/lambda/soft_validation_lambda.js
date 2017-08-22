@@ -130,12 +130,14 @@ function isValidSlot ( slot, slotType ) {
 }
 //--------------------Intent Soft Validators ----------------------
 
+
 function validateCharacters ( slots ) {
   const charOneState = isValidSlot(slots.charOne, 'character') ;
   const charTwoState = isValidSlot(slots.charTwo, 'character') ;
 
   if (slots.charOne && !(charOneState.isValid)) {
     switch (charOneState.message.content) {
+
       case `notAlpha`:
         return buildValidationResult(false, 'charOne', `The character expected must be a letter`);
 
@@ -145,9 +147,10 @@ function validateCharacters ( slots ) {
   }
   if (slots.charTwo && !(charTwoState.isValid)) {
     switch (charTwoState.message.content) {
+
       case `notAlpha`:
         return buildValidationResult(false, 'charTwo', `The character expected must be a letter`);
-
+        
       case `wrongLength`:
         return buildValidationResult( false, 'charTwo', `You must enter a single character`);
     }
@@ -155,14 +158,15 @@ function validateCharacters ( slots ) {
   return buildValidationResult( true, null, null);
 }
 
+
 function validateAskQuestion( slots) {
   const topicSlotState = isValidSlot(slots.QuestionTopic, 'topic') ;
-
   if (slots.QuestionTopic && !(topicSlotState.isValid)){
     return buildValidationResult( false, 'QuestionTopic', `Sorry, I didn't quite understand what you meant. Can you try a different question ?`);
   }
   return buildValidationResult(true, null, null);
 }
+
 
 function validateLostCard (slots) {
   const cardOwnerState = isValidSlot(slots.cardOwner, 'accountHolder') ;
@@ -193,6 +197,7 @@ function validateLostCard (slots) {
   return buildValidationResult(true, null, null);
 }
 
+
 function validateMakePayment (slots){
   const payeeState = isValidSlot(slots.payee, 'AccountHolder');
   const paymentDateState = isValidSlot(slots.paymentDate, 'AMAZON.DATE');
@@ -212,34 +217,21 @@ function validateMakePayment (slots){
   return buildValidationResult( true, null, null);
 }
 
+
 function dialogManagement ( intentRequest , callback ){
   let sessionAttributes = intentRequest.sessionAttributes || {} ;
   //let authenticated = sessionAttributes.authenticated || false ;
   let slots = intentRequest.currentIntent.slots ;
-
   if (intentRequest.invocationSource == 'DialogCodeHook') {
     let validationResult = validatorFunctions.get(intentRequest.currentIntent.name)(intentRequest.currentIntent.slots);
-    console.log(validationResult);
     if ( !validationResult.isValid ) {
-      console.log('A slot is violated !');
       slots[`${validationResult.violatedSlot}`] = null ;
-      console.log('sessionAttributes');
-      console.log(sessionAttributes);
-      console.log('intentRequest.currentIntent.name');
-      console.log(intentRequest.currentIntent.name);
-      console.log('slots');
-      console.log(slots);
-      console.log('validationResult.violatedSlot');
-      console.log(validationResult.violatedSlot);
-      console.log('validationResult.message');
-      console.log(validationResult.message);
       callback( elicitSlot ( sessionAttributes, intentRequest.currentIntent.name, slots, validationResult.violatedSlot, validationResult.message)) ;
       return ;
     }  if (intentRequest.currentIntent.name == 'GetAccountBalance' || intentRequest.currentIntent.name == 'GetTransactions' ){
       sessionAttributes.authenticated = true  ;
       console.log('Successful authentication') ;
     }
-
     return callback(delegate(intentRequest.sessionAttributes, slots));
   }
 }
@@ -249,13 +241,8 @@ function dialogManagement ( intentRequest , callback ){
 */
 
 function dispatch (intentRequest, callback) {
-
   console.log(`dispatch userId=${intentRequest.userId}, intentName=${intentRequest.currentIntent.name}`) ;
-  //const intentName = intentRequest.currentIntent.name ;
-
-  //Dispatch to your skill's intent handlers
   return dialogManagement ( intentRequest, callback);
-
 }
 
 //---------------------------------Main Handler -----------------------------
