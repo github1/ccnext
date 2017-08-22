@@ -24,7 +24,7 @@ if(handlers[eventKey]) {
 }
 } }>
       {
-        this.props.menuItems.map((link, index) => {
+        (this.props.menuItems||[]).map((link, index) => {
           if (link === 'divider') {
             return <MenuItem key={index} divider/>;
           }

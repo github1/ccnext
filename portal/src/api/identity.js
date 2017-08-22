@@ -15,7 +15,20 @@ export const identity = () => {
   } finally {
     // do nothing
   }
-  return {username: 'visitor', role: 'visitor', invalid: true};
+  return {username: 'visitor', role: 'visitor'};
+};
+
+const storeUserToken = (token) => {
+  fallbackStorage.setItem('user-token', token);
+  return jwts.decode(token, null, true);
+};
+
+export const authenticateAnonymous = () => {
+  return ajax({
+    url: '/api/authenticate',
+    method: 'post',
+    data: {}
+  }).then(res => storeUserToken(res.token));
 };
 
 export const authenticate = (username, password) => {
@@ -23,10 +36,7 @@ export const authenticate = (username, password) => {
     url: '/api/authenticate',
     method: 'post',
     data: {username: username, password: password}
-  }).then((res) => {
-    fallbackStorage.setItem('user-token', res.token);
-    return jwts.decode(res.token, null, true);
-  });
+  }).then(res => storeUserToken(res.token));
 };
 
 export const signout = () => {

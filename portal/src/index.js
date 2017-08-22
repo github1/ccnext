@@ -10,13 +10,12 @@ import {
   preventZoom,
   growl
 } from './browser_utils';
-import { identity, authenticate, signout, register } from './api/identity.js';
+import { identity, authenticateAnonymous, authenticate, signout, register } from './api/identity.js';
 import { startChat, leaveChat, postChatMessage } from './api/chat.js';
 import { getTasks, markTaskComplete, populateTasks } from './api/tasks.js';
 import { openEventStream, subscribeTo, unsubscribe } from './api/events';
 
 import {
-  INIT,
   REALTIME_CONNECTION_ESTABLISHED,
   RECEIVE_ENTITY_EVENT,
   NAVIGATE,
@@ -71,11 +70,15 @@ const model = () => {
 };
 
 const sideEffect = (command, model) => {
+  const id = identity();
+  if(!id.sessionId) {
+    authenticateAnonymous().then((data) => {
+      dispatch(command);
+    });
+    return;
+  }
   switch (command.type) {
     case NAVIGATE:
-    case INIT:
-      const id = identity();
-
       openEventStream({
         open: () => {
           dispatch({
@@ -228,8 +231,8 @@ const sideEffect = (command, model) => {
         type: CLEAR_USER
       }).then(() => {
         dispatch({
-          type: INIT,
-          redirect: '/landing'
+          type: NAVIGATE,
+          redirect: '/home'
         });
       });
       break;
@@ -425,7 +428,7 @@ window.onload = function () {
     function (e) {
       if (e.key === 'Escape') {
         dispatch({
-          type: END_CHAT
+          type: LEAVE_CHAT
         });
       }
     }, true);
@@ -439,7 +442,7 @@ window.onload = function () {
 
   page('/', () => {
     window.dispatch({
-      type: INIT
+      type: NAVIGATE
     });
   });
 

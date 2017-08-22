@@ -32,7 +32,7 @@ export class AnonymousCredentials extends Credentials {
   public authenticate() : Promise<AuthenticationResult> {
     return Promise.resolve({
       username: 'visitor',
-      role: 'customer',
+      role: 'visitor',
       success: true
     });
   }

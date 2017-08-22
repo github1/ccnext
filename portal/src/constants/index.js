@@ -1,4 +1,3 @@
-export const INIT = "init";
 export const REALTIME_CONNECTION_ESTABLISHED = ":realtime_connection_established";
 export const RECEIVE_ENTITY_EVENT = ":receive_entity_event";
 export const SIGN_IN = "sign_in";
