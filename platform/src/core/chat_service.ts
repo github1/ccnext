@@ -8,8 +8,8 @@ export class ChatService {
     this.entityRepository = entityRepository;
   }
 
-  public startChat(chatId : string, participant : ChatParticipantVO) : void {
-    this.entityRepository
+  public startChat(chatId : string, participant : ChatParticipantVO) : Promise<void> {
+    return this.entityRepository
       .load(Chat, chatId)
       .then((chat : Chat) => {
         chat.start();
@@ -28,16 +28,27 @@ export class ChatService {
       });
   }
 
-  public postMessage(chatId : string, participant : ChatParticipantVO, text : string) : void {
+  public postMessage(chatId : string, participant : ChatParticipantVO, text : string, hidden : boolean = false) : void {
     this.entityRepository
       .load(Chat, chatId)
       .then((chat : Chat) => {
-        chat.defaultQueue('CCaaSBot');
         chat
-          .postMessage(participant, text)
+          .postMessage(participant, text, hidden)
           .catch((error : Error) => {
             console.error(error);
           });
+      })
+      .catch((error : Error) => {
+        throw error;
+      });
+  }
+
+  public postStatus(chatId : string, text : string) : void {
+    this.entityRepository
+      .load(Chat, chatId)
+      .then((chat : Chat) => {
+        chat
+          .postStatus(text);
       })
       .catch((error : Error) => {
         throw error;

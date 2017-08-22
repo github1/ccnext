@@ -82,12 +82,25 @@ export class ChatMessagePostedEvent extends ChatEvent {
   public correlationId : string;
   public fromParticipant : ChatParticipantVO;
   public text : string;
+  public hidden : boolean;
 
-  constructor(messageId : string, correlationId : string, fromParticipant : ChatParticipantVO, text : string) {
+  constructor(messageId : string, correlationId : string, fromParticipant : ChatParticipantVO, text : string, hidden : boolean = false) {
     super();
     this.messageId = messageId;
     this.correlationId = correlationId;
     this.fromParticipant = fromParticipant;
+    this.text = text;
+    this.hidden = hidden;
+  }
+}
+
+export class ChatStatusPostedEvent extends ChatEvent {
+  public messageId : string;
+  public text : string;
+
+  constructor(messageId : string, text : string) {
+    super();
+    this.messageId = messageId;
     this.text = text;
   }
 }
@@ -116,9 +129,31 @@ export class ChatErrorEvent extends ChatEvent {
   }
 }
 
+export class ChatParticipantVerificationEvent extends ChatEvent {
+  public verificationRequestId : string;
+  public participantSessionId : string;
+  public state : string;
+  public participantHandle : string;
+  public participantRole : string;
+  constructor(
+    verificationRequestId : string,
+    participantSessionId : string,
+    state : string,
+    participantHandle? : string,
+    participantRole? : string) {
+    super();
+    this.verificationRequestId = verificationRequestId;
+    this.participantSessionId = participantSessionId;
+    this.state = state;
+    this.participantHandle = participantHandle;
+    this.participantRole = participantRole;
+  }
+}
+
 export class Chat extends Entity {
   private started : boolean;
   private participants : { [key:string]:ChatParticipantVO } = {};
+  private defaultQueueName : string;
   private chatQueue : string;
   private fulfillmentSequence : number = 0;
   private chatSequence : number = 1;
@@ -134,6 +169,9 @@ export class Chat extends Entity {
       } else if (event instanceof ChatParticipantModifiedEvent) {
         self.participants[event.toParticipant.sessionId] = event.toParticipant;
       } else if (event instanceof ChatTransferredEvent) {
+        if(!self.chatQueue) {
+          self.defaultQueueName = event.toQueue;
+        }
         self.chatQueue = event.toQueue;
       } else if (event instanceof ChatReadyForFulfillmentEvent) {
         self.fulfillmentSequence = self.chatSequence;
@@ -162,21 +200,30 @@ export class Chat extends Entity {
 
   public leave(participantSessionId : string) : void {
     if (this.participants.hasOwnProperty(participantSessionId)) {
+      if(this.participants[participantSessionId].role === 'agent') {
+        this.transferTo(this.defaultQueueName);
+      }
       this.dispatch(this.id, new ChatParticipantLeftEvent(this.participants[participantSessionId]));
     }
   }
 
-  public postMessage(participant : ChatParticipantVO, text : string) : Promise<{}> {
+  public postMessage(participant : ChatParticipantVO, text : string, hidden : boolean = false) : Promise<{}> {
     if (this.chatQueue) {
       return new Promise((resolve : Function) : void => {
         this.start();
-        const event : ChatMessagePostedEvent = new ChatMessagePostedEvent(uuid(), `${this.id}_${this.chatSequence}`, participant, text);
+        this.join(participant);
+        const event : ChatMessagePostedEvent =
+          new ChatMessagePostedEvent(uuid(), `${this.id}_${this.chatSequence}`, participant, text, hidden);
         this.dispatch(this.id, event);
         resolve();
       });
     } else {
       throw new Error('No chat queue set');
     }
+  }
+
+  public postStatus(text : string) : void {
+    this.dispatch(this.id, new ChatStatusPostedEvent(uuid(), text));
   }
 
   public defaultQueue(chatQueue : string) {

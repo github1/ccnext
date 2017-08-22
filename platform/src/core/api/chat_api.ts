@@ -1,54 +1,57 @@
 import * as express from 'express';
 import {
   EventBus,
+  EventStore,
   EntityEvent
 } from '../entity/entity';
-import { AuthenticationSucceededEvent } from '../identity';
+import {
+  AuthenticationVerificationRequestedEvent,
+  AuthenticationVerificationSucceededEvent
+} from '../identity';
 import {
   ChatParticipantVO,
-  ChatMessagePostedEvent,
-  ChatParticipantJoinedEvent,
-  ChatParticipantLeftEvent,
-  ChatParticipantModifiedEvent
+  ChatParticipantVerificationEvent
 } from '../chat';
 import { ChatService } from '../chat_service';
+import { chatsByParticipantSessionId, ChatProjectionItem } from '../projection/projection';
 
-export function chatAPI(eventBus : EventBus, chatService : ChatService) : { preConfigure: Function } {
+export function chatAPI(eventBus : EventBus, eventStore : EventStore, chatService : ChatService) : { preConfigure: Function } {
 
   type Msg = { [key:string]:string };
-  type ChatLogEntry = { [key:string]:EntityEvent[] };
-
-  const chatParticipants : { [key:string]:Set<string> } = {};
-  const chatLog : ChatLogEntry = {};
 
   eventBus.subscribe(
-    (event : EntityEvent) => {
-      if (event instanceof ChatMessagePostedEvent ||
-        event instanceof ChatParticipantJoinedEvent ||
-        event instanceof ChatParticipantLeftEvent ||
-        event instanceof ChatParticipantModifiedEvent) {
-        chatLog[event.streamId] = chatLog[event.streamId] || [];
-        chatLog[event.streamId].push(event);
-        if (event instanceof ChatParticipantJoinedEvent) {
-          chatParticipants[event.participant.sessionId] = chatParticipants[event.participant.sessionId] || new Set<string>();
-          chatParticipants[event.participant.sessionId].add(event.streamId);
-        } else if (event instanceof ChatParticipantLeftEvent) {
-          if (chatParticipants[event.participant.sessionId]) {
-            chatParticipants[event.participant.sessionId].delete(event.streamId);
-          }
-        }
-      } else if (event instanceof AuthenticationSucceededEvent) {
-        if(chatParticipants[event.streamId]) {
-          chatParticipants[event.streamId].forEach((chatId : string) => {
-            chatService.joinChat(chatId, new ChatParticipantVO(event.username, event.role, event.streamId))
-              .catch((err : Error) => {
-                console.error(err);
-              });
+    (event : EntityEvent, isReplaying : boolean) => {
+      if (event instanceof AuthenticationVerificationRequestedEvent) {
+        chatsByParticipantSessionId(event.streamId, (chats : ChatProjectionItem[]) => {
+          chats.forEach((chat : ChatProjectionItem) => {
+            const syntheticEvent : ChatParticipantVerificationEvent = new ChatParticipantVerificationEvent(
+              event.requestId,
+              event.streamId,
+              'requested');
+            syntheticEvent.streamId = chat.chatId;
+            if (!isReplaying) {
+              eventBus.emit(syntheticEvent);
+            }
           });
-        }
+        });
+      } else if (event instanceof AuthenticationVerificationSucceededEvent) {
+        chatsByParticipantSessionId(event.streamId, (chats : ChatProjectionItem[]) => {
+          chats.forEach((chat : ChatProjectionItem) => {
+            const syntheticEvent : ChatParticipantVerificationEvent =
+              new ChatParticipantVerificationEvent(
+                event.requestId,
+                event.streamId,
+                'succeeded',
+                event.username,
+                event.role);
+            syntheticEvent.streamId = chat.chatId;
+            if (!isReplaying) {
+              eventBus.emit(syntheticEvent);
+            }
+          });
+        });
       }
-    },
-    {replay: true});
+    });
 
   return {
     preConfigure(app : express.Application): void {
@@ -63,7 +66,7 @@ export function chatAPI(eventBus : EventBus, chatService : ChatService) : { preC
         if (body.text) {
           chatService.postMessage(params.chatId, chatParticipant, body.text);
         } else {
-          chatService.startChat(params.chatId, chatParticipant);
+          chatService.startChat(params.chatId, chatParticipant); // tslint:disable-line:no-floating-promises
         }
         res.json({});
       });
@@ -76,7 +79,12 @@ export function chatAPI(eventBus : EventBus, chatService : ChatService) : { preC
 
       app.get('/api/chat/:chatId', (req : express.Request, res : express.Response) : void => {
         const params : Msg = <Msg> req.params;
-        res.json(chatLog[params.chatId]);
+        const log : EntityEvent[] = [];
+        eventStore.replay(params.chatId, (event : EntityEvent) => {
+          log.push(event);
+        },() => {
+          res.json(log);
+        });
       });
 
     }

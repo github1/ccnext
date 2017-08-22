@@ -6,7 +6,6 @@ export default class extends Component {
   }
 
   render() {
-    //return <img src="/logo.svg" className={ `logo ${this.props.className || ''}` }/>;
     return <div className={ `logo ${this.props.className || ''}` }>DemoBank</div>;
   }
 }

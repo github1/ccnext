@@ -4,9 +4,12 @@ import {
   AuthenticationSucceededEvent,
   AuthenticationFailedEvent,
   AuthenticationLockedEvent,
-  AuthenticationErrorEvent
+  AuthenticationErrorEvent,
+  AuthenticationVerificationRequestedEvent
 } from '../../src/core/identity';
 import { UsernamePasswordCredentials } from '../../src/core/authentication';
+import { useIncrementalUUID } from '../../src/core/entity/entity';
+
 import { Clock } from '../../src/core/clock';
 
 describe('Identity', () => {
@@ -14,6 +17,7 @@ describe('Identity', () => {
   let identity;
 
   beforeEach(() => {
+    useIncrementalUUID(true);
     Clock.freeze(0);
     identity = new Identity('someId');
     identity.dispatch = jest.fn((id, event) => {
@@ -22,6 +26,7 @@ describe('Identity', () => {
   });
 
   afterEach(() => {
+    useIncrementalUUID(false);
     Clock.unfreeze();
   });
 
@@ -91,6 +96,13 @@ describe('Identity', () => {
           expect(identity.dispatch)
             .toBeCalledWith('someId', new AuthenticationErrorEvent());
         });
+    });
+  });
+
+  describe('when identity verification is requested', () => {
+    it('dispatches an identity verification requested event', () => {
+      identity.requestVerification();
+      expect(identity.dispatch).toBeCalledWith('someId', new AuthenticationVerificationRequestedEvent("7"));
     });
   });
 

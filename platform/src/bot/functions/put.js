@@ -130,6 +130,7 @@ const putBot = (lexmodelbuildingservice, lexmodel, params) => {
 };
 
 const putBotAlias = (lexmodelbuildingservice, lexmodel, params) => {
+  console.log(lexmodel, params.botName);
   return untilBotReady(
     lexmodelbuildingservice,
     lexmodel.bot[params.botName].name,

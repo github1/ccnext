@@ -1,14 +1,13 @@
 const createLambdaRole = (iam, lexmodel, role, policy) => {
   return new Promise((resolve, reject) => {
-    console.log(`Checking if role "${role.RoleName}"exists`);
+    console.log(`Checking if role "${role.RoleName}" exists`);
     iam.getRole({RoleName: role.RoleName}, (err, data) => {
       if (err) {
         console.log(`${role.RoleName} does not exist, attempting to create role`);
         iam.createRole(role, function(err, data) {
           if (err) {
             console.log(`Could not create role`);
-            console.log(err, err.stack); // an error occurred
-            reject();
+            reject(err);
           }
           else {
             console.log(`${role.RoleName} created`);

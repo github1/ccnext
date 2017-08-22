@@ -121,6 +121,18 @@ describe('Chat', () => {
         expect(chat.dispatch.mock.calls.length).toEqual(2);
       });
     });
+    describe('when an agent leaves the chat', ()=> {
+      it('it transfers to the default queue', () => {
+        chat.defaultQueue('defaultQueue');
+        chat.transferTo('someQueue');
+        chat.join(new ChatParticipantVO('someAgent', 'agent', '2234'));
+        chat.leave('2234');
+        expect(chat.dispatch)
+          .toBeCalledWith('chatId', new ChatParticipantLeftEvent(new ChatParticipantVO('someAgent', 'agent', '2234')));
+        expect(chat.dispatch)
+          .toBeCalledWith('chatId', new ChatTransferredEvent('someQueue', 'defaultQueue'));
+      });
+    });
   });
 
   describe('when a chat is transferred', () => {

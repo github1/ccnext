@@ -8,9 +8,19 @@ import {
   resetScrollVirtualKeyboard,
   resetScroll,
   preventZoom,
-  growl
+  growl,
+  queryParams
 } from './browser_utils';
-import { identity, authenticateAnonymous, authenticate, profile, signout, register } from './api/identity.js';
+import {
+  identity,
+  authenticateAnonymous,
+  authenticate,
+  profile,
+  signout,
+  getIdentityVerificationRequest,
+  requestIdentityVerification,
+  register
+} from './api/identity.js';
 import { startChat, leaveChat, postChatMessage } from './api/chat.js';
 import { getTasks, markTaskComplete, populateTasks } from './api/tasks.js';
 import { openEventStream, subscribeTo, unsubscribe } from './api/events';
@@ -28,6 +38,12 @@ import {
   AUTHENTICATION_STARTED,
   AUTHENTICATION_FAILED,
   AUTHENTICATION_SUCCESS,
+  VERIFY_IDENTITY,
+  CANCEL_IDENTITY_VERIFICATION,
+  IDENTITY_VERIFICATION_REQUESTED,
+  LOAD_IDENTITY_VERIFICATION_REQUEST,
+  IDENTITY_VERIFICATION_SUCCESS,
+  IDENTITY_VERIFICATION_CANCELLED,
   JOIN_CHAT,
   CHAT_JOINED,
   LEAVE_CHAT,
@@ -41,7 +57,8 @@ import {
   TASK_RECEIVED,
   MARK_TASK_COMPLETE,
   SELECT_TASK,
-  TASK_SELECTED
+  TASK_SELECTED,
+  RESIZED
 } from './constants';
 
 let element = document.getElementById('main');
@@ -52,7 +69,6 @@ if (!element) {
 }
 
 const pendingEvents = [];
-const events = [];
 const model = () => {
   return {
     messages: [],
@@ -60,6 +76,7 @@ const model = () => {
     chatSessions: {},
     selectedTask: null,
     tasks: [],
+    user: identity(),
     device: {
       isMobile: isMobile(),
       screen: {
@@ -72,7 +89,7 @@ const model = () => {
 const sideEffect = (command, model) => {
   const id = identity();
   if (!id.sessionId) {
-    authenticateAnonymous().then((data) => {
+    authenticateAnonymous().then(() => {
       dispatch(command);
     });
     return;
@@ -141,29 +158,43 @@ const sideEffect = (command, model) => {
           setTimeout(() => {
             dispatch({
               type: INCOMING_CHAT_MESSAGE_POSTED,
-              messageId: command.messageId,
-              id: command.streamId,
-              from: command.fromParticipant.handle,
-              text: command.text
+              rawEvent: command
             });
           }, 500);
         } else {
           dispatch({
             type: OUTGOING_CHAT_MESSAGE_POSTED,
-            messageId: command.messageId,
-            id: command.streamId,
-            from: command.fromParticipant.handle,
-            text: command.text
+            rawEvent: command
           });
         }
-      } else if (/^ChatParticipant(Joined|Left)Event$/.test(command.name)) {
-        const eventType = /^ChatParticipant(Joined|Left)Event$/.exec(command.name)[1];
+      } else if (/^ChatParticipant(Joined|Left|Modified|Verification)Event$/.test(command.name)) {
+
+        if (command.name == 'ChatParticipantLeftEvent' && command.participant.sessionId === id.sessionId) {
+          unsubscribe(command.streamId).then(() => {
+            dispatch({
+              type: CHAT_STATUS_POSTED,
+              rawEvent: command
+            });
+          });
+        } else {
+          dispatch({
+            type: CHAT_STATUS_POSTED,
+            rawEvent: command
+          });
+        }
+
+        if (command.name === 'ChatParticipantVerificationEvent') {
+          if (command.state === 'requested' && command.participantSessionId === id.sessionId) {
+            dispatch({
+              type: NAVIGATE,
+              redirect: `/verify/${command.verificationRequestId}?r=${window.location.pathname}`
+            });
+          }
+        }
+      } else if (command.name === 'ChatStatusPostedEvent') {
         dispatch({
           type: CHAT_STATUS_POSTED,
-          messageId: `${command.name}-${command.timestamp}-${command.participant.handle}`,
-          messageType: 'status',
-          id: command.streamId,
-          text: `${command.participant.handle} has ${eventType.toLowerCase()} the chat`
+          rawEvent: command
         });
       } else if (command.name === 'WorkerTaskStatusUpdatedEvent') {
         populateTasks(command.task).then((tasks) => {
@@ -189,6 +220,38 @@ const sideEffect = (command, model) => {
         });
       }
       break;
+    case LOAD_IDENTITY_VERIFICATION_REQUEST:
+      getIdentityVerificationRequest(command.verificationRequestId)
+        .then((result) => {
+          dispatch({
+            type: IDENTITY_VERIFICATION_REQUESTED,
+            identitySessionId: result.identityId
+          });
+        })
+        .catch(() => {
+          dispatch({
+            type: CANCEL_IDENTITY_VERIFICATION
+          });
+        });
+      break;
+    case CANCEL_IDENTITY_VERIFICATION:
+      if (window.location.pathname.indexOf('/verify') > -1) {
+        if (model.queryParams.r) {
+          dispatch({
+            type: NAVIGATE,
+            redirect: model.queryParams.r
+          });
+        } else {
+          dispatch({
+            type: SIGN_OUT
+          });
+        }
+      } else {
+        dispatch({
+          type: IDENTITY_VERIFICATION_CANCELLED
+        });
+      }
+      break;
     case REGISTER_USER:
       register(command).then(() => {
         dispatch({
@@ -199,34 +262,42 @@ const sideEffect = (command, model) => {
       });
       break;
     case SIGN_IN:
-      if (command.username.trim().length === 0 ||
-        command.password.trim().length === 0) {
+      dispatch({
+        type: AUTHENTICATION_STARTED
+      });
+      authenticate(command).then((user) => {
+        profile().then((userProfile) => {
+          return dispatch({
+            type: AUTHENTICATION_SUCCESS,
+            user: userProfile
+          }).then(() => {
+            if (command.isVerification) {
+              dispatch({
+                type: IDENTITY_VERIFICATION_SUCCESS
+              }).then(() => {
+                if (model.queryParams.r) {
+                  dispatch({
+                    type: NAVIGATE,
+                    redirect: model.queryParams.r
+                  });
+                }
+              });
+            } else {
+              // subscribe to events addressed to this user
+              return subscribeTo(user.username).then(() => {
+                page.redirect('/');
+              });
+            }
+          });
+        });
+      }).catch(() => {
+        if (!command.isVerification) {
+          signout();
+        }
         dispatch({
           type: AUTHENTICATION_FAILED
         });
-      } else {
-        dispatch({
-          type: AUTHENTICATION_STARTED
-        });
-        authenticate(command.username, command.password).then(() => {
-          profile().then((user) => {
-            return dispatch({
-              type: AUTHENTICATION_SUCCESS,
-              user: user
-            }).then(() => {
-              // subscribe to events addressed to this user
-              return subscribeTo(command.username).then(() => {
-                page.redirect('/');
-              });
-            });
-          });
-        }).catch(() => {
-          signout();
-          dispatch({
-            type: AUTHENTICATION_FAILED
-          });
-        });
-      }
+      });
       break;
     case SIGN_OUT:
       unsubscribe();
@@ -239,6 +310,9 @@ const sideEffect = (command, model) => {
           redirect: '/home'
         });
       });
+      break;
+    case VERIFY_IDENTITY:
+      requestIdentityVerification(command.identityId);
       break;
     case JOIN_CHAT:
     {
@@ -293,12 +367,17 @@ const sideEffect = (command, model) => {
 const update = (event, model) => {
   model.invalid_credentials = false;
   switch (event.type) {
+    case RESIZED:
+      model.device.screen.height = event.height;
+      break;
     case NAVIGATION_REQUESTED:
+      delete model.identityVerificationRequired;
       delete model.messages['invalid_credentials'];
       model.view = event.view;
       break;
     case CLEAR_USER:
       delete model.user;
+      delete model.identityVerificationRequired;
       break;
     case USER_REGISTERED:
       model.messages['user_registered'] = {
@@ -329,45 +408,30 @@ const update = (event, model) => {
         componentInstanceIds: [event.componentInstanceId]
       };
       break;
+    case IDENTITY_VERIFICATION_REQUESTED:
+      delete model.messages['invalid_credentials'];
+      model.identityVerificationRequired = {
+        mode: 'full',
+        identitySessionId: event.identitySessionId
+      };
+      break;
+    case IDENTITY_VERIFICATION_CANCELLED:
+    case IDENTITY_VERIFICATION_SUCCESS:
+      delete model.identityVerificationRequired;
+      break;
     case CHAT_LEFT:
       delete model.chatSessions[event.id];
       break;
     case OUTGOING_CHAT_MESSAGE_POSTED:
-    {
-      model.chatSessions[event.id] = model.chatSessions[event.id] || {};
-      const chatSession = model.chatSessions[event.id];
-      chatSession.messages = chatSession.messages || [];
-      const index = chatSession.messages.findIndex((message) => message.messageId === event.messageId);
-      if (index === -1) {
-        chatSession.messages.push({
-          messageId: event.messageId,
-          from: event.from,
-          direction: 'outgoing',
-          text: event.text
-        });
-      }
-      break;
-    }
-    case CHAT_STATUS_POSTED:
     case INCOMING_CHAT_MESSAGE_POSTED:
-    {
-      model.chatSessions[event.id] = model.chatSessions[event.id] || {};
-      const chatSession = model.chatSessions[event.id];
-      chatSession.messages = chatSession.messages || [];
-      const index = chatSession.messages.findIndex((message) => message.messageId === event.messageId);
-      if (index === -1) {
-        chatSession.messages.push({
-          messageType: event.messageType,
-          messageId: event.messageId,
-          from: event.from,
-          direction: 'incoming',
-          text: event.text
-        });
-      }
+    case CHAT_STATUS_POSTED:
+      loadChatLog(event.rawEvent.streamId, [event.rawEvent], model, true);
       break;
-    }
     case TASKS_LOADED:
       model.tasks = event.tasks;
+      event.tasks.forEach(task => {
+        loadChatLog(task.chatId, task.chatLog, model);
+      });
       break;
     case TASK_RECEIVED:
       const index = model.tasks.findIndex((task) => {
@@ -376,11 +440,12 @@ const update = (event, model) => {
       if (index === -1) {
         model.tasks.push(event.task);
       } else {
-        model.tasks[index] = event.task;
+        model.tasks[index] = Object.assign({}, model.tasks[index], event.task);
       }
       if (model.selectedTask && model.selectedTask.taskId === event.task.taskId) {
-        model.selectedTask = event.task;
+        model.selectedTask = Object.assign({}, model.selectedTask, event.task);
       }
+      loadChatLog(event.task.chatId, event.task.chatLog, model);
       break;
     case TASK_SELECTED:
       model.selectedTask = event.taskId;
@@ -389,8 +454,110 @@ const update = (event, model) => {
   return model;
 };
 
+const loadChatLog = (chatId, chatLog, model, append) => {
+  if (!chatId || !chatLog) {
+    return;
+  }
+  model.chatSessions[chatId] = model.chatSessions[chatId] || {};
+  const session = model.chatSessions[chatId];
+  const chatLogToMessage = (chatLog) => {
+    if (chatLog.name === 'ChatStatusPostedEvent') {
+      return {
+        messageId: chatLog.messageId,
+        messageType: 'status',
+        text: chatLog.text
+      }
+    } else if (/^ChatParticipant(Joined|Left)Event$/.test(chatLog.name)) {
+      const eventType = /^ChatParticipant(Joined|Left)Event$/.exec(chatLog.name)[1];
+      return {
+        messageId: `${chatLog.name}-${chatLog.timestamp}-${chatLog.participant.sessionId}`,
+        messageType: 'update',
+        eventType: eventType,
+        participant: chatLog.participant
+      }
+    } else if (chatLog.name === 'ChatParticipantModifiedEvent') {
+      return {
+        messageId: `${chatLog.name}-${chatLog.timestamp}-${chatLog.fromParticipant.sessionId}`,
+        messageType: 'update',
+        eventType: chatLog.name,
+        fromParticipant: chatLog.fromParticipant,
+        toParticipant: chatLog.toParticipant
+      }
+    } else if (chatLog.name === 'ChatParticipantVerificationEvent') {
+      return {
+        messageId: `${chatLog.name}-${chatLog.timestamp}-${chatLog.participantSessionId}`,
+        messageType: 'update',
+        eventType: `${chatLog.name}-${chatLog.state}`,
+        participantHandle: chatLog.participantHandle,
+        participantSessionId: chatLog.participantSessionId
+      }
+    } else if (chatLog.name === 'ChatMessagePostedEvent' && chatLog.hidden === false) {
+      let from = chatLog.fromParticipant.handle;
+      if (session.customer && chatLog.fromParticipant.sessionId === session.customer.sessionId) {
+        from = session.customer.handle;
+      }
+      return {
+        messageId: chatLog.messageId,
+        direction: ['customer', 'visitor'].indexOf(chatLog.fromParticipant.role) > -1 ? 'incoming' : 'outgoing',
+        from: from,
+        text: chatLog.text
+      }
+    }
+  };
+  const chatLogMessages = chatLog ? chatLog.map(chatLogToMessage).filter(msg => msg) : [];
+  let messages = session.messages || [];
+  if (append) {
+    chatLogMessages.forEach(chatLogMessage => {
+      if (messages.findIndex((msg) => {
+          return msg.messageId === chatLogMessage.messageId;
+        }) === -1) {
+        messages.push(chatLogMessage);
+      }
+    });
+  } else {
+    messages = chatLogMessages;
+    if (session && session.messages) {
+      session.messages.forEach((msg) => {
+        if (chatLogMessages.findIndex((logMsg) => {
+            return logMsg.messageId === msg.messageId;
+          }) === -1) {
+          chatLogMessages.push(msg);
+        }
+      });
+    }
+  }
+  messages.forEach(msg => {
+    if (msg.messageType === 'update') {
+      if (msg.eventType === 'Joined') {
+        if (msg.participant && ['customer', 'visitor'].indexOf(msg.participant.role) > -1) {
+          session.customer = msg.participant;
+        } else {
+          session.active = true;
+        }
+      }
+      if (msg.eventType === 'ChatParticipantModifiedEvent') {
+        if (session.customer && session.customer.sessionId === msg.fromParticipant.sessionId) {
+          if (msg.toParticipant.handle.indexOf('+') < 0) {
+            session.customer.handle = msg.toParticipant.handle;
+            session.customer.role = msg.toParticipant.role;
+          }
+        }
+      }
+    }
+  });
+  messages.forEach(msg => {
+    if (msg.eventType === 'ChatParticipantVerificationEvent-succeeded') {
+      if (session.customer && session.customer.sessionId === msg.participantSessionId) {
+        session.customer.handle = msg.participantHandle;
+        session.customer.verified = true;
+      }
+    }
+  });
+  session.messages = messages.filter(msg => msg.text && msg.text !== '');
+};
+
 let rendering = false;
-let latestModel = {};
+let latestModel = model();
 window.dispatch = (event) => {
   return new Promise((resolve) => {
     sideEffect(event, latestModel);
@@ -401,21 +568,20 @@ window.dispatch = (event) => {
     }
     if (!rendering) {
       rendering = true;
+      latestModel.queryParams = queryParams();
+      const updateModel = (event) => {
+        latestModel = update(event, JSON.parse(JSON.stringify(latestModel)));
+      };
       while (pendingEvents.length > 0) {
-        events.push(pendingEvents.pop());
+        updateModel(pendingEvents.pop());
       }
-      events.push(event);
-      latestModel = events.reduce((updated, event) => {
-        return update(event, updated);
-      }, JSON.parse(JSON.stringify(model())));
+      updateModel(event);
       render(<Container model={ latestModel }/>, element, () => {
-        rendering = false;
         resolve(latestModel);
-
         if (latestModel.device.isMobile) {
           resetScrollVirtualKeyboard();
         }
-
+        rendering = false;
       });
     } else {
       pendingEvents.push(event);
@@ -436,7 +602,10 @@ window.onload = function () {
 
   window.addEventListener('resize',
     function (e) {
-      dispatch({});
+      dispatch({
+        type: RESIZED,
+        height: window.innerHeight
+      });
     }, true);
 
   preventZoom();
@@ -447,7 +616,14 @@ window.onload = function () {
     });
   });
 
-  page('/agent', (ctx) => {
+  page('/verify/:verificationRequestId', (ctx) => {
+    window.dispatch({
+      type: LOAD_IDENTITY_VERIFICATION_REQUEST,
+      verificationRequestId: ctx.params.verificationRequestId
+    });
+  });
+
+  page('/agent', () => {
     dispatch({
       type: SELECT_TASK
     }).then(() => {

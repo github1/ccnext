@@ -55,11 +55,15 @@ export const createInstanceFromJson = (objType, json) => {
 
 export const resolveInstanceFromJson = (json, stack) => {
   if(!stack) {
-    stack = [];
-    json = typeof json === 'string' ? JSON.parse(json) : json;
-    const parent = { resolved: json };
-    stack.push({ parent: parent, field : 'resolved' });
-    return resolveInstanceFromJson(json, stack);
+    try {
+      stack = [];
+      json = typeof json === 'string' ? JSON.parse(json) : json;
+      const parent = {resolved: json};
+      stack.push({parent: parent, field: 'resolved'});
+      return resolveInstanceFromJson(json, stack);
+    } catch (err) {
+      return Promise.reject(err);
+    }
   } else if(stack.length === 0) {
     return Promise.resolve(json.resolved);
   }

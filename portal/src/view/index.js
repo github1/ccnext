@@ -3,6 +3,7 @@ import empty from './empty.js';
 import home from './home.js';
 import enroll from './enroll.js';
 import login from './login.js';
+import verification from './identity_verification.js';
 import account from './account.js';
 import agent from './agent.js';
 
@@ -13,5 +14,6 @@ export default  {
   enroll,
   login,
   account,
-  agent
+  agent,
+  verification
 };

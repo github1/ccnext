@@ -31,12 +31,29 @@ export const authenticateAnonymous = () => {
   }).then(res => storeUserToken(res.token));
 };
 
-export const authenticate = (username, password) => {
+export const authenticate = (credentials) => {
   return ajax({
     url: '/api/authenticate',
     method: 'post',
-    data: {username: username, password: password}
+    data: credentials
   }).then(res => storeUserToken(res.token));
+};
+
+export const getIdentityVerificationRequest = (requestId) => {
+  return ajax({
+    url: `/api/verification/${requestId}`,
+    method: 'get'
+  });
+};
+
+export const requestIdentityVerification = (identityId) => {
+  return ajax({
+    url: '/api/verification',
+    method: 'post',
+    data: {
+      identityId: identityId
+    }
+  });
 };
 
 export const profile = () => {

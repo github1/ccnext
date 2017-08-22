@@ -18,6 +18,11 @@ module.exports = (eventBus, chatService) => {
           );
           chatService.endChat(event.streamId);
           break;
+        case "SpeakToAgent":
+          chatService.postMessage(event.streamId, event.fulfiller, 'I\'m transferring you to a live agent now. One moment please.');
+          chatService.leaveChat(event.streamId, event.fulfiller.sessionId);
+          chatService.transferTo(event.streamId, 'agentChatQueue');
+          break;
         case "AskQuestion":
           chatService.postMessage(
             event.streamId,

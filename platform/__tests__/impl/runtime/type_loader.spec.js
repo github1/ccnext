@@ -27,7 +27,7 @@ describe('typeLoader', () => {
       });
     });
     describe('with an object with multiple nested types', () => {
-      it.only('it loads the type and all child types from JSON based on type metadata', () => {
+      it('it loads the type and all child types from JSON based on type metadata', () => {
         return resolveInstanceFromJson({
           typeNameMetaData: ChatParticipantJoinedEvent.name,
           participant1: {

@@ -38,6 +38,26 @@ export const upsert = (objectType, search, resource) => {
   });
 };
 
+/**
+ * Deletes and creates a twilio resource.
+ *
+ * @param objectType
+ * @param search
+ * @param resource
+ * @returns {any}
+ */
+export const deletesert = (objectType, search, resource) => {
+  return objectType.list(search).then((objects) => {
+    if (objects.length === 0) {
+      return objectType.create.bind(objectType)(resource);
+    } else {
+      return objects[0].remove.bind(objects[0])().then(() => {
+        return upsert(objectType, search, resource);
+      });
+    }
+  });
+};
+
 export const createTaskIfNotExists = (twilioClient, workspaceSid, workflowSid, data) => {
   const search = data['twilioTaskSid'] ? {sid: data['twilioTaskSid']} : null;
   return createIfNotExists(twilioClient.taskrouter.v1.workspaces(workspaceSid).tasks, search, {
@@ -67,8 +87,15 @@ export const configureIncomingNumber = (twilioClient, phoneNumberSid, voiceUrl, 
 export const configureTaskRouter = (twilioClient, workspaceName, baseUrl) => {
   const taskEventCallbackUrl = `${baseUrl}/tasks/callback`;
   const taskAssignmentCallbackUrl = `${baseUrl}/tasks/assignment`;
-  const taskQueueName = `${workspaceName}-taskqueue`;
   const workflowName = `${workspaceName}-workflow`;
+  const taskQueueConfigs = {
+    bot: {
+      targetWorkers: 'role="bot"'
+    },
+    human: {
+      targetWorkers: 'role="agent"'
+    }
+  };
   const config = {
     workspaces: {},
     workflows: {},
@@ -81,7 +108,8 @@ export const configureTaskRouter = (twilioClient, workspaceName, baseUrl) => {
     twilioClient.taskrouter.workspaces,
     {friendlyName: workspaceName}, {
       friendlyName: workspaceName,
-      eventCallbackUrl: taskEventCallbackUrl
+      eventCallbackUrl: taskEventCallbackUrl,
+      multiTaskEnabled: true
     })
     .then((workspace) => {
       return workspace.activities().list().then((activities) => {
@@ -100,15 +128,27 @@ export const configureTaskRouter = (twilioClient, workspaceName, baseUrl) => {
       });
     })
     .then((workspace) => {
-      return upsert(workspace.taskQueues(), {friendlyName: taskQueueName}, {
-        friendlyName: taskQueueName,
-        targetWorkers: '1==1',
-        reservationActivitySid: config.activities['Reserved'].sid,
-        assignmentActivitySid: config.activities['Busy'].sid
-      }).then((taskqueue) => {
-        config.taskqueues[taskqueue.friendlyName] = taskqueue;
-        return workspace;
-      });
+      return Promise.all(Object.keys(taskQueueConfigs).map((taskQueueName) => {
+        return upsert(workspace.taskQueues(), {friendlyName: taskQueueName}, {
+          friendlyName: taskQueueName,
+          targetWorkers: taskQueueConfigs[taskQueueName].targetWorkers,
+          reservationActivitySid: config.activities['Reserved'].sid,
+          assignmentActivitySid: config.activities['Busy'].sid
+        }).then((taskqueue) => {
+          config.taskqueues[taskqueue.friendlyName] = taskqueue;
+          return workspace;
+        });
+      })).then(() => workspace);
+    })
+    .then((workspace) => {
+      if(process.env.DELETE_TWILIO_TASKS) {
+        console.log('deleting tasks');
+        workspace.tasks().list().then((tasks) => {
+          console.log('deleting', tasks);
+          tasks.forEach(task => task.remove());
+        });
+      }
+      return workspace;
     })
     .then((workspace) => {
       return upsert(workspace.workflows(), {friendlyName: workflowName}, {
@@ -117,9 +157,15 @@ export const configureTaskRouter = (twilioClient, workspaceName, baseUrl) => {
         taskReservationTimeout: 300,
         configuration: JSON.stringify({
           "task_routing": {
-            "filters": [],
+            "filters": [{
+              "friendly_name": "bot filter",
+              "expression": "queue=\"bot\"",
+              "targets": [{
+                "queue": config.taskqueues['bot'].sid
+              }]
+            }],
             "default_filter": {
-              "queue": config.taskqueues[taskQueueName].sid
+              "queue": config.taskqueues['human'].sid
             }
           }
         }, null, 2)

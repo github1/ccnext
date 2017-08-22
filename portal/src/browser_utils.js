@@ -41,14 +41,14 @@ export const resetScrollVirtualKeyboard = () => {
 
 let localStorageAvailable = null;
 const isLocalStorageAvailable = () => {
-  if(localStorageAvailable === null) {
+  if (localStorageAvailable === null) {
     var test = 'test';
     try {
       localStorage.setItem(test, test);
       localStorage.removeItem(test);
       localStorageAvailable = true;
     } catch (e) {
-      localStorageAvailable =  false;
+      localStorageAvailable = false;
     }
   }
   return localStorageAvailable;
@@ -60,14 +60,14 @@ export const fallbackStorage = {
     return isLocalStorageAvailable() ? localStorage.getItem(key) : storage[key];
   },
   removeItem(key) {
-    if(isLocalStorageAvailable()) {
+    if (isLocalStorageAvailable()) {
       localStorage.removeItem(key);
     } else {
       delete storage[key];
     }
   },
   setItem(key, value) {
-    if(isLocalStorageAvailable()) {
+    if (isLocalStorageAvailable()) {
       localStorage.setItem(key, value);
     } else {
       storage[key] = value;
@@ -86,3 +86,10 @@ export const getScrollBarWidth = () => {
   return scrollBarWidth();
 };
 
+export const queryParams = () => {
+  var search = window.location.search.substring(1);
+  return search ? JSON.parse('{"' + search.replace(/&/g, '","').replace(/=/g, '":"') + '"}',
+    function (key, value) {
+      return key === "" ? value : decodeURIComponent(value)
+    }) : {}
+}

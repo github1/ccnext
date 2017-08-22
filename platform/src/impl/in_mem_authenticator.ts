@@ -31,6 +31,14 @@ export class InMemoryAuthenticator implements Authenticator {
       .catch((err : Error) => {
         console.error(err);
       });
+
+    entityRepository.load(Registration, 'CCaaSBot')
+      .then((registration : Registration) => {
+        registration.register('password1', 'CCaaS', 'Bot', '+15555555555', 'bot', 'someword');
+      })
+      .catch((err : Error) => {
+        console.error(err);
+      });
   }
 
   public authenticateUsernamePassword(username : string, password : string) : Promise<AuthenticationResult> {

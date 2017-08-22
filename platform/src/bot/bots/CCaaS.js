@@ -1,14 +1,12 @@
 let CCaaS = (lexmodel) => {
-  let intents = Object.keys(lexmodel.intent).map(intentName => (
-    {
-      intentVersion: lexmodel.intent[intentName].Version,
-      intentName
-    }
-  ));
+  let intents = Object.keys(lexmodel.intent).map(intentName => ({
+    intentVersion: lexmodel.intent[intentName].Version,
+    intentName
+  }));
   return {
     name: 'CCaaSBot',
     description: 'A chatbot for a next generation contact centre',
-    locale:"en-US",
+    locale: "en-US",
     childDirected: false,
     abortStatement: {
       messages: [

@@ -71,7 +71,8 @@ export default class extends Component {
           phoneNumber: fullPhoneNumber,
           username: username,
           password: password,
-          role: role
+          role: role,
+          memorableWord: memorableWord
         });
       }
     });
