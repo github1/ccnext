@@ -2,13 +2,12 @@ import { Component } from 'react';
 import { JOIN_CHAT, LEAVE_CHAT, POST_OUTGOING_CHAT_MESSAGE } from '../constants';
 import ChatNowButton from './chat_now_button';
 import ChatDialogBox from './chat_dialog_box';
-import uuid from 'uuid';
 
 export default class extends Component {
   constructor(props) {
     super(props);
     this.state = {
-      componentInstanceId: uuid.v4()
+      componentInstanceId: 'customer-chat'
     }
   }
 

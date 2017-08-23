@@ -26,6 +26,7 @@ export function identityAPI(eventBus : EventBus, identityService : IdentityServi
 
       app.use((req : express.Request, res : express.Response, next : express.NextFunction) : void => {
         req.headers['user-id'] = '';
+        req.headers['user-role'] = '';
         req.headers['user-session-id'] = '';
         if (req.path.indexOf('/api') === 0) {
           const bypass : boolean = [
@@ -59,16 +60,15 @@ export function identityAPI(eventBus : EventBus, identityService : IdentityServi
       });
 
       app.post('/api/authenticate', (req : express.Request, res : express.Response) : void => {
-        const sessionId : string = req.headers['user-session-id'].toString();
         const body : AuthenticateRequestBody = <AuthenticateRequestBody> req.body;
+        const sessionId : string = body.sessionId || req.headers['user-session-id'].toString();
         const credentials : Credentials = (() : Credentials => {
           if (body.username && body.password) {
             return new UsernamePasswordCredentials(body.username, body.password, sessionId);
           }
           else if (body.memorableWordPositionsRequested) {
-            return new MemorableWordCredentials(
-              body.username, body.memorableWordPositionsRequested.split(',').map(parseInt),
-              body.memorableWordChars.split(','));
+            return new MemorableWordCredentials(body.username, body.memorableWordPositionsRequested.split(',').map(parseInt),
+              body.memorableWordChars.split(','), sessionId);
           }
           return new AnonymousCredentials();
         })();
@@ -112,6 +112,7 @@ export function identityAPI(eventBus : EventBus, identityService : IdentityServi
 }
 
 type AuthenticateRequestBody = {
+  sessionId : string;
   username : string,
   password : string,
   memorableWordPositionsRequested : string,

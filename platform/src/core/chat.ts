@@ -133,6 +133,7 @@ export class ChatParticipantVerificationEvent extends ChatEvent {
 export class Chat extends Entity {
   private started : boolean;
   private participants : { [key:string]:ChatParticipantVO } = {};
+  private defaultQueueName : string;
   private chatQueue : string;
   private fulfillmentSequence : number = 0;
   private chatSequence : number = 1;
@@ -148,6 +149,9 @@ export class Chat extends Entity {
       } else if (event instanceof ChatParticipantModifiedEvent) {
         self.participants[event.toParticipant.sessionId] = event.toParticipant;
       } else if (event instanceof ChatTransferredEvent) {
+        if(!self.chatQueue) {
+          self.defaultQueueName = event.toQueue;
+        }
         self.chatQueue = event.toQueue;
       } else if (event instanceof ChatReadyForFulfillmentEvent) {
         self.fulfillmentSequence = self.chatSequence;
@@ -176,6 +180,9 @@ export class Chat extends Entity {
 
   public leave(participantSessionId : string) : void {
     if (this.participants.hasOwnProperty(participantSessionId)) {
+      if(this.participants[participantSessionId].role === 'agent') {
+        this.transferTo(this.defaultQueueName);
+      }
       this.dispatch(this.id, new ChatParticipantLeftEvent(this.participants[participantSessionId]));
     }
   }

@@ -177,10 +177,6 @@ const sideEffect = (command, model) => {
         });
         if (command.name === 'ChatParticipantVerificationEvent') {
           if (command.state === 'requested' && command.participantSessionId === id.sessionId) {
-            /*-
-             dispatch({
-             type: IDENTITY_VERIFICATION_REQUESTED
-             });*/
             dispatch({
               type: NAVIGATE,
               redirect: `/verify/${command.participantSessionId}?r=${window.location.pathname}`
@@ -248,7 +244,7 @@ const sideEffect = (command, model) => {
         dispatch({
           type: AUTHENTICATION_STARTED
         });
-        authenticate(command.username, command.password).then((user) => {
+        authenticate(command.username, command.password, command.sessionId).then((user) => {
           profile().then((userProfile) => {
             return dispatch({
               type: AUTHENTICATION_SUCCESS,
@@ -391,7 +387,10 @@ const update = (event, model) => {
       break;
     case IDENTITY_VERIFICATION_REQUESTED:
       delete model.messages['invalid_credentials'];
-      model.identityVerificationRequired = identity().role === 'visitor' ? 'full' : 'partial';
+      model.identityVerificationRequired = {
+        mode: 'full',
+        identitySessionId: event.identitySessionId
+      };
       break;
     case IDENTITY_VERIFICATION_CANCELLED:
     case IDENTITY_VERIFICATION_SUCCESS:
@@ -508,7 +507,13 @@ const loadChatLog = (chatId, chatLog, model, append) => {
   const chatLogMessages = chatLog ? chatLog.map(chatLogToMessage).filter(msg => msg) : [];
   let messages = session.messages || [];
   if (append) {
-    messages = messages.concat(chatLogMessages);
+    chatLogMessages.forEach(chatLogMessage => {
+      if (messages.findIndex((msg) => {
+          return msg.messageId === chatLogMessage.messageId;
+        }) === -1) {
+        messages.push(chatLogMessage);
+      }
+    });
   } else {
     messages = chatLogMessages;
     if (session && session.messages) {
@@ -528,8 +533,10 @@ const loadChatLog = (chatId, chatLog, model, append) => {
       }
       if (msg.eventType === 'ChatParticipantModifiedEvent') {
         if (session.customer && session.customer.sessionId === msg.fromParticipant.sessionId) {
-          session.customer.handle = msg.toParticipant.handle;
-          session.customer.role = msg.toParticipant.role;
+          if(msg.toParticipant.handle.indexOf('+') < 0) {
+            session.customer.handle = msg.toParticipant.handle;
+            session.customer.role = msg.toParticipant.role;
+          }
         }
       }
     }

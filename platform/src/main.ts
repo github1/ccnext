@@ -20,6 +20,7 @@ const port : string = process.env.PORT || '9999';
 
 // publicly accessible url of this service (for webhooks)
 const publicUrl : string = process.env.PUBLIC_URL || `http://localhost:${port}`;
+const identityVerificationBaseUrl : string = process.env.ID_VERIF_URL || publicUrl;
 
 // twilio credentials
 const twilioPhoneNumberSid : string = process.env.TWILIO_NUMBER_SID;
@@ -90,7 +91,8 @@ if (publicUrl && publicUrl.indexOf('localhost') === -1) {
     twilioAuthToken,
     chatService,
     taskService,
-    eventBus);
+    eventBus,
+    identityVerificationBaseUrl);
 } else {
   console.warn('[WARN] Invalid publicUrl provided, Unable to register twilio hooks!');
 }

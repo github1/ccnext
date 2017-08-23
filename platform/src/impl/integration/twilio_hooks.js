@@ -10,7 +10,11 @@ import {
 const cookieParser = require('cookie-parser');
 const twilio = require('twilio');
 import { IdentityRegisteredEvent } from '../../core/identity';
-import { ChatParticipantVO, ChatMessagePostedEvent, ChatEndedEvent } from '../../core/chat';
+import {
+  ChatParticipantVO,
+  ChatMessagePostedEvent,
+  ChatParticipantVerificationEvent,
+  ChatEndedEvent } from '../../core/chat';
 import { TaskSubmittedEvent, TaskCompletedEvent } from '../../core/task';
 
 /**
@@ -24,9 +28,10 @@ import { TaskSubmittedEvent, TaskCompletedEvent } from '../../core/task';
  * @param {ChatService} chatService
  * @param {TaskService} taskService
  * @param {EventBus} eventBus
+ * @param {string} identityVerificationBaseUrl
  * @returns {object} server configurator
  */
-export default (baseUrl, contextPath, phoneNumberSid, accountSid, authToken, chatService, taskService, eventBus) => {
+export default (baseUrl, contextPath, phoneNumberSid, accountSid, authToken, chatService, taskService, eventBus, identityVerificationBaseUrl) => {
 
   const twilioClient = twilio(accountSid, authToken);
 
@@ -79,6 +84,22 @@ export default (baseUrl, contextPath, phoneNumberSid, accountSid, authToken, cha
           }
         } else if (event instanceof ChatEndedEvent) {
           delete twilioContext.chats[event.streamId];
+        } else if (event instanceof ChatParticipantVerificationEvent) {
+          if (twilioContext.chats[event.streamId] && twilioContext.chats[event.streamId].incomingNumber) {
+            if (event.state === 'requested') {
+              twilioClient.messages.create({
+                to: twilioContext.chats[event.streamId].incomingNumber,
+                from: twilioContext.phoneNumber,
+                body: `Please follow this link to verify your identity: ${identityVerificationBaseUrl}/verify/${event.participantSessionId}?r=/home`
+              });
+            } else if (event.state === 'succeeded') {
+              twilioClient.messages.create({
+                to: twilioContext.chats[event.streamId].incomingNumber,
+                from: twilioContext.phoneNumber,
+                body: `Thank you, your identity has been verified.`
+              });
+            }
+          }
         } else if (event instanceof TaskSubmittedEvent) {
           if (!event.taskData.twilioTaskSid) {
             createTaskIfNotExists(twilioClient,

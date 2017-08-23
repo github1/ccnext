@@ -31,11 +31,11 @@ export const authenticateAnonymous = () => {
   }).then(res => storeUserToken(res.token));
 };
 
-export const authenticate = (username, password) => {
+export const authenticate = (username, password, sessionId) => {
   return ajax({
     url: '/api/authenticate',
     method: 'post',
-    data: {username: username, password: password}
+    data: {username: username, password: password, sessionId: sessionId}
   }).then(res => storeUserToken(res.token));
 };
 
