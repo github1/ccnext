@@ -90,7 +90,7 @@ export default (baseUrl, contextPath, phoneNumberSid, accountSid, authToken, cha
               twilioClient.messages.create({
                 to: twilioContext.chats[event.streamId].incomingNumber,
                 from: twilioContext.phoneNumber,
-                body: `Please follow this link to verify your identity: ${identityVerificationBaseUrl}/verify/${event.participantSessionId}?r=/home`
+                body: `Please follow this link to verify your identity: ${identityVerificationBaseUrl}/verify/${event.verificationRequestId}?r=/home`
               });
             } else if (event.state === 'succeeded') {
               twilioClient.messages.create({

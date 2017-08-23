@@ -33,11 +33,14 @@ export class IdentityService {
     return <IdentityVO> jwts.decode(jwt, this.jwtSecret + unverifiedJwt.sessionId);
   }
 
-  public requestVerification(identitySessionId : string) : void {
-    this.entityRepository
+  public requestVerification(identitySessionId : string) : Promise<string> {
+    return <Promise<string>> this.entityRepository
       .load(Identity, identitySessionId)
       .then((identity : Identity) => {
         return identity.requestVerification();
+      })
+      .then((requestId : string) => {
+        return requestId;
       })
       .catch((err : Error) => {
         console.error(err);

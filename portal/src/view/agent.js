@@ -71,8 +71,11 @@ export default class extends Component {
                 }</td></tr>
                 </tbody>
               </table>
-              <a href="#" className="btn btn-primary" disabled={customerIsVerified} onClick={
+              <a className="btn btn-primary" disabled={selectedTask.status !== 'assigned' || customerIsVerified} onClick={
                     () => {
+                      if(selectedTask.status !== 'assigned' || customerIsVerified) {
+                        return;
+                      }
                       dispatch({
                         type: VERIFY_IDENTITY,
                         identityId: customerSessionId

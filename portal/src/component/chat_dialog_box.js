@@ -68,7 +68,7 @@ class ChatDialogBox extends Component {
   }
 
   render() {
-    const messages = this.props.messages || [];
+    const messages = (this.props.messages || []).filter(msg => msg.text !== '');
     const hasMessages = messages.filter((message) => message.messageType !== 'status').length > 0;
     const placeholder = hasMessages ? "" : this.props.placeholder;
     const style = this.props.height ? {

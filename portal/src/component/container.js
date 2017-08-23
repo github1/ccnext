@@ -83,7 +83,9 @@ export default class extends Component {
       ]
     };
 
-    const actions = this.props.model.user ?
+    const notVisitor = this.props.model.user && this.props.model.user.role !== 'visitor';
+
+    const actions = notVisitor ?
       <div
         className="user-menu">
         <Dropdown
@@ -94,7 +96,7 @@ export default class extends Component {
 
     if (viewName === 'verification') {
       return content;
-    } else if (this.props.model.user) {
+    } else if (notVisitor) {
       return <div key="root-container">
         <div className="pull-left">
           <NavMenu className="account-menu" logo={true}/>

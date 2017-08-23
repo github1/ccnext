@@ -17,6 +17,7 @@ import {
   authenticate,
   profile,
   signout,
+  getIdentityVerificationRequest,
   requestIdentityVerification,
   register
 } from './api/identity.js';
@@ -40,6 +41,7 @@ import {
   VERIFY_IDENTITY,
   CANCEL_IDENTITY_VERIFICATION,
   IDENTITY_VERIFICATION_REQUESTED,
+  LOAD_IDENTITY_VERIFICATION_REQUEST,
   IDENTITY_VERIFICATION_SUCCESS,
   IDENTITY_VERIFICATION_CANCELLED,
   JOIN_CHAT,
@@ -55,7 +57,8 @@ import {
   TASK_RECEIVED,
   MARK_TASK_COMPLETE,
   SELECT_TASK,
-  TASK_SELECTED
+  TASK_SELECTED,
+  RESIZED
 } from './constants';
 
 let element = document.getElementById('main');
@@ -66,7 +69,6 @@ if (!element) {
 }
 
 const pendingEvents = [];
-const events = [];
 const model = () => {
   return {
     messages: [],
@@ -156,31 +158,36 @@ const sideEffect = (command, model) => {
           setTimeout(() => {
             dispatch({
               type: INCOMING_CHAT_MESSAGE_POSTED,
-              messageId: command.messageId,
-              id: command.streamId,
-              from: command.fromParticipant.handle,
-              text: command.text
+              rawEvent: command
             });
           }, 500);
         } else {
           dispatch({
             type: OUTGOING_CHAT_MESSAGE_POSTED,
-            messageId: command.messageId,
-            id: command.streamId,
-            from: command.fromParticipant.handle,
-            text: command.text
+            rawEvent: command
           });
         }
-      } else if (/^ChatParticipant(Joined|Left|Modified|Verification)Event$/i.test(command.name)) {
-        dispatch({
-          type: CHAT_STATUS_POSTED,
-          rawEvent: command
-        });
+      } else if (/^ChatParticipant(Joined|Left|Modified|Verification)Event$/.test(command.name)) {
+
+        if(command.name == 'ChatParticipantLeftEvent' && command.participant.sessionId === id.sessionId) {
+          unsubscribe(command.streamId).then(() => {
+            dispatch({
+              type: CHAT_STATUS_POSTED,
+              rawEvent: command
+            });
+          });
+        } else {
+          dispatch({
+            type: CHAT_STATUS_POSTED,
+            rawEvent: command
+          });
+        }
+
         if (command.name === 'ChatParticipantVerificationEvent') {
           if (command.state === 'requested' && command.participantSessionId === id.sessionId) {
             dispatch({
               type: NAVIGATE,
-              redirect: `/verify/${command.participantSessionId}?r=${window.location.pathname}`
+              redirect: `/verify/${command.verificationRequestId}?r=${window.location.pathname}`
             });
           }
         }
@@ -207,6 +214,20 @@ const sideEffect = (command, model) => {
           task: command.task
         });
       }
+      break;
+    case LOAD_IDENTITY_VERIFICATION_REQUEST:
+      getIdentityVerificationRequest(command.verificationRequestId)
+        .then((result) => {
+          dispatch({
+            type: IDENTITY_VERIFICATION_REQUESTED,
+            identitySessionId: result.identityId
+          });
+        })
+        .catch(() => {
+          dispatch({
+            type: CANCEL_IDENTITY_VERIFICATION
+          });
+        });
       break;
     case CANCEL_IDENTITY_VERIFICATION:
       if (window.location.pathname.indexOf('/verify') > -1) {
@@ -249,7 +270,7 @@ const sideEffect = (command, model) => {
               dispatch({
                 type: IDENTITY_VERIFICATION_SUCCESS
               }).then(() => {
-                if(model.queryParams.r) {
+                if (model.queryParams.r) {
                   dispatch({
                     type: NAVIGATE,
                     redirect: model.queryParams.r
@@ -341,6 +362,9 @@ const sideEffect = (command, model) => {
 const update = (event, model) => {
   model.invalid_credentials = false;
   switch (event.type) {
+    case RESIZED:
+      model.device.screen.height = event.height;
+      break;
     case NAVIGATION_REQUESTED:
       delete model.identityVerificationRequired;
       delete model.messages['invalid_credentials'];
@@ -394,41 +418,10 @@ const update = (event, model) => {
       delete model.chatSessions[event.id];
       break;
     case OUTGOING_CHAT_MESSAGE_POSTED:
-    {
-      model.chatSessions[event.id] = model.chatSessions[event.id] || {};
-      const chatSession = model.chatSessions[event.id];
-      chatSession.messages = chatSession.messages || [];
-      const index = chatSession.messages.findIndex((message) => message.messageId === event.messageId);
-      if (index === -1) {
-        chatSession.messages.push({
-          messageId: event.messageId,
-          from: event.from,
-          direction: 'outgoing',
-          text: event.text
-        });
-      }
-      break;
-    }
+    case INCOMING_CHAT_MESSAGE_POSTED:
     case CHAT_STATUS_POSTED:
       loadChatLog(event.rawEvent.streamId, [event.rawEvent], model, true);
       break;
-    case INCOMING_CHAT_MESSAGE_POSTED:
-    {
-      model.chatSessions[event.id] = model.chatSessions[event.id] || {};
-      const chatSession = model.chatSessions[event.id];
-      chatSession.messages = chatSession.messages || [];
-      const index = chatSession.messages.findIndex((message) => message.messageId === event.messageId);
-      if (index === -1) {
-        chatSession.messages.push({
-          messageType: event.messageType,
-          messageId: event.messageId,
-          from: event.from,
-          direction: 'incoming',
-          text: event.text
-        });
-      }
-      break;
-    }
     case TASKS_LOADED:
       model.tasks = event.tasks;
       event.tasks.forEach(task => {
@@ -460,11 +453,13 @@ const loadChatLog = (chatId, chatLog, model, append) => {
   if (!chatId || !chatLog) {
     return;
   }
+  model.chatSessions[chatId] = model.chatSessions[chatId] || {};
+  const session = model.chatSessions[chatId];
   const chatLogToMessage = (chatLog) => {
     if (/^ChatParticipant(Joined|Left)Event$/.test(chatLog.name)) {
       const eventType = /^ChatParticipant(Joined|Left)Event$/.exec(chatLog.name)[1];
       return {
-        messageId: `${chatLog.name}-${chatLog.timestamp}-${chatLog.participant.handle}`,
+        messageId: `${chatLog.name}-${chatLog.timestamp}-${chatLog.participant.sessionId}`,
         messageType: 'status',
         eventType: eventType,
         participant: chatLog.participant,
@@ -472,7 +467,7 @@ const loadChatLog = (chatId, chatLog, model, append) => {
       }
     } else if (chatLog.name === 'ChatParticipantModifiedEvent') {
       return {
-        messageId: `${chatLog.name}-${chatLog.timestamp}-${chatLog.fromParticipant.handle}-${chatLog.toParticipant.handle}`,
+        messageId: `${chatLog.name}-${chatLog.timestamp}-${chatLog.fromParticipant.sessionId}`,
         messageType: 'status',
         eventType: chatLog.name,
         fromParticipant: chatLog.fromParticipant,
@@ -484,20 +479,23 @@ const loadChatLog = (chatId, chatLog, model, append) => {
         messageId: `${chatLog.name}-${chatLog.timestamp}-${chatLog.participantSessionId}`,
         messageType: 'status',
         eventType: `${chatLog.name}-${chatLog.state}`,
+        participantHandle: chatLog.participantHandle,
         participantSessionId: chatLog.participantSessionId,
         text: `identity verification ${chatLog.state}`
       }
     } else if (chatLog.name === 'ChatMessagePostedEvent') {
+      let from = chatLog.fromParticipant.handle;
+      if(session.customer && chatLog.fromParticipant.sessionId === session.customer.sessionId) {
+        from = session.customer.handle;
+      }
       return {
         messageId: chatLog.messageId,
         direction: ['customer', 'visitor'].indexOf(chatLog.fromParticipant.role) > -1 ? 'incoming' : 'outgoing',
-        from: chatLog.fromParticipant.handle,
+        from: from,
         text: chatLog.text
       }
     }
   };
-  model.chatSessions[chatId] = model.chatSessions[chatId] || {};
-  const session = model.chatSessions[chatId];
   const chatLogMessages = chatLog ? chatLog.map(chatLogToMessage).filter(msg => msg) : [];
   let messages = session.messages || [];
   if (append) {
@@ -522,12 +520,12 @@ const loadChatLog = (chatId, chatLog, model, append) => {
   }
   messages.forEach(msg => {
     if (msg.messageType === 'status') {
-      if (msg.eventType === 'Joined' && ['customer', 'visitor'].indexOf(msg.participant.role) > -1) {
+      if (msg.eventType === 'Joined' && msg.participant && ['customer', 'visitor'].indexOf(msg.participant.role) > -1) {
         session.customer = msg.participant;
       }
       if (msg.eventType === 'ChatParticipantModifiedEvent') {
         if (session.customer && session.customer.sessionId === msg.fromParticipant.sessionId) {
-          if(msg.toParticipant.handle.indexOf('+') < 0) {
+          if (msg.toParticipant.handle.indexOf('+') < 0) {
             session.customer.handle = msg.toParticipant.handle;
             session.customer.role = msg.toParticipant.role;
           }
@@ -537,16 +535,17 @@ const loadChatLog = (chatId, chatLog, model, append) => {
   });
   messages.forEach(msg => {
     if (msg.eventType === 'ChatParticipantVerificationEvent-succeeded') {
-      if (session.customer.sessionId === msg.participantSessionId) {
+      if (session.customer && session.customer.sessionId === msg.participantSessionId) {
+        session.customer.handle = msg.participantHandle;
         session.customer.verified = true;
       }
     }
   });
-  session.messages = messages.filter(msg => msg.text !== '');
+  session.messages = messages;
 };
 
 let rendering = false;
-let latestModel = {};
+let latestModel = model();
 window.dispatch = (event) => {
   return new Promise((resolve) => {
     sideEffect(event, latestModel);
@@ -557,21 +556,20 @@ window.dispatch = (event) => {
     }
     if (!rendering) {
       rendering = true;
-      while (pendingEvents.length > 0) {
-        events.push(pendingEvents.pop());
-      }
-      events.push(event);
-      latestModel = events.reduce((updated, event) => {
-        return update(event, updated);
-      }, JSON.parse(JSON.stringify(model())));
       latestModel.queryParams = queryParams();
+      const updateModel = (event) => {
+        latestModel = update(event, JSON.parse(JSON.stringify(latestModel)));
+      };
+      while (pendingEvents.length > 0) {
+        updateModel(pendingEvents.pop());
+      }
+      updateModel(event);
       render(<Container model={ latestModel }/>, element, () => {
-        rendering = false;
         resolve(latestModel);
         if (latestModel.device.isMobile) {
           resetScrollVirtualKeyboard();
         }
-
+        rendering = false;
       });
     } else {
       pendingEvents.push(event);
@@ -592,7 +590,10 @@ window.onload = function () {
 
   window.addEventListener('resize',
     function (e) {
-      dispatch({});
+      dispatch({
+        type: RESIZED,
+        height: window.innerHeight
+      });
     }, true);
 
   preventZoom();
@@ -603,10 +604,10 @@ window.onload = function () {
     });
   });
 
-  page('/verify/:sessionId', (ctx) => {
+  page('/verify/:verificationRequestId', (ctx) => {
     window.dispatch({
-      type: IDENTITY_VERIFICATION_REQUESTED,
-      identitySessionId: ctx.params.sessionId
+      type: LOAD_IDENTITY_VERIFICATION_REQUEST,
+      verificationRequestId: ctx.params.verificationRequestId
     });
   });
 

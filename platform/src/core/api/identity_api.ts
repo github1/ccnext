@@ -6,7 +6,11 @@ import {
   UsernamePasswordCredentials,
   MemorableWordCredentials
 } from '../authentication';
-import { IdentityRegisteredEvent } from '../identity';
+import {
+  IdentityRegisteredEvent,
+  AuthenticationVerificationRequestedEvent,
+  AuthenticationVerificationSucceededEvent
+} from '../identity';
 import { IdentityService, IdentityVO } from '../identity_service';
 
 export function identityAPI(eventBus : EventBus, identityService : IdentityService) : { preConfigure: Function } {
@@ -15,9 +19,15 @@ export function identityAPI(eventBus : EventBus, identityService : IdentityServi
 
   const profiles : {[key: string]:IdentityRegisteredEvent} = {};
 
+  const verificationRequests : {[key: string]:string} = {};
+
   eventBus.subscribe((event : EntityEvent) => {
     if (event instanceof IdentityRegisteredEvent) {
       profiles[event.streamId] = Object.assign({}, event, {password: ''});
+    } else if (event instanceof AuthenticationVerificationRequestedEvent) {
+      verificationRequests[event.requestId] = event.streamId;
+    } else if (event instanceof AuthenticationVerificationSucceededEvent) {
+      delete verificationRequests[event.requestId];
     }
   }, {replay: true});
 
@@ -87,10 +97,24 @@ export function identityAPI(eventBus : EventBus, identityService : IdentityServi
           });
       });
 
-      app.post('/api/verification/:identityId', (req : express.Request, res : express.Response) : void => {
+      app.post('/api/verification', (req : express.Request, res : express.Response) : void => {
+        const body : Msg = <Msg> req.body;
+        identityService.requestVerification(body.identityId).then((requestId : string) => {
+          res.json({
+            requestId: requestId
+          });
+        });
+      });
+
+      app.get('/api/verification/:requestId', (req : express.Request, res : express.Response) : void => {
         const params : Msg = <Msg> req.params;
-        identityService.requestVerification(params.identityId);
-        res.json({});
+        if(verificationRequests[params.requestId]) {
+          res.json({
+            identityId: verificationRequests[params.requestId]
+          });
+        } else {
+          res.status(404).json({});
+        }
       });
 
       app.post('/api/register', (req : express.Request, res : express.Response) : void => {
@@ -112,6 +136,7 @@ export function identityAPI(eventBus : EventBus, identityService : IdentityServi
 
 type AuthenticateRequestBody = {
   sessionId : string;
+  verificationRequestId : string;
   username : string,
   password : string,
   memorableWordPositionsRequested : string,

@@ -54,7 +54,10 @@ export function chatAPI(eventBus : EventBus, chatService : ChatService) : { preC
       } else if (event instanceof AuthenticationVerificationRequestedEvent) {
         if (chatParticipants[event.streamId]) {
           chatParticipants[event.streamId].forEach((chatId : string) => {
-            const syntheticEvent : ChatParticipantVerificationEvent = new ChatParticipantVerificationEvent(event.streamId, 'requested');
+            const syntheticEvent : ChatParticipantVerificationEvent = new ChatParticipantVerificationEvent(
+              event.requestId,
+              event.streamId,
+              'requested');
             syntheticEvent.streamId = chatId;
             if (!isReplaying) {
               eventBus.emit(syntheticEvent);
@@ -67,6 +70,7 @@ export function chatAPI(eventBus : EventBus, chatService : ChatService) : { preC
           chatParticipants[event.streamId].forEach((chatId : string) => {
             const syntheticEvent : ChatParticipantVerificationEvent =
               new ChatParticipantVerificationEvent(
+                event.requestId,
                 event.streamId,
                 'succeeded',
                 event.username,

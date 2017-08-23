@@ -117,12 +117,14 @@ export class ChatErrorEvent extends ChatEvent {
 }
 
 export class ChatParticipantVerificationEvent extends ChatEvent {
+  public verificationRequestId : string;
   public participantSessionId : string;
   public state : string;
   public participantHandle : string;
   public participantRole : string;
-  constructor(participantSessionId : string, state : string, participantHandle? : string, participantRole? : string) {
+  constructor(verificationRequestId : string, participantSessionId : string, state : string, participantHandle? : string, participantRole? : string) {
     super();
+    this.verificationRequestId = verificationRequestId;
     this.participantSessionId = participantSessionId;
     this.state = state;
     this.participantHandle = participantHandle;

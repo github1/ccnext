@@ -39,10 +39,20 @@ export const authenticate = (credentials) => {
   }).then(res => storeUserToken(res.token));
 };
 
+export const getIdentityVerificationRequest = (requestId) => {
+  return ajax({
+    url: `/api/verification/${requestId}`,
+    method: 'get'
+  });
+};
+
 export const requestIdentityVerification = (identityId) => {
   return ajax({
-    url: `/api/verification/${identityId}`,
-    method: 'post'
+    url: '/api/verification',
+    method: 'post',
+    data: {
+      identityId: identityId
+    }
   });
 };
 

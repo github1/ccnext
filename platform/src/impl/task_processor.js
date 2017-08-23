@@ -1,5 +1,5 @@
 import { ChatTransferredEvent } from '../core/chat';
-import { TaskCompletedEvent } from '../core/task';
+import { TaskSubmittedEvent, TaskCompletedEvent } from '../core/task';
 
 module.exports = (eventBus, taskService, chatService) => {
 
@@ -17,6 +17,8 @@ module.exports = (eventBus, taskService, chatService) => {
       if (event.taskData.chatId) {
         chatService.endChat(event.taskData.chatId);
       }
+    } else if (event instanceof TaskSubmittedEvent) {
+
     }
   });
 
