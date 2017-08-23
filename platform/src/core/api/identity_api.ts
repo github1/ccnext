@@ -11,6 +11,8 @@ import { IdentityService, IdentityVO } from '../identity_service';
 
 export function identityAPI(eventBus : EventBus, identityService : IdentityService) : { preConfigure: Function } {
 
+  type Msg = { [key:string]:string };
+
   const profiles : {[key: string]:IdentityRegisteredEvent} = {};
 
   eventBus.subscribe((event : EntityEvent) => {
@@ -80,11 +82,16 @@ export function identityAPI(eventBus : EventBus, identityService : IdentityServi
           })
           .catch((error : Error) => {
             console.error(error);
-            res.status(403);
-            res.json({
+            res.status(403).json({
               message: `${error.message}`
             });
           });
+      });
+
+      app.post('/api/verification/:identityId', (req : express.Request, res : express.Response) : void => {
+        const params : Msg = <Msg> req.params;
+        identityService.requestVerification(params.identityId);
+        res.json({});
       });
 
       app.post('/api/register', (req : express.Request, res : express.Response) : void => {

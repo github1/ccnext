@@ -1,5 +1,5 @@
 import { Component } from 'react';
-import { LOAD_TASKS } from '../constants';
+import { LOAD_TASKS, VERIFY_IDENTITY } from '../constants';
 import TaskList from './../component/task_list';
 import TaskDetail from './../component/task_detail';
 import TaskStatus from './../component/task_status';
@@ -30,9 +30,13 @@ export default class extends Component {
     })[0];
     if (selectedTask) {
       let customerHandle = 'Unknown';
-      if(selectedTask.channel === 'chat') {
-        if(this.props.model.chatSessions[selectedTask.chatId] && this.props.model.chatSessions[selectedTask.chatId].customer) {
+      let customerSessionId = '';
+      let customerIsVerified = false;
+      if (selectedTask.channel === 'chat') {
+        if (this.props.model.chatSessions[selectedTask.chatId] && this.props.model.chatSessions[selectedTask.chatId].customer) {
           customerHandle = this.props.model.chatSessions[selectedTask.chatId].customer.handle;
+          customerSessionId = this.props.model.chatSessions[selectedTask.chatId].customer.sessionId;
+          customerIsVerified = this.props.model.chatSessions[selectedTask.chatId].customer.verified;
         }
       }
       return <div className="agent-body">
@@ -52,8 +56,26 @@ export default class extends Component {
             <div className="panel-heading">
               <h3 className="panel-title">Customer Details</h3>
             </div>
-            <div className="panel-body small">
-              <div>{ customerHandle }</div>
+            <div className="panel-body small verification-info">
+              <table className="table">
+                <tbody>
+                <tr><th>Username</th><td><span>
+                  { customerHandle }</span></td></tr>
+                <tr><th>Status</th><td>{
+                  customerIsVerified ? <span className="verification-success">verified
+                </span> : <span className="verification-failed">
+                    unverified</span>
+                }</td></tr>
+                </tbody>
+              </table>
+              <a href="#" className="btn btn-primary" disabled={customerIsVerified} onClick={
+                    () => {
+                      dispatch({
+                        type: VERIFY_IDENTITY,
+                        identityId: customerSessionId
+                      });
+                    }
+                    }>Request verification</a>
             </div>
           </div>
         </div>
@@ -64,8 +86,9 @@ export default class extends Component {
         </div>
       </div>
     } else {
-      if(this.props.model.selectedTask) {
-        return <div className="alert alert-danger"><span>{ `Task ${this.props.model.selectedTask} not found` }</span>
+      if (this.props.model.selectedTask) {
+        return <div className="alert alert-danger">
+          <span>{ `Task ${this.props.model.selectedTask} not found` }</span>
           <hr/>
           <a className="btn btn-danger" href="/agent">Ok</a>
         </div>;

@@ -116,6 +116,20 @@ export class ChatErrorEvent extends ChatEvent {
   }
 }
 
+export class ChatParticipantVerificationEvent extends ChatEvent {
+  public participantSessionId : string;
+  public state : string;
+  public participantHandle : string;
+  public participantRole : string;
+  constructor(participantSessionId : string, state : string, participantHandle? : string, participantRole? : string) {
+    super();
+    this.participantSessionId = participantSessionId;
+    this.state = state;
+    this.participantHandle = participantHandle;
+    this.participantRole = participantRole;
+  }
+}
+
 export class Chat extends Entity {
   private started : boolean;
   private participants : { [key:string]:ChatParticipantVO } = {};

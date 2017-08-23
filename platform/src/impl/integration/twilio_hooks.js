@@ -104,6 +104,8 @@ export default (baseUrl, contextPath, phoneNumberSid, accountSid, authToken, cha
                 console.error('failed to update task in twilio', err);
               });
           }
+        } else if (event.name === 'ChatParticipantAuthenticationVerificationRequestedEvent') {
+          // TODO
         }
       }
     }, {replay: true});

@@ -3,13 +3,18 @@ import {
   EventBus,
   EntityEvent
 } from '../entity/entity';
-import { AuthenticationSucceededEvent } from '../identity';
+import {
+  AuthenticationVerificationRequestedEvent,
+  AuthenticationVerificationSucceededEvent,
+  AuthenticationSucceededEvent
+} from '../identity';
 import {
   ChatParticipantVO,
   ChatMessagePostedEvent,
   ChatParticipantJoinedEvent,
   ChatParticipantLeftEvent,
-  ChatParticipantModifiedEvent
+  ChatParticipantModifiedEvent,
+  ChatParticipantVerificationEvent
 } from '../chat';
 import { ChatService } from '../chat_service';
 
@@ -22,7 +27,7 @@ export function chatAPI(eventBus : EventBus, chatService : ChatService) : { preC
   const chatLog : ChatLogEntry = {};
 
   eventBus.subscribe(
-    (event : EntityEvent) => {
+    (event : EntityEvent, isReplaying : boolean) => {
       if (event instanceof ChatMessagePostedEvent ||
         event instanceof ChatParticipantJoinedEvent ||
         event instanceof ChatParticipantLeftEvent ||
@@ -38,12 +43,39 @@ export function chatAPI(eventBus : EventBus, chatService : ChatService) : { preC
           }
         }
       } else if (event instanceof AuthenticationSucceededEvent) {
-        if(chatParticipants[event.streamId]) {
+        if (chatParticipants[event.streamId]) {
           chatParticipants[event.streamId].forEach((chatId : string) => {
             chatService.joinChat(chatId, new ChatParticipantVO(event.username, event.role, event.streamId))
               .catch((err : Error) => {
                 console.error(err);
               });
+          });
+        }
+      } else if (event instanceof AuthenticationVerificationRequestedEvent) {
+        if (chatParticipants[event.streamId]) {
+          chatParticipants[event.streamId].forEach((chatId : string) => {
+            const syntheticEvent : ChatParticipantVerificationEvent = new ChatParticipantVerificationEvent(event.streamId, 'requested');
+            syntheticEvent.streamId = chatId;
+            if (!isReplaying) {
+              eventBus.emit(syntheticEvent);
+            }
+            chatLog[chatId].push(syntheticEvent);
+          });
+        }
+      } else if (event instanceof AuthenticationVerificationSucceededEvent) {
+        if (chatParticipants[event.streamId]) {
+          chatParticipants[event.streamId].forEach((chatId : string) => {
+            const syntheticEvent : ChatParticipantVerificationEvent =
+              new ChatParticipantVerificationEvent(
+                event.streamId,
+                'succeeded',
+                event.username,
+                event.role);
+            syntheticEvent.streamId = chatId;
+            if (!isReplaying) {
+              eventBus.emit(syntheticEvent);
+            }
+            chatLog[chatId].push(syntheticEvent);
           });
         }
       }

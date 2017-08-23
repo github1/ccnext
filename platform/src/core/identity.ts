@@ -33,6 +33,19 @@ export class AuthenticationErrorEvent extends AuthenticationEvent {
 export class AuthenticationLockedEvent extends AuthenticationEvent {
 }
 
+export class AuthenticationVerificationRequestedEvent extends AuthenticationEvent {
+}
+
+export class AuthenticationVerificationSucceededEvent extends AuthenticationEvent {
+  public username : string;
+  public role : string;
+  constructor(username : string, role : string) {
+    super();
+    this.username = username;
+    this.role = role;
+  }
+}
+
 export class IdentityRegisteredEvent extends AuthenticationEvent {
   public username : string;
   public password : string;
@@ -62,6 +75,8 @@ export class IdentityRegisteredEvent extends AuthenticationEvent {
 
 export class Identity extends Entity {
 
+  private verificationRequested : boolean = false;
+  private verified : boolean = false;
   private lastState : string;
   private failedAuthenticationAttempts : number = 0;
 
@@ -75,10 +90,20 @@ export class Identity extends Entity {
           } else {
             self.failedAuthenticationAttempts = 0;
           }
+        } else if (event instanceof AuthenticationVerificationRequestedEvent) {
+          this.verificationRequested = true;
+        } else if(event instanceof AuthenticationVerificationSucceededEvent) {
+          this.verified = true;
         }
         self.lastState = event.constructor.name;
       }
     }));
+  }
+
+  public requestVerification() : void {
+    if(!this.verified) {
+      this.dispatch(this.id, new AuthenticationVerificationRequestedEvent());
+    }
   }
 
   public authenticate(credentials : Credentials, authenticator : Authenticator) : Promise<AuthenticationResult> {
@@ -100,6 +125,12 @@ export class Identity extends Entity {
                 this.id,
                 new AuthenticationSucceededEvent(result.username, result.role)
               );
+              if(this.verificationRequested && !this.verified) {
+                this.dispatch(
+                  this.id,
+                  new AuthenticationVerificationSucceededEvent(result.username, result.role)
+                );
+              }
               resolve(result);
             } else {
               this.dispatch(

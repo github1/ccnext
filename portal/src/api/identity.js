@@ -39,6 +39,13 @@ export const authenticate = (username, password) => {
   }).then(res => storeUserToken(res.token));
 };
 
+export const requestIdentityVerification = (identityId) => {
+  return ajax({
+    url: `/api/verification/${identityId}`,
+    method: 'post'
+  });
+};
+
 export const profile = () => {
   return ajax({
     url: '/api/profile',

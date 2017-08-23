@@ -10,7 +10,15 @@ import {
   preventZoom,
   growl
 } from './browser_utils';
-import { identity, authenticateAnonymous, authenticate, profile, signout, register } from './api/identity.js';
+import {
+  identity,
+  authenticateAnonymous,
+  authenticate,
+  profile,
+  signout,
+  requestIdentityVerification,
+  register
+} from './api/identity.js';
 import { startChat, leaveChat, postChatMessage } from './api/chat.js';
 import { getTasks, markTaskComplete, populateTasks } from './api/tasks.js';
 import { openEventStream, subscribeTo, unsubscribe } from './api/events';
@@ -28,6 +36,11 @@ import {
   AUTHENTICATION_STARTED,
   AUTHENTICATION_FAILED,
   AUTHENTICATION_SUCCESS,
+  VERIFY_IDENTITY,
+  CANCEL_IDENTITY_VERIFICATION,
+  IDENTITY_VERIFICATION_REQUESTED,
+  IDENTITY_VERIFICATION_SUCCESS,
+  IDENTITY_VERIFICATION_CANCELLED,
   JOIN_CHAT,
   CHAT_JOINED,
   LEAVE_CHAT,
@@ -72,7 +85,7 @@ const model = () => {
 const sideEffect = (command, model) => {
   const id = identity();
   if (!id.sessionId) {
-    authenticateAnonymous().then((data) => {
+    authenticateAnonymous().then(() => {
       dispatch(command);
     });
     return;
@@ -167,6 +180,36 @@ const sideEffect = (command, model) => {
           id: command.streamId,
           text: `${command.participant.handle} has ${eventType} the chat`
         });
+      } else if (command.name === 'ChatParticipantModifiedEvent') {
+        dispatch({
+          type: CHAT_STATUS_POSTED,
+          messageId: `${command.name}-${command.timestamp}-${command.fromParticipant.handle}-${command.toParticipant.handle}`,
+          messageType: 'status',
+          eventType: command.name,
+          fromParticipant: command.fromParticipant,
+          toParticipant: command.toParticipant,
+          id: command.streamId,
+          text: ''
+        });
+      } else if (command.name === 'ChatParticipantVerificationEvent') {
+        dispatch({
+          type: CHAT_STATUS_POSTED,
+          messageId: `${command.name}-${command.timestamp}-${command.participantSessionId}`,
+          messageType: 'status',
+          eventType: `${command.name}-${command.state}`,
+          participantSessionId: command.participantSessionId,
+          id: command.streamId,
+          text: `identity verification ${command.state}`
+        });
+        if (command.state === 'requested' && command.participantSessionId === id.sessionId) {
+          dispatch({
+            type: NAVIGATE,
+            redirect: `/verify/${command.participantSessionId}`
+          });
+          //dispatch({
+          //  type: IDENTITY_VERIFICATION_REQUESTED
+          //});
+        }
       } else if (command.name === 'WorkerTaskStatusUpdatedEvent') {
         populateTasks(command.task).then((tasks) => {
           const url = `/agent/task/${tasks[0].taskId}`;
@@ -191,6 +234,17 @@ const sideEffect = (command, model) => {
         });
       }
       break;
+    case CANCEL_IDENTITY_VERIFICATION:
+      if (window.location.pathname.indexOf('/verify') > -1) {
+        dispatch({
+          type: SIGN_OUT
+        });
+      } else {
+        dispatch({
+          type: IDENTITY_VERIFICATION_CANCELLED
+        });
+      }
+      break;
     case REGISTER_USER:
       register(command).then(() => {
         dispatch({
@@ -210,16 +264,22 @@ const sideEffect = (command, model) => {
         dispatch({
           type: AUTHENTICATION_STARTED
         });
-        authenticate(command.username, command.password).then(() => {
-          profile().then((user) => {
+        authenticate(command.username, command.password).then((user) => {
+          profile().then((userProfile) => {
             return dispatch({
               type: AUTHENTICATION_SUCCESS,
-              user: user
+              user: userProfile
             }).then(() => {
-              // subscribe to events addressed to this user
-              return subscribeTo(command.username).then(() => {
-                page.redirect('/');
-              });
+              if (command.isVerification) {
+                dispatch({
+                  type: IDENTITY_VERIFICATION_SUCCESS
+                });
+              } else {
+                // subscribe to events addressed to this user
+                return subscribeTo(user.username).then(() => {
+                  page.redirect('/');
+                });
+              }
             });
           });
         }).catch(() => {
@@ -241,6 +301,9 @@ const sideEffect = (command, model) => {
           redirect: '/home'
         });
       });
+      break;
+    case VERIFY_IDENTITY:
+      requestIdentityVerification(command.identityId);
       break;
     case JOIN_CHAT:
     {
@@ -301,6 +364,7 @@ const update = (event, model) => {
       break;
     case CLEAR_USER:
       delete model.user;
+      delete model.identityVerificationRequired;
       break;
     case USER_REGISTERED:
       model.messages['user_registered'] = {
@@ -331,6 +395,13 @@ const update = (event, model) => {
         componentInstanceIds: [event.componentInstanceId]
       };
       break;
+    case IDENTITY_VERIFICATION_REQUESTED:
+      model.identityVerificationRequired = identity().role === 'visitor' ? 'full' : 'partial';
+      break;
+    case IDENTITY_VERIFICATION_CANCELLED:
+    case IDENTITY_VERIFICATION_SUCCESS:
+      delete model.identityVerificationRequired;
+      break;
     case CHAT_LEFT:
       delete model.chatSessions[event.id];
       break;
@@ -357,7 +428,7 @@ const update = (event, model) => {
       const chatSession = model.chatSessions[event.id];
       chatSession.messages = chatSession.messages || [];
       const index = chatSession.messages.findIndex((message) => message.messageId === event.messageId);
-      if (index === -1) {
+      if (index === -1 && event.text !== '') {
         chatSession.messages.push({
           messageType: event.messageType,
           messageId: event.messageId,
@@ -366,8 +437,20 @@ const update = (event, model) => {
           text: event.text
         });
       }
-      if(event.messageType === 'status' && ['visitor','customer'].indexOf(event.participant.role) > -1) {
-        chatSession.customer = event.participant;
+      if (event.messageType === 'status') {
+        if (event.eventType === 'Joined' && ['visitor', 'customer'].indexOf(event.participant.role) > -1) {
+          chatSession.customer = event.participant;
+        }
+        if (event.eventType === 'ChatParticipantModifiedEvent') {
+          if (chatSession.customer && chatSession.customer.sessionId === event.toParticipant.sessionId) {
+            chatSession.customer = event.toParticipant;
+          }
+        }
+        if (event.eventType === 'ChatParticipantVerificationEvent-succeeded') {
+          if (chatSession.customer.sessionId === event.participantSessionId) {
+            chatSession.customer.verified = true;
+          }
+        }
       }
       break;
     }
@@ -399,7 +482,7 @@ const update = (event, model) => {
 };
 
 const loadChatLog = (chatId, chatLog, model) => {
-  if(!chatId || !chatLog) {
+  if (!chatId || !chatLog) {
     return;
   }
   const chatLogToMessage = (chatLog) => {
@@ -412,17 +495,35 @@ const loadChatLog = (chatId, chatLog, model) => {
         participant: chatLog.participant,
         text: `${chatLog.participant.handle} has ${eventType.toLowerCase()} the chat`
       }
-    }
-    return {
-      messageId: chatLog.messageId,
-      direction: ['customer','visitor'].indexOf(chatLog.fromParticipant.role) > -1 ? 'incoming' : 'outgoing',
-      from: chatLog.fromParticipant.handle,
-      text: chatLog.text
+    } else if (chatLog.name === 'ChatParticipantModifiedEvent') {
+      return {
+        messageId: `${chatLog.name}-${chatLog.timestamp}-${chatLog.fromParticipant.handle}-${chatLog.toParticipant.handle}`,
+        messageType: 'status',
+        eventType: chatLog.name,
+        fromParticipant: chatLog.fromParticipant,
+        toParticipant: chatLog.toParticipant,
+        text: ''
+      }
+    } else if (chatLog.name === 'ChatParticipantVerificationEvent') {
+      return {
+        messageId: `${chatLog.name}-${chatLog.timestamp}-${chatLog.participantSessionId}`,
+        messageType: 'status',
+        eventType: `${chatLog.name}-${chatLog.state}`,
+        participantSessionId: chatLog.participantSessionId,
+        text: `identity verification ${chatLog.state}`
+      }
+    } else if (chatLog.name === 'ChatMessagePostedEvent') {
+      return {
+        messageId: chatLog.messageId,
+        direction: ['customer', 'visitor'].indexOf(chatLog.fromParticipant.role) > -1 ? 'incoming' : 'outgoing',
+        from: chatLog.fromParticipant.handle,
+        text: chatLog.text
+      }
     }
   };
   model.chatSessions[chatId] = model.chatSessions[chatId] || {};
   const session = model.chatSessions[chatId];
-  let messages = chatLog ? chatLog.map(chatLogToMessage) : [];
+  let messages = chatLog ? chatLog.map(chatLogToMessage).filter(msg => msg) : [];
   if (session && session.messages) {
     session.messages.forEach((msg) => {
       if (messages.findIndex((logMsg) => {
@@ -433,11 +534,26 @@ const loadChatLog = (chatId, chatLog, model) => {
     });
   }
   messages.forEach(msg => {
-    if(msg.messageType === 'status' && ['customer','visitor'].indexOf(msg.participant.role) > -1) {
-      session.customer = msg.participant;
+    if (msg.messageType === 'status') {
+      if(msg.eventType === 'Joined' && ['customer', 'visitor'].indexOf(msg.participant.role) > -1) {
+        session.customer = msg.participant;
+      }
+      if (msg.eventType === 'ChatParticipantModifiedEvent') {
+        if (session.customer && session.customer.sessionId === msg.fromParticipant.sessionId) {
+          session.customer.handle = msg.toParticipant.handle;
+          session.customer.role = msg.toParticipant.role;
+        }
+      }
     }
   });
-  session.messages = messages;
+  messages.forEach(msg => {
+    if (msg.eventType === 'ChatParticipantVerificationEvent-succeeded') {
+      if (session.customer.sessionId === msg.participantSessionId) {
+        session.customer.verified = true;
+      }
+    }
+  });
+  session.messages = messages.filter(msg => msg.text !== '');
 };
 
 let rendering = false;
@@ -498,7 +614,14 @@ window.onload = function () {
     });
   });
 
-  page('/agent', (ctx) => {
+  page('/verify/:sessionId', (ctx) => {
+    window.dispatch({
+      type: IDENTITY_VERIFICATION_REQUESTED,
+      identitySessionId: ctx.params.sessionId
+    });
+  });
+
+  page('/agent', () => {
     dispatch({
       type: SELECT_TASK
     }).then(() => {

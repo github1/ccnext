@@ -13,8 +13,21 @@ export default class extends Component {
 
   render() {
 
-    const viewName = this.props.model.view || 'empty';
+    const viewName = this.props.model.identityVerificationRequired ? 'verification' : (this.props.model.view || 'empty');
     const view = views[viewName];
+
+    if (!view) {
+      return <div className="col-xs-12 root-column">
+        <div className="row">
+          <div className="col-xs-12 root-column">
+            <Logo className="pull-left" small={true}/>
+          </div>
+          <div className="col-xs-12 root-column">
+            <div className="alert alert-danger">Page not found</div>
+          </div>
+        </div>
+      </div>;
+    }
 
     const content = <div className="col-xs-12 root-column">
       <div className="divider"></div>
@@ -35,18 +48,22 @@ export default class extends Component {
 
     const menuLinks = {
       agent: [
-        {text: 'Tasks', icon: 'check', handler: () => {
+        {
+          text: 'Tasks', icon: 'check', handler: () => {
           dispatch({
             type: NAVIGATE,
             redirect: '/agent'
           });
-        }},
+        }
+        },
         'divider',
-        {text: 'Sign Out', icon: 'log-out', handler: () => {
+        {
+          text: 'Sign Out', icon: 'log-out', handler: () => {
           dispatch({
             type: SIGN_OUT
           });
-        }}
+        }
+        }
       ],
       customer: [
         {text: 'Accounts', icon: 'credit-card'},
@@ -56,11 +73,13 @@ export default class extends Component {
         {text: 'Profile', icon: 'user'},
         {text: 'Services', icon: 'cog'},
         'divider',
-        {text: 'Sign Out', icon: 'log-out', handler: () => {
+        {
+          text: 'Sign Out', icon: 'log-out', handler: () => {
           dispatch({
             type: SIGN_OUT
           });
-        }}
+        }
+        }
       ]
     };
 
@@ -73,7 +92,9 @@ export default class extends Component {
           menuItems={menuLinks[this.props.model.user.role]}/>
       </div> : null;
 
-    if (this.props.model.user) {
+    if (viewName === 'verification') {
+      return content;
+    } else if (this.props.model.user) {
       return <div key="root-container">
         <div className="pull-left">
           <NavMenu className="account-menu" logo={true}/>
