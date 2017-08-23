@@ -38,6 +38,26 @@ export const upsert = (objectType, search, resource) => {
   });
 };
 
+/**
+ * Deletes and creates a twilio resource.
+ *
+ * @param objectType
+ * @param search
+ * @param resource
+ * @returns {any}
+ */
+export const deletesert = (objectType, search, resource) => {
+  return objectType.list(search).then((objects) => {
+    if (objects.length === 0) {
+      return objectType.create.bind(objectType)(resource);
+    } else {
+      return objects[0].remove.bind(objects[0])().then(() => {
+        return upsert(objectType, search, resource);
+      });
+    }
+  });
+};
+
 export const createTaskIfNotExists = (twilioClient, workspaceSid, workflowSid, data) => {
   const search = data['twilioTaskSid'] ? {sid: data['twilioTaskSid']} : null;
   return createIfNotExists(twilioClient.taskrouter.v1.workspaces(workspaceSid).tasks, search, {
@@ -77,11 +97,12 @@ export const configureTaskRouter = (twilioClient, workspaceName, baseUrl) => {
     workers: {},
     taskchannels: {}
   };
-  return upsert(
+  return deletesert(
     twilioClient.taskrouter.workspaces,
     {friendlyName: workspaceName}, {
       friendlyName: workspaceName,
-      eventCallbackUrl: taskEventCallbackUrl
+      eventCallbackUrl: taskEventCallbackUrl,
+      multiTaskEnabled: true
     })
     .then((workspace) => {
       return workspace.activities().list().then((activities) => {
