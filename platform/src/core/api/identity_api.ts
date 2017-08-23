@@ -103,7 +103,7 @@ export function identityAPI(eventBus : EventBus, identityService : IdentityServi
           res.json({
             requestId: requestId
           });
-        });
+        }).catch((err : Error) => { console.error(err); });
       });
 
       app.get('/api/verification/:requestId', (req : express.Request, res : express.Response) : void => {

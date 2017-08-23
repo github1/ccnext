@@ -1,5 +1,4 @@
 import ajax from './ajax';
-import { unsubscribe } from './events';
 
 export const getChatLog = (chatId) => {
   return ajax({
