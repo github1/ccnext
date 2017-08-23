@@ -67,8 +67,7 @@ export function identityAPI(eventBus : EventBus, identityService : IdentityServi
           }
           else if (body.memorableWordPositionsRequested) {
             return new MemorableWordCredentials(
-              body.username,
-              body.memorableWordPositionsRequested.split(',').map(parseInt),
+              body.username, body.memorableWordPositionsRequested.split(',').map(parseInt),
               body.memorableWordChars.split(','));
           }
           return new AnonymousCredentials();
@@ -82,7 +81,8 @@ export function identityAPI(eventBus : EventBus, identityService : IdentityServi
           })
           .catch((error : Error) => {
             console.error(error);
-            res.status(403).json({
+            res.status(403);
+            res.json({
               message: `${error.message}`
             });
           });

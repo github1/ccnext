@@ -91,9 +91,11 @@ export class Identity extends Entity {
             self.failedAuthenticationAttempts = 0;
           }
         } else if (event instanceof AuthenticationVerificationRequestedEvent) {
-          this.verificationRequested = true;
+          self.verificationRequested = true;
+          self.verified = false;
         } else if(event instanceof AuthenticationVerificationSucceededEvent) {
-          this.verified = true;
+          self.verificationRequested = false;
+          self.verified = true;
         }
         self.lastState = event.constructor.name;
       }
@@ -101,9 +103,7 @@ export class Identity extends Entity {
   }
 
   public requestVerification() : void {
-    if(!this.verified) {
-      this.dispatch(this.id, new AuthenticationVerificationRequestedEvent());
-    }
+    this.dispatch(this.id, new AuthenticationVerificationRequestedEvent());
   }
 
   public authenticate(credentials : Credentials, authenticator : Authenticator) : Promise<AuthenticationResult> {

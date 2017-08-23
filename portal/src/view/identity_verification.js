@@ -7,7 +7,7 @@ export default class extends Component {
 
   render() {
     return <div className="identity-verification-modal">
-      <Logo small={true}/>
+      <Logo className="small"/>
       <div className="identity-verification-modal-body">
         { this.props.model.identityVerificationRequired ? <div>
           <p>Please sign in in order to verify your identity.</p>

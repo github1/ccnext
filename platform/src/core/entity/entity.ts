@@ -44,7 +44,7 @@ export class ChainInterceptorPromise<T> extends Promise<T> {
   private promise : Promise<T>;
   private afterChain : Function;
 
-  constructor(promise : Promise<T>, afterChain : Function) {
+  constructor(promise : Promise<T>, afterChain? : Function) {
     super((resolve : Function)=> {
       resolve();
     });
@@ -57,6 +57,10 @@ export class ChainInterceptorPromise<T> extends Promise<T> {
     return new ChainInterceptorPromise<T>(this.promise.then(a).then((a) => {
       return this.afterChain(a).then(() => Promise.resolve(a));
     }), this.afterChain);
+  }
+
+  public catch(a : any) : ChainInterceptorPromise<T> {
+    return <ChainInterceptorPromise<T>> this.promise.catch(a);
   }
 }
 /* tslint:enable */

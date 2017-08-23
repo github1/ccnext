@@ -483,14 +483,14 @@ select:focus {
   }
 }
 
-.verification-info {
+.tabular-info {
   td {
     text-align: right;
   }
-  .verification-success {
+  .success {
     color: $brand-success;
   }
-  .verification-failed {
+  .failed {
     color: $brand-danger;
   }
 }

@@ -45,26 +45,29 @@ export default class extends Component {
             <div className="panel-heading">
               <h3 className="panel-title">Task Details</h3>
             </div>
-            <div className="panel-body small">
-              <h4>Created on</h4>
-              <span className="task-datetime">{ selectedTask.datetime }</span>
-              <h4>Status</h4>
-              <TaskStatus task={selectedTask} pullRight={true}/>
+            <div className="panel-body small tabular-info">
+              <table className="table">
+                <tbody>
+                <tr><th>Created on</th><td><span>
+                  { selectedTask.datetime }</span></td></tr>
+                <tr><th>Status</th><td><TaskStatus task={selectedTask} pullRight={true}/></td></tr>
+                </tbody>
+              </table>
             </div>
           </div>
           <div className="panel panel-default">
             <div className="panel-heading">
               <h3 className="panel-title">Customer Details</h3>
             </div>
-            <div className="panel-body small verification-info">
+            <div className="panel-body small tabular-info">
               <table className="table">
                 <tbody>
                 <tr><th>Username</th><td><span>
                   { customerHandle }</span></td></tr>
                 <tr><th>Status</th><td>{
-                  customerIsVerified ? <span className="verification-success">verified
-                </span> : <span className="verification-failed">
-                    unverified</span>
+                  customerIsVerified ? <span className="success">Verified
+                </span> : <span className="failed">
+                    Unverified</span>
                 }</td></tr>
                 </tbody>
               </table>

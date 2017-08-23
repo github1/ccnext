@@ -4,7 +4,8 @@ import {
   AuthenticationSucceededEvent,
   AuthenticationFailedEvent,
   AuthenticationLockedEvent,
-  AuthenticationErrorEvent
+  AuthenticationErrorEvent,
+  AuthenticationVerificationRequestedEvent
 } from '../../src/core/identity';
 import { UsernamePasswordCredentials } from '../../src/core/authentication';
 import { Clock } from '../../src/core/clock';
@@ -91,6 +92,13 @@ describe('Identity', () => {
           expect(identity.dispatch)
             .toBeCalledWith('someId', new AuthenticationErrorEvent());
         });
+    });
+  });
+
+  describe('when identity verification is requested', () => {
+    it('dispatches an identity verification requested event', () => {
+      identity.requestVerification();
+      expect(identity.dispatch).toBeCalledWith('someId', new AuthenticationVerificationRequestedEvent());
     });
   });
 
