@@ -67,7 +67,8 @@ export function identityAPI(eventBus : EventBus, identityService : IdentityServi
             return new UsernamePasswordCredentials(body.username, body.password, sessionId);
           }
           else if (body.memorableWordPositionsRequested) {
-            return new MemorableWordCredentials(body.username, body.memorableWordPositionsRequested.split(',').map(parseInt),
+            return new MemorableWordCredentials(body.username,
+              body.memorableWordPositionsRequested.split(',').map((v : string) => parseInt(v, 10)),
               body.memorableWordChars.split(','), sessionId);
           }
           return new AnonymousCredentials();
@@ -75,15 +76,13 @@ export function identityAPI(eventBus : EventBus, identityService : IdentityServi
         identityService
           .authenticate(credentials)
           .then((identity : IdentityVO) => {
-            res.json({
-              token: identity.jwt
-            });
+            res.json({ token: identity.jwt });
           })
           .catch((error : Error) => {
-            console.error(error);
+            console.error(error, credentials.constructor.name);
             res.status(403);
             res.json({
-              message: `${error.message}`
+              message: `${error.message}}`
             });
           });
       });

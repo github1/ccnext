@@ -74,6 +74,7 @@ const model = () => {
     chatSessions: {},
     selectedTask: null,
     tasks: [],
+    user: identity(),
     device: {
       isMobile: isMobile(),
       screen: {
@@ -235,49 +236,42 @@ const sideEffect = (command, model) => {
       });
       break;
     case SIGN_IN:
-      if (command.username.trim().length === 0 ||
-        command.password.trim().length === 0) {
+      dispatch({
+        type: AUTHENTICATION_STARTED
+      });
+      authenticate(command).then((user) => {
+        profile().then((userProfile) => {
+          return dispatch({
+            type: AUTHENTICATION_SUCCESS,
+            user: userProfile
+          }).then(() => {
+            if (command.isVerification) {
+              dispatch({
+                type: IDENTITY_VERIFICATION_SUCCESS
+              }).then(() => {
+                if(model.queryParams.r) {
+                  dispatch({
+                    type: NAVIGATE,
+                    redirect: model.queryParams.r
+                  });
+                }
+              });
+            } else {
+              // subscribe to events addressed to this user
+              return subscribeTo(user.username).then(() => {
+                page.redirect('/');
+              });
+            }
+          });
+        });
+      }).catch(() => {
+        if (!command.isVerification) {
+          signout();
+        }
         dispatch({
           type: AUTHENTICATION_FAILED
         });
-      } else {
-        dispatch({
-          type: AUTHENTICATION_STARTED
-        });
-        authenticate(command.username, command.password, command.sessionId).then((user) => {
-          profile().then((userProfile) => {
-            return dispatch({
-              type: AUTHENTICATION_SUCCESS,
-              user: userProfile
-            }).then(() => {
-              if (command.isVerification) {
-                dispatch({
-                  type: IDENTITY_VERIFICATION_SUCCESS
-                }).then(() => {
-                  if(model.queryParams.r) {
-                    dispatch({
-                      type: NAVIGATE,
-                      redirect: model.queryParams.r
-                    });
-                  }
-                });
-              } else {
-                // subscribe to events addressed to this user
-                return subscribeTo(user.username).then(() => {
-                  page.redirect('/');
-                });
-              }
-            });
-          });
-        }).catch(() => {
-          if (!command.isVerification) {
-            signout();
-          }
-          dispatch({
-            type: AUTHENTICATION_FAILED
-          });
-        });
-      }
+      });
       break;
     case SIGN_OUT:
       unsubscribe();
