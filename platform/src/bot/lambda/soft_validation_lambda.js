@@ -150,7 +150,7 @@ function validateCharacters ( slots ) {
 
       case `notAlpha`:
         return buildValidationResult(false, 'charTwo', `The character expected must be a letter`);
-        
+
       case `wrongLength`:
         return buildValidationResult( false, 'charTwo', `You must enter a single character`);
     }
