@@ -42,12 +42,6 @@ AWS.config.update({
   secretAccessKey: AWS_DEFAULT_REGION
 });
 
-AWS.config.update({
-  region: 'us-east-1',
-  accessKeyId: "AKIAJKMZZUDTZBX6BF3A",
-  secretAccessKey: "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"
-});
-
 const lexmodelbuildingservice = new AWS.LexModelBuildingService();
 const lambda = new AWS.Lambda();
 const iam = new AWS.IAM();
