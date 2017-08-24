@@ -7,10 +7,10 @@ const {
   putBot,
   putBotAlias } = require("./functions/put.js");
 
-  const {
-    createLambdaRole,
-    createLambdaFunction,
-    updateLambdaPolicy } = require('./functions/lambda.js');
+const {
+  createLambdaRole,
+  createLambdaFunction,
+  updateLambdaPolicy } = require('./functions/lambda.js');
 
 const topic = require("./slots/topic.js");
 const accountHolder = require("./slots/account_holder.js");
@@ -28,16 +28,24 @@ const CCaaS = require("./bots/CCaaS.js");
 
 const serviceRole = require('./roles/service_role.js');
 const policyRole = require('./roles/policy_role.js');
-const lambda_params = require('./lambda/lambda_params.js');
+const lambdaParams = require('./lambda/lambda_params.js');
 
 const AWS_ACCESS_KEY_ID = process.env.AWS_ACCESS_KEY_ID;
 const AWS_SECRET_ACCESS_KEY = process.env.AWS_SECRET_ACCESS_KEY;
 const AWS_DEFAULT_REGION = process.env.AWS_DEFAULT_REGION;
 
+const PUBLIC_URL = process.env.PUBLIC_URL;
+
 AWS.config.update({
   region: AWS_ACCESS_KEY_ID,
   accessKeyId: AWS_SECRET_ACCESS_KEY,
   secretAccessKey: AWS_DEFAULT_REGION
+});
+
+AWS.config.update({
+  region: 'us-east-1',
+  accessKeyId: "AKIAJKMZZUDTZBX6BF3A",
+  secretAccessKey: "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"
 });
 
 const lexmodelbuildingservice = new AWS.LexModelBuildingService();
@@ -50,7 +58,11 @@ createLambdaRole(iam, lexmodel, serviceRole, policyRole).then(() => {
   return new Promise((resolve, reject) => {
     setTimeout(() => {
       fs.readFile('./lambda/soft_validation_lambda.zip', (err, data) => {
-          resolve(createLambdaFunction(lambda, lexmodel, data, lambda_params));
+        if (err) {
+          reject(err);
+        } else {
+          resolve(createLambdaFunction(lambda, lexmodel, lambdaParams, PUBLIC_URL, data));
+        }
       });
     }, 10000);
   });
@@ -86,13 +98,14 @@ createLambdaRole(iam, lexmodel, serviceRole, policyRole).then(() => {
 }).then(() => {
   console.log('Published');
   Object.keys(lexmodel).map((type) => {
-    Object.keys(lexmodel[type]).map((key) => {
-      console.log(`  ${type} ${key} v${lexmodel[type][key].version}`);
-    });
+    if (type == 'lambdaFunction') {
+      console.log(`  ${type} ${lexmodel[type].FunctionName} v${lexmodel[type].Version}`);
+    } else if (type !== 'role') {
+      Object.keys(lexmodel[type]).map((key) => {
+        console.log(`  ${type} ${key} v${lexmodel[type][key].version}`);
+      });
+    }
   });
-}).then(() => {
-  console.log('lexmodel is:');
-  console.log(lexmodel);
 }).catch(err => {
   console.error(err);
 });

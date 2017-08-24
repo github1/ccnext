@@ -1,10 +1,10 @@
 const createLambdaRole = (iam, lexmodel, role, policy) => {
-    return new Promise((resolve, reject) => {
-      console.log(`Checking if role "${role.RoleName}"exists`);
-      iam.getRole({RoleName: role.RoleName}, (err, data) => {
-        if (err) {
-          console.log(`${role.RoleName} does not exist, attempting to create role`)
-          iam.createRole(role, function(err, data) {
+  return new Promise((resolve, reject) => {
+    console.log(`Checking if role "${role.RoleName}"exists`);
+    iam.getRole({RoleName: role.RoleName}, (err, data) => {
+      if (err) {
+        console.log(`${role.RoleName} does not exist, attempting to create role`);
+        iam.createRole(role, function(err, data) {
           if (err) {
             console.log(`Could not create role`);
             console.log(err, err.stack); // an error occurred
@@ -16,46 +16,65 @@ const createLambdaRole = (iam, lexmodel, role, policy) => {
             iam.attachRolePolicy(policy, (err, data) => {
               if (err) {
                 console.log(`Policy could not be attached to ${role.RoleName}`);
-                reject();
+                reject(err);
               } else {
                 console.log(`Policy attached to ${role.RoleName}`);
-                resolve();
+                resolve(data);
               }
             });
-          };
-        })
+          }
+        });
       } else {
         lexmodel.role = data.Role;
-        resolve();
+        resolve(data);
       }
     });
   });
 };
 
 
-const createLambdaFunction = (lambda, lexmodel, zipFile, params) => {
+const createLambdaFunction = (lambda, lexmodel, params, publicUrl, zipFile) => {
   return new Promise((resolve, reject) => {
+    params.Environment.Variables.PUBLIC_URL = publicUrl;
     params.Code.ZipFile = zipFile;
     params.Role = lexmodel.role.Arn;
     console.log(`Checking if function ${params.FunctionName} exists`);
     lambda.getFunction({FunctionName: params.FunctionName}, (err, data) => {
       if (err) {
-        console.log(`${params.FunctionName} does not exist, attempting to create it`);
-        lambda.createFunction(params, function (err, data) {
+        console.log(`${params.FunctionName} does not exist, attemping to create it`);
+        lambda.createFunction(params, (err, data) => {
           if (err) {
             console.log(err, err.stack);
-            reject();
+            reject(err);
           } else {
-            console.log(`Function created`);
-            lexmodel.lambdaFunction = data.Function;
-            resolve();
-          };
+            console.log(`Function ${params.FunctionName} created`);
+            resolve(data);
+          }
         });
       } else {
-        console.log(`${params.FunctionName} already exists`);
-        lexmodel.lambdaFunction = data.Configuration;
-        resolve();
+        console.log(`${data.Configuration.FunctionName} already exists, trying to update`);
+        lambda.updateFunctionCode({FunctionName: params.FunctionName, ZipFile: zipFile}, (err, data) => {
+          if (err) {
+            console.log(`Unable to update ${params.FunctionName}`);
+            reject(err);
+          } else {
+            resolve(data);
+          }
+        });
       }
+    });
+  }).then((data) => {
+    return new Promise((resolve, reject) => {
+      lambda.publishVersion({FunctionName:data.FunctionName, CodeSha256: data.CodeSha256}, (err, data) => {
+        if (err) {
+          console.log(`Could not publish a new version of the function`);
+          reject(err);
+        } else {
+          console.log(`${data.FunctionName} updated to version ${data.Version}`);
+          lexmodel.lambdaFunction = data;
+          resolve(data);
+        }
+      });
     });
   });
 };
@@ -63,7 +82,7 @@ const createLambdaFunction = (lambda, lexmodel, zipFile, params) => {
 
 const addPermission = (lambda, intent, sourceAccount, lambdaArn) => {
   let StatementId = "lex-us-east-1-" + intent;
-  let intentArn = "arn:aws:lex:us-east-1:"+sourceAccount+":intent:"+intent
+  let intentArn = "arn:aws:lex:us-east-1:"+sourceAccount+":intent:"+intent+":*";
   let params = {
     Action: "lambda:InvokeFunction",
     FunctionName: lambdaArn,
@@ -73,13 +92,12 @@ const addPermission = (lambda, intent, sourceAccount, lambdaArn) => {
   };
   lambda.addPermission(params, function(err, data) {
     if (err) console.log(err, err.stack);
-    else console.log(`${intent} intent added to permissions`);
+    else console.log(`${data.Statement} intent added to permissions`);
   });
 };
 
 const updateLambdaPolicy = (lambda, lexmodel) => {
   return new Promise((resolve, reject) => {
-    console.log(lexmodel);
     let intents = Object.keys(lexmodel.intent).map(key => key);
     let lambdaArn = lexmodel.lambdaFunction.FunctionArn;
     let sourceAccount = lambdaArn.split(":",7)[4];
@@ -94,15 +112,15 @@ const updateLambdaPolicy = (lambda, lexmodel) => {
         console.log(`Policy already exists, updating policy to add new intents`);
         let policy = JSON.parse(data.Policy);
         let sids = policy.Statement.map(statement => statement.Sid);
-        console.log(sids);
         intents.map(intent => {
-        let StatementId = "lex-us-east-1-" + intent;
+          let StatementId = "lex-us-east-1-" + intent;
           if (!sids.includes(StatementId)) {
             addPermission(lambda, intent, sourceAccount, lambdaArn);
           }
         });
         resolve();
       }
+      reject();
     });
   });
 };

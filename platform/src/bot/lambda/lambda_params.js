@@ -1,6 +1,9 @@
 const lambdaParams = {
   Code: {
   },
+  Environment: {
+    Variables: {}
+  },
   Description: "Handles requests for CCaaSBot",
   FunctionName: "CCaaSRequestProcessor",
   Handler: "soft_validation_lambda.handler", // is of the form of the name of your source file and then name of your function handler
