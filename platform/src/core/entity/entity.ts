@@ -3,11 +3,13 @@ import { Clock } from '../clock';
 
 export class EntityEvent {
   public streamId : string;
+  public typeNameMetaData: string;
   public name : string;
   public timestamp : number;
 
   constructor() {
-    this.name = this.constructor.name;
+    this.typeNameMetaData = this.constructor.name;
+    this.name = this.typeNameMetaData;
     this.timestamp = Clock.now();
   }
 }

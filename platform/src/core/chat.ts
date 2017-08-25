@@ -1,12 +1,14 @@
 import { Entity, EntityEvent, uuid } from './entity/entity';
 
 export class ChatParticipantVO {
+  public typeNameMetaData : string;
   public handle : string;
   public role : string;
   public sessionId : string;
   public phoneNumber : string;
 
   constructor(handle : string, role : string, sessionId : string, phoneNumber? : string) {
+    this.typeNameMetaData = this.constructor.name;
     this.handle = handle;
     this.role = role;
     this.sessionId = sessionId;
