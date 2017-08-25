@@ -48,6 +48,15 @@ const iam = new AWS.IAM();
 
 const lexmodel = {};
 
+let intents = [
+  Welcome(''),
+  AskQuestion(''),
+  MakePayment(''),
+  GetAccountBalance(''),
+  GetTransactions(''),
+  LostCard('')
+].map(intent => intent.name);
+
 createLambdaRole(iam, lexmodel, serviceRole, policyRole).then(() => {
   return new Promise((resolve, reject) => {
     setTimeout(() => {
@@ -61,6 +70,8 @@ createLambdaRole(iam, lexmodel, serviceRole, policyRole).then(() => {
     }, 10000);
   });
 }).then(() => {
+  return updateLambdaPolicy(lambda, lexmodel, intents);
+}).then(() => {
   return Promise.all([
     topic,
     accountHolder,
@@ -70,13 +81,15 @@ createLambdaRole(iam, lexmodel, serviceRole, policyRole).then(() => {
     return putSlot(lexmodelbuildingservice, lexmodel, slot);
   }));
 }).then(() => {
+  let arn = lexmodel.lambdaFunction.FunctionArn;
+  console.log(`function ARN is ${arn}`);
   return Promise.all([
-    Welcome,
-    AskQuestion,
-    MakePayment,
-    GetAccountBalance,
-    GetTransactions,
-    LostCard
+    Welcome(arn),
+    AskQuestion(arn),
+    MakePayment(arn),
+    GetAccountBalance(arn),
+    GetTransactions(arn),
+    LostCard(arn)
   ].map(intent=> {
     return putIntent(lexmodelbuildingservice, lexmodel, intent);
   }));
@@ -88,7 +101,7 @@ createLambdaRole(iam, lexmodel, serviceRole, policyRole).then(() => {
     name: 'prod'
   });
 }).then(() => {
-  return updateLambdaPolicy(lambda, lexmodel);
+  console.log(lexmodel.intent);
 }).then(() => {
   console.log('Published');
   Object.keys(lexmodel).map((type) => {

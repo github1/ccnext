@@ -70,7 +70,7 @@ const createLambdaFunction = (lambda, lexmodel, params, publicUrl, zipFile) => {
           console.log(`Could not publish a new version of the function`);
           reject(err);
         } else {
-          console.log(`${data.FunctionName} updated to version ${data.Version}`);
+          console.log(`Updating the "$LATEST" version of ${data.FunctionName}`);
           lexmodel.lambdaFunction = data;
           resolve(data);
         }
@@ -96,12 +96,11 @@ const addPermission = (lambda, intent, sourceAccount, lambdaArn) => {
   });
 };
 
-const updateLambdaPolicy = (lambda, lexmodel) => {
+const updateLambdaPolicy = (lambda, lexmodel, intents) => {
   return new Promise((resolve, reject) => {
-    let intents = Object.keys(lexmodel.intent).map(key => key);
     let lambdaArn = lexmodel.lambdaFunction.FunctionArn;
     let sourceAccount = lambdaArn.split(":",7)[4];
-    lambda.getPolicy({FunctionName: lexmodel.lambdaFunction.FunctionName}, (err, data) => {
+    lambda.getPolicy({FunctionName: lexmodel.lambdaFunction.FunctionArn}, (err, data) => {
       if (err) {
         console.log(`The policy could not be found. Adding permissions to the function`);
         intents.map(intent => {
