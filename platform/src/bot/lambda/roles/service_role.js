@@ -13,7 +13,7 @@ let serviceRole = {
       }
     ]
   }`,
-  RoleName: 'CCaaSBotRoleXX',
+  RoleName: 'CCaaSBotRole',
   Description: 'role for lambda function for lex',
   Path: '/service-role/'
 };

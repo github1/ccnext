@@ -1,8 +1,8 @@
 'use-strict';
 
-const cardTypeSet = new Set (["debit", "freedom reward", "platinum", "initial"]);
-const topicSet = new Set(["pay my bill", "change my address", "change my mailing preferences", "make a complaint"]);
-const validatorFunctions = new Map ().set('AskQuestion', validateAskQuestion ).set('GetAccountBalance', validateCharacters).set('GetTransactions', validateCharacters).set('LostCard', validateLostCard).set('MakePayment', validateMakePayment);
+var cardTypeSet = new Set (["debit", "freedom reward", "platinum", "initial"]);
+var topicSet = new Set(["pay my bill", "change my address", "change my mailing preferences", "make a complaint"]);
+var validatorFunctions = new Map ().set('AskQuestion', validateAskQuestion ).set('GetAccountBalance', validateCharacters).set('GetTransactions', validateCharacters).set('LostCard', validateLostCard).set('MakePayment', validateMakePayment);
 
 // --------------------- Response Helpers -----------------------
 
@@ -59,7 +59,7 @@ function buildValidationResult(isValid, violatedSlot, messageContent){
 
 function parseLocalDate(date) {
 
-  const dateComponents = date.split(/-/);
+  var dateComponents = date.split(/-/);
   return new Date(dateComponents[0], dateComponents[1] - 1, dateComponents[2]);
 }
 
@@ -81,59 +81,60 @@ function hasWhiteSpace(s) {
 // ---------------- Soft Validation Helpers ----------------------
 
 function isValidSlot ( slot, slotType ) {
-  switch (slotType) {
-
-    case 'cardType':
-      if (!(cardTypeSet.has(slot.toLowerCase()))) {
-        return buildTypeValidationMessage(false, 'cardType', `wrongCardType`);
-      }
-      return buildTypeValidationMessage(true, null, null );
-
-    case 'character':
-      if (!(isAlpha(slot)) ) {
-        return buildTypeValidationMessage (false, 'character', `notAlpha`);
-      } else if (slot.length > 1) {
-        return buildTypeValidationMessage (false, 'character', `wrongLength`);
-      }
-      return buildTypeValidationMessage(true, null, null);
-
-    case 'topic':
-      if (!(topicSet.has(slot.toLowerCase()))) {
-        return buildTypeValidationMessage(false, 'topic', `undefinedTopic`);
-      }
-      return buildTypeValidationMessage(true, null, null );
-
-    case 'accountHolder' :
-      if (!hasWhiteSpace(slot)){
-        return buildTypeValidationMessage (false, 'accountHolder', `notWhiteSpace` );
-      }else {
-        let res = slot.split(" ") ;
-        if (res.length >2){
-          if(!(isAlpha(res.join('')))) {
-            return buildTypeValidationMessage (false, 'accountHolder', `notAlpha` );
-          }
-        }else {
-          return buildTypeValidationMessage (false, 'accountHolder', `oneAlphaOneSpace` );
+  if (slot ){
+    switch (slotType) {
+      case 'cardType':
+        if (!(cardTypeSet.has(slot.toLowerCase()))) {
+          return buildTypeValidationMessage(false, 'cardType', `wrongCardType`);
         }
-      }
-      return buildTypeValidationMessage(true, null, null );
+        return buildTypeValidationMessage(true, null, null );
 
-    case 'AMAZON.DATE' :
-      if ((isNaN(parseLocalDate(slot).getTime()))){
-        return buildTypeValidationMessage( false, 'AMAZON.TIME', `undefinedDate`);
-      }
-      return buildTypeValidationMessage( true, null, null);
-    default:
-    //Not a custom SlotType.
-      return buildTypeValidationMessage(true, slotType, 'amazonSlotType');
+      case 'character':
+        if (!(isAlpha(slot)) ) {
+          return buildTypeValidationMessage (false, 'character', `notAlpha`);
+        } else if (slot.length > 1) {
+          return buildTypeValidationMessage (false, 'character', `wrongLength`);
+        }
+        return buildTypeValidationMessage(true, null, null);
+
+      case 'topic':
+        if (!(topicSet.has(slot.toLowerCase()))) {
+          return buildTypeValidationMessage(false, 'topic', `undefinedTopic`);
+        }
+        return buildTypeValidationMessage(true, null, null );
+
+      case 'accountHolder' :
+        if (!hasWhiteSpace(slot)){
+          return buildTypeValidationMessage (false, 'accountHolder', `notWhiteSpace` );
+        }else {
+          var res = slot.split(" ") ;
+          if (res.length >2){
+            if(!(isAlpha(res.join('')))) {
+              return buildTypeValidationMessage (false, 'accountHolder', `notAlpha` );
+            }
+          }else {
+            return buildTypeValidationMessage (false, 'accountHolder', `oneAlphaOneSpace` );
+          }
+        }
+        return buildTypeValidationMessage(true, null, null );
+
+      case 'AMAZON.DATE' :
+        if ((isNaN(parseLocalDate(slot).getTime()))){
+          return buildTypeValidationMessage( false, 'AMAZON.TIME', `undefinedDate`);
+        }
+        return buildTypeValidationMessage( true, null, null);
+      default:
+        //Not a custom SlotType.
+        return buildTypeValidationMessage(true, slotType, 'amazonSlotType');
+    }
   }
 }
 //--------------------Intent Soft Validators ----------------------
 
 
 function validateCharacters ( slots ) {
-  const charOneState = isValidSlot(slots.charOne, 'character') ;
-  const charTwoState = isValidSlot(slots.charTwo, 'character') ;
+  var charOneState = isValidSlot(slots.charOne, 'character') ;
+  var charTwoState = isValidSlot(slots.charTwo, 'character') ;
 
   if (slots.charOne && !(charOneState.isValid)) {
     switch (charOneState.message.content) {
@@ -160,7 +161,7 @@ function validateCharacters ( slots ) {
 
 
 function validateAskQuestion( slots) {
-  const topicSlotState = isValidSlot(slots.QuestionTopic, 'topic') ;
+  var topicSlotState = isValidSlot(slots.QuestionTopic, 'topic') ;
   if (slots.QuestionTopic && !(topicSlotState.isValid)){
     return buildValidationResult( false, 'QuestionTopic', `Sorry, I didn't quite understand what you meant. Can you try a different question ?`);
   }
@@ -169,10 +170,10 @@ function validateAskQuestion( slots) {
 
 
 function validateLostCard (slots) {
-  const cardOwnerState = isValidSlot(slots.cardOwner, 'accountHolder') ;
-  const cardTypeState = isValidSlot(slots.cardType, 'cardType') ;
-  const dateOfBirthState = isValidSlot(slots.dateOfBirth, 'AMAZON.DATE') ;
-  const incidentDateState = isValidSlot(slots.incidentDate, 'AMAZON.DATE') ;
+  var cardOwnerState = isValidSlot(slots.cardOwner, 'accountHolder') ;
+  var cardTypeState = isValidSlot(slots.cardType, 'cardType') ;
+  var dateOfBirthState = isValidSlot(slots.dateOfBirth, 'AMAZON.DATE') ;
+  var incidentDateState = isValidSlot(slots.incidentDate, 'AMAZON.DATE') ;
 
   if (slots.cardOwner && !(cardOwnerState.isValid)){
     return buildValidationResult(false, 'cardOwner', `You must have typed a wrong name. Please try again.`);
@@ -199,10 +200,10 @@ function validateLostCard (slots) {
 
 
 function validateMakePayment (slots){
-  const payeeState = isValidSlot(slots.payee, 'AccountHolder');
-  const paymentDateState = isValidSlot(slots.paymentDate, 'AMAZON.DATE');
-  //const amountSlot = slots.amount;
-  //const fromAccountSlot = slots.fromAccount;
+  var payeeState = isValidSlot(slots.payee, 'AccountHolder');
+  var paymentDateState = isValidSlot(slots.paymentDate, 'AMAZON.DATE');
+  //var amountSlot = slots.amount;
+  //var fromAccountSlot = slots.fromAccount;
 
   if (slots.payee && !(payeeState.isValid) ){
     return buildValidationResult(false, 'payee', `You must have typed a wrong name. Please try again.`);
@@ -219,25 +220,27 @@ function validateMakePayment (slots){
 
 
 function dialogManagement ( intentRequest , callback ){
-  let sessionAttributes = intentRequest.sessionAttributes || {} ;
+  var sessionAttributes = intentRequest.sessionAttributes || {} ;
   //let authenticated = sessionAttributes.authenticated || false ;
-  let slots = intentRequest.currentIntent.slots ;
+  var slots = intentRequest.currentIntent.slots ;
   if (intentRequest.invocationSource == 'DialogCodeHook') {
-    let validationResult = validatorFunctions.get(intentRequest.currentIntent.name)(intentRequest.currentIntent.slots);
-    if ( !validationResult.isValid ) {
-      slots[`${validationResult.violatedSlot}`] = null ;
-      callback( elicitSlot ( sessionAttributes, intentRequest.currentIntent.name, slots, validationResult.violatedSlot, validationResult.message)) ;
-      return ;
-    }  if (intentRequest.currentIntent.name == 'GetAccountBalance' || intentRequest.currentIntent.name == 'GetTransactions' ){
-      sessionAttributes.authenticated = true  ;
-      console.log('Successful authentication') ;
+    if (intentRequest.currentIntent.name != 'Welcome') {
+      var validationResult = validatorFunctions.get(intentRequest.currentIntent.name)(intentRequest.currentIntent.slots);
+      if ( !validationResult.isValid ) {
+        slots[`${validationResult.violatedSlot}`] = null ;
+        callback( elicitSlot ( sessionAttributes, intentRequest.currentIntent.name, slots, validationResult.violatedSlot, validationResult.message)) ;
+        return ;
+      }  if (intentRequest.currentIntent.name == 'GetAccountBalance' || intentRequest.currentIntent.name == 'GetTransactions' ){
+        sessionAttributes.authenticated = true  ;
+        console.log('Successful authentication') ;
+      }
     }
     return callback(delegate(intentRequest.sessionAttributes, slots));
   }
 }
 
 /**
-* Called when the user specifies an intent for this skill
+* Called when the user specifies an intent for this bot
 */
 
 function dispatch (intentRequest, callback) {
@@ -253,7 +256,6 @@ function dispatch (intentRequest, callback) {
 
 exports.handler =  (event, context, callback ) => {
   try {
-    process.env.TZ = 'America/New-York' ;
     dispatch (event, (response) => callback( null, response));
   }
   catch (err) {
