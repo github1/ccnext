@@ -26,8 +26,8 @@ const LostCard = require("./intents/lost_card.js");
 
 const CCaaS = require("./bots/CCaaS.js");
 
-const serviceRole = require('./roles/service_role.js');
-const policyRole = require('./roles/policy_role.js');
+const serviceRole = require('./lambda/roles/service_role.js');
+const policyRole = require('./lambda/roles/policy_role.js');
 const lambdaParams = require('./lambda/lambda_params.js');
 
 const AWS_ACCESS_KEY_ID = process.env.AWS_ACCESS_KEY_ID;
@@ -82,7 +82,6 @@ createLambdaRole(iam, lexmodel, serviceRole, policyRole).then(() => {
   }));
 }).then(() => {
   let arn = lexmodel.lambdaFunction.FunctionArn;
-  console.log(`function ARN is ${arn}`);
   return Promise.all([
     Welcome(arn),
     AskQuestion(arn),
@@ -100,8 +99,6 @@ createLambdaRole(iam, lexmodel, serviceRole, policyRole).then(() => {
     botName: CCaaS.name,
     name: 'prod'
   });
-}).then(() => {
-  console.log(lexmodel.intent);
 }).then(() => {
   console.log('Published');
   Object.keys(lexmodel).map((type) => {
