@@ -81,55 +81,53 @@ function hasWhiteSpace(s) {
 // ---------------- Soft Validation Helpers ----------------------
 
 function isValidSlot ( slot, slotType ) {
-    if (slot ){
-        switch (slotType) {
-
-    case 'cardType':
-      if (!(cardTypeSet.has(slot.toLowerCase()))) {
-        return buildTypeValidationMessage(false, 'cardType', `wrongCardType`);
-      }
-      return buildTypeValidationMessage(true, null, null );
-
-    case 'character':
-      if (!(isAlpha(slot)) ) {
-        return buildTypeValidationMessage (false, 'character', `notAlpha`);
-      } else if (slot.length > 1) {
-        return buildTypeValidationMessage (false, 'character', `wrongLength`);
-      }
-      return buildTypeValidationMessage(true, null, null);
-
-    case 'topic':
-      if (!(topicSet.has(slot.toLowerCase()))) {
-        return buildTypeValidationMessage(false, 'topic', `undefinedTopic`);
-      }
-      return buildTypeValidationMessage(true, null, null );
-
-    case 'accountHolder' :
-      if (!hasWhiteSpace(slot)){
-        return buildTypeValidationMessage (false, 'accountHolder', `notWhiteSpace` );
-      }else {
-        var res = slot.split(" ") ;
-        if (res.length >2){
-          if(!(isAlpha(res.join('')))) {
-            return buildTypeValidationMessage (false, 'accountHolder', `notAlpha` );
-          }
-        }else {
-          return buildTypeValidationMessage (false, 'accountHolder', `oneAlphaOneSpace` );
+  if (slot ){
+    switch (slotType) {
+      case 'cardType':
+        if (!(cardTypeSet.has(slot.toLowerCase()))) {
+          return buildTypeValidationMessage(false, 'cardType', `wrongCardType`);
         }
-      }
-      return buildTypeValidationMessage(true, null, null );
+        return buildTypeValidationMessage(true, null, null );
 
-    case 'AMAZON.DATE' :
-      if ((isNaN(parseLocalDate(slot).getTime()))){
-        return buildTypeValidationMessage( false, 'AMAZON.TIME', `undefinedDate`);
-      }
-      return buildTypeValidationMessage( true, null, null);
-    default:
-    //Not a custom SlotType.
-      return buildTypeValidationMessage(true, slotType, 'amazonSlotType');
-  }
+      case 'character':
+        if (!(isAlpha(slot)) ) {
+          return buildTypeValidationMessage (false, 'character', `notAlpha`);
+        } else if (slot.length > 1) {
+          return buildTypeValidationMessage (false, 'character', `wrongLength`);
+        }
+        return buildTypeValidationMessage(true, null, null);
+
+      case 'topic':
+        if (!(topicSet.has(slot.toLowerCase()))) {
+          return buildTypeValidationMessage(false, 'topic', `undefinedTopic`);
+        }
+        return buildTypeValidationMessage(true, null, null );
+
+      case 'accountHolder' :
+        if (!hasWhiteSpace(slot)){
+          return buildTypeValidationMessage (false, 'accountHolder', `notWhiteSpace` );
+        }else {
+          var res = slot.split(" ") ;
+          if (res.length >2){
+            if(!(isAlpha(res.join('')))) {
+              return buildTypeValidationMessage (false, 'accountHolder', `notAlpha` );
+            }
+          }else {
+            return buildTypeValidationMessage (false, 'accountHolder', `oneAlphaOneSpace` );
+          }
+        }
+        return buildTypeValidationMessage(true, null, null );
+
+      case 'AMAZON.DATE' :
+        if ((isNaN(parseLocalDate(slot).getTime()))){
+          return buildTypeValidationMessage( false, 'AMAZON.TIME', `undefinedDate`);
+        }
+        return buildTypeValidationMessage( true, null, null);
+      default:
+        //Not a custom SlotType.
+        return buildTypeValidationMessage(true, slotType, 'amazonSlotType');
     }
-
+  }
 }
 //--------------------Intent Soft Validators ----------------------
 
@@ -227,15 +225,15 @@ function dialogManagement ( intentRequest , callback ){
   var slots = intentRequest.currentIntent.slots ;
   if (intentRequest.invocationSource == 'DialogCodeHook') {
     if (intentRequest.currentIntent.name != 'Welcome') {
-            var validationResult = validatorFunctions.get(intentRequest.currentIntent.name)(intentRequest.currentIntent.slots);
-        if ( !validationResult.isValid ) {
-          slots[`${validationResult.violatedSlot}`] = null ;
-          callback( elicitSlot ( sessionAttributes, intentRequest.currentIntent.name, slots, validationResult.violatedSlot, validationResult.message)) ;
-          return ;
-        }  if (intentRequest.currentIntent.name == 'GetAccountBalance' || intentRequest.currentIntent.name == 'GetTransactions' ){
-          sessionAttributes.authenticated = true  ;
-          console.log('Successful authentication') ;
-        }
+      var validationResult = validatorFunctions.get(intentRequest.currentIntent.name)(intentRequest.currentIntent.slots);
+      if ( !validationResult.isValid ) {
+        slots[`${validationResult.violatedSlot}`] = null ;
+        callback( elicitSlot ( sessionAttributes, intentRequest.currentIntent.name, slots, validationResult.violatedSlot, validationResult.message)) ;
+        return ;
+      }  if (intentRequest.currentIntent.name == 'GetAccountBalance' || intentRequest.currentIntent.name == 'GetTransactions' ){
+        sessionAttributes.authenticated = true  ;
+        console.log('Successful authentication') ;
+      }
     }
     return callback(delegate(intentRequest.sessionAttributes, slots));
   }
