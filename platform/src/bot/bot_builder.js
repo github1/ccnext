@@ -16,6 +16,7 @@ const topic = require("./slots/topic.js");
 const accountHolder = require("./slots/account_holder.js");
 const character = require("./slots/character.js");
 const cardType = require("./slots/card_type.js");
+const phoneNumber = require("./slots/phone_number.js");
 
 const Welcome = require("./intents/welcome.js");
 const AskQuestion = require("./intents/ask_question.js");
@@ -23,6 +24,7 @@ const GetAccountBalance = require("./intents/get_account_balance.js");
 const GetTransactions = require("./intents/get_transactions.js");
 const MakePayment = require("./intents/make_payment.js");
 const LostCard = require("./intents/lost_card.js");
+const RequestCallback = require("./intents/request_callback.js");
 
 const CCaaS = require("./bots/CCaaS.js");
 
@@ -54,7 +56,8 @@ let intents = [
   MakePayment(''),
   GetAccountBalance(''),
   GetTransactions(''),
-  LostCard('')
+  LostCard(''),
+  RequestCallback('')
 ].map(intent => intent.name);
 
 createLambdaRole(iam, lexmodel, serviceRole, policyRole).then(() => {
@@ -76,7 +79,8 @@ createLambdaRole(iam, lexmodel, serviceRole, policyRole).then(() => {
     topic,
     accountHolder,
     character,
-    cardType
+    cardType,
+    phoneNumber
   ].map(slot => {
     return putSlot(lexmodelbuildingservice, lexmodel, slot);
   }));
@@ -88,12 +92,13 @@ createLambdaRole(iam, lexmodel, serviceRole, policyRole).then(() => {
     MakePayment(arn),
     GetAccountBalance(arn),
     GetTransactions(arn),
-    LostCard(arn)
+    LostCard(arn),
+    RequestCallback(arn)
   ].map(intent=> {
     return putIntent(lexmodelbuildingservice, lexmodel, intent);
   }));
 }).then(() => {
-  return putBot(lexmodelbuildingservice, lexmodel, CCaaS);
+  return putBot(lexmodelbuildingservice, lexmodel, CCaaS(lexmodel));
 }).then(() => {
   return putBotAlias(lexmodelbuildingservice, lexmodel, {
     botName: CCaaS.name,
