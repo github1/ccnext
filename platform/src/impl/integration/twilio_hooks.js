@@ -10,8 +10,15 @@ import {
 const cookieParser = require('cookie-parser');
 const twilio = require('twilio');
 import { IdentityRegisteredEvent } from '../../core/identity';
-import { ChatParticipantVO, ChatMessagePostedEvent, ChatEndedEvent } from '../../core/chat';
+import {
+  ChatParticipantVO,
+  ChatMessagePostedEvent,
+  ChatParticipantVerificationEvent
+} from '../../core/chat';
 import { TaskSubmittedEvent, TaskCompletedEvent } from '../../core/task';
+import {
+  chatById
+} from '../../core/projection/projection';
 
 /**
  * Builds a service integration for twilio
@@ -24,41 +31,30 @@ import { TaskSubmittedEvent, TaskCompletedEvent } from '../../core/task';
  * @param {ChatService} chatService
  * @param {TaskService} taskService
  * @param {EventBus} eventBus
+ * @param {string} identityVerificationBaseUrl
  * @returns {object} server configurator
  */
-export default (baseUrl, contextPath, phoneNumberSid, accountSid, authToken, chatService, taskService, eventBus) => {
+export default (baseUrl, contextPath, phoneNumberSid, accountSid, authToken, chatService, taskService, eventBus, identityVerificationBaseUrl) => {
 
   const twilioClient = twilio(accountSid, authToken);
 
   const twilioContext = {
-    chats: {}
   };
 
   const subscribeEvents = () => {
-
-    const refreshChatContext = (event) => {
-      twilioContext.chats[event.streamId] = twilioContext.chats[event.streamId] || {};
-      twilioContext.chats[event.streamId].isIncoming = false;
-      if (event.fromParticipant.phoneNumber &&
-        event.fromParticipant.sessionId &&
-        event.fromParticipant.sessionId.indexOf('sms-incoming::') === 0) {
-        twilioContext.chats[event.streamId].isIncoming = true;
-        twilioContext.chats[event.streamId].incomingNumber = event.fromParticipant.phoneNumber;
-      }
-      return twilioContext.chats[event.streamId];
-    };
 
     eventBus.subscribe((event, isReplaying) => {
 
       if (event instanceof IdentityRegisteredEvent) {
         // create workers from registered agents
-        if (event.role === 'agent') {
+        if (event.role === 'agent' || event.role === 'bot') {
           upsert(twilioContext.taskqueueConfig.workspaces['ccaas'].workers(), {friendlyName: event.streamId}, {
             friendlyName: event.streamId,
             multiTaskEnabled: true,
+            activitySid: twilioContext.taskqueueConfig.activities['Idle'].sid,
             attributes: JSON.stringify(event, null, 2)
           }).then((worker) => {
-            console.log('added worker', worker.friendlyName);
+            console.log(`added worker ${worker.friendlyName} (${event.role})`);
             twilioContext.taskqueueConfig.workers[worker.friendlyName] = worker;
           }).catch((err) => {
             console.error('failed to create worker', event.streamId, err);
@@ -68,17 +64,33 @@ export default (baseUrl, contextPath, phoneNumberSid, accountSid, authToken, cha
 
       if (!isReplaying) {
         if (event instanceof ChatMessagePostedEvent) {
-          // Reply to chat messages with sms
-          const chatContext = refreshChatContext(event);
-          if (!chatContext.isIncoming && chatContext.incomingNumber) {
-            twilioClient.messages.create({
-              to: chatContext.incomingNumber,
-              from: twilioContext.phoneNumber,
-              body: event.text
-            });
-          }
-        } else if (event instanceof ChatEndedEvent) {
-          delete twilioContext.chats[event.streamId];
+          chatById(event.streamId, (chat) => {
+            if(chat.isCustomerOnSms() && (event.fromParticipant.role === 'agent' || event.fromParticipant.role === 'bot')) {
+              twilioClient.messages.create({
+                to: chat.customerPhoneNumber,
+                from: twilioContext.phoneNumber,
+                body: event.text
+              });
+            }
+          });
+        } else if (event instanceof ChatParticipantVerificationEvent) {
+          chatById(event.streamId, (chat) => {
+            if(chat.isCustomerOnSms()) {
+              if (event.state === 'requested') {
+                twilioClient.messages.create({
+                  to: chat.customerPhoneNumber,
+                  from: twilioContext.phoneNumber,
+                  body: `Please follow this link to verify your identity: ${identityVerificationBaseUrl}/verify/${event.verificationRequestId}?r=/home`
+                });
+              } else if (event.state === 'succeeded') {
+                twilioClient.messages.create({
+                  to: chat.customerPhoneNumber,
+                  from: twilioContext.phoneNumber,
+                  body: `Thank you, your identity has been verified.`
+                });
+              }
+            }
+          });
         } else if (event instanceof TaskSubmittedEvent) {
           if (!event.taskData.twilioTaskSid) {
             createTaskIfNotExists(twilioClient,
@@ -104,6 +116,8 @@ export default (baseUrl, contextPath, phoneNumberSid, accountSid, authToken, cha
                 console.error('failed to update task in twilio', err);
               });
           }
+        } else if (event.name === 'ChatParticipantAuthenticationVerificationRequestedEvent') {
+          // TODO
         }
       }
     }, {replay: true});
@@ -146,8 +160,11 @@ export default (baseUrl, contextPath, phoneNumberSid, accountSid, authToken, cha
             const incomingPhoneNumber = req.body.From;
             const fromParticipantId = `sms-incoming::${chatId}`;
             const text = req.body.Body;
-            chatService
-              .postMessage(chatId, new ChatParticipantVO(incomingPhoneNumber, 'visitor', fromParticipantId, incomingPhoneNumber), text);
+            const participant = new ChatParticipantVO(incomingPhoneNumber, 'visitor', fromParticipantId, incomingPhoneNumber);
+            chatService.startChat(chatId, participant).then(() => {
+              chatService
+                .postMessage(chatId, participant, text);
+            });
             res.send('<Response></Response>');
             break;
           }
@@ -225,7 +242,7 @@ export default (baseUrl, contextPath, phoneNumberSid, accountSid, authToken, cha
       });
 
       server.all(`${contextPath}/nosig/taskcallstatus/:taskId`, (req, res) => {
-        //console.log('taskcallstatus', req.method, req.headers, req.body, req.params);
+        console.log('taskcallstatus', req.method, req.headers, req.body, req.params);
         taskService.amendTask(req.params.taskId, {
           callStatus: req.body.CallStatus,
           duration: req.body.Duration

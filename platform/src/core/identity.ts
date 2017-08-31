@@ -3,7 +3,7 @@ import {
   AuthenticationResult,
   Credentials
 } from './authentication';
-import { Entity, EntityEvent } from './entity/entity';
+import { Entity, EntityEvent, uuid } from './entity/entity';
 
 export class AuthenticationEvent extends EntityEvent {
   constructor() {
@@ -31,6 +31,26 @@ export class AuthenticationErrorEvent extends AuthenticationEvent {
 }
 
 export class AuthenticationLockedEvent extends AuthenticationEvent {
+}
+
+export class AuthenticationVerificationRequestedEvent extends AuthenticationEvent {
+  public requestId : string;
+  constructor(requestId : string) {
+    super();
+    this.requestId = requestId;
+  }
+}
+
+export class AuthenticationVerificationSucceededEvent extends AuthenticationEvent {
+  public requestId : string;
+  public username : string;
+  public role : string;
+  constructor(requestId : string, username : string, role : string) {
+    super();
+    this.requestId = requestId;
+    this.username = username;
+    this.role = role;
+  }
 }
 
 export class IdentityRegisteredEvent extends AuthenticationEvent {
@@ -62,6 +82,8 @@ export class IdentityRegisteredEvent extends AuthenticationEvent {
 
 export class Identity extends Entity {
 
+  private pendingVerificationRequestId : string = null;
+  private verified : boolean = false;
   private lastState : string;
   private failedAuthenticationAttempts : number = 0;
 
@@ -75,10 +97,22 @@ export class Identity extends Entity {
           } else {
             self.failedAuthenticationAttempts = 0;
           }
+        } else if (event instanceof AuthenticationVerificationRequestedEvent) {
+          self.pendingVerificationRequestId = event.requestId;
+          self.verified = false;
+        } else if(event instanceof AuthenticationVerificationSucceededEvent) {
+          self.pendingVerificationRequestId = null;
+          self.verified = true;
         }
         self.lastState = event.constructor.name;
       }
     }));
+  }
+
+  public requestVerification() : string {
+    const requestId : string = this.pendingVerificationRequestId === null ? uuid() : this.pendingVerificationRequestId;
+    this.dispatch(this.id, new AuthenticationVerificationRequestedEvent(requestId));
+    return requestId;
   }
 
   public authenticate(credentials : Credentials, authenticator : Authenticator) : Promise<AuthenticationResult> {
@@ -100,6 +134,12 @@ export class Identity extends Entity {
                 this.id,
                 new AuthenticationSucceededEvent(result.username, result.role)
               );
+              if(this.pendingVerificationRequestId !== null && !this.verified) {
+                this.dispatch(
+                  this.id,
+                  new AuthenticationVerificationSucceededEvent(this.pendingVerificationRequestId, result.username, result.role)
+                );
+              }
               resolve(result);
             } else {
               this.dispatch(

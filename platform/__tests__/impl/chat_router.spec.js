@@ -4,6 +4,13 @@ import {
   ChatMessagePostedEvent,
   ChatParticipantVO
 } from '../../src/core/chat';
+import {
+  TaskSubmittedEvent,
+  TaskAssignedEvent
+} from '../../src/core/task';
+import {
+  Projection
+} from '../../src/core/projection/projection';
 
 describe('ChatRouter', () => {
 
@@ -14,6 +21,7 @@ describe('ChatRouter', () => {
   let chatService = {};
   let chatCustomer = new ChatParticipantVO('fromSomeone', 'customer', 'theSessionId');
   let chatBot = new ChatParticipantVO('aChatDest', 'bot', 'aChatDest');
+  let taskService = {};
 
   const chatDestinationProvider = {
     getChat() {
@@ -29,17 +37,27 @@ describe('ChatRouter', () => {
 
   const eventBus = {
     subscribe(handler) {
-      while (events.length > 0) {
-        handler([events.pop()].map((event) => {
+      events.map((event) => {
+        return [event].map((event) => {
           event.name = event.constructor.name;
           event.streamId = 'someChatId';
           return event;
-        })[0]);
-      }
+        })[0];
+      }).forEach((event) => {
+        handler(event);
+      });
     }
   };
 
   beforeEach(() => {
+    events.push(new TaskSubmittedEvent({
+      channel: 'chat',
+      chatId: 'someChatId'
+    }));
+    events.push(new TaskAssignedEvent(chatBot.handle, {
+      channel: 'chat',
+      chatId: 'someChatId'
+    }));
     events.push(new ChatMessagePostedEvent('aMessageId', 'aCorrelationId', chatCustomer, 'hi'));
     events.push(new ChatTransferredEvent('', 'aChatDest'));
     chatService = {
@@ -49,7 +67,11 @@ describe('ChatRouter', () => {
       leaveChat: jest.fn(),
       signalReadyForFulfillment: jest.fn()
     };
-    chatRouter(eventBus, chatDestinationProvider, chatService);
+    taskService = {
+      submitTask: () => Promise.resolve()
+    };
+    Projection(eventBus);
+    chatRouter(eventBus, chatDestinationProvider, chatService, taskService);
   });
 
   afterEach(() => {

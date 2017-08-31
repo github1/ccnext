@@ -1,5 +1,4 @@
 import ajax from './ajax';
-import { unsubscribe } from './events';
 
 export const getChatLog = (chatId) => {
   return ajax({
@@ -19,8 +18,6 @@ export const leaveChat = (chatId) => {
   return ajax({
     url: `/api/chat/${chatId}`,
     method: 'delete'
-  }).then(() => {
-    return unsubscribe(chatId);
   });
 };
 

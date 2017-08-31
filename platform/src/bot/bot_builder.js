@@ -19,6 +19,7 @@ const cardType = require("./slots/card_type.js");
 const phoneNumber = require("./slots/phone_number.js");
 
 const Welcome = require("./intents/welcome.js");
+const SpeakToAgent = require('./intents/speak_to_agent.js');
 const AskQuestion = require("./intents/ask_question.js");
 const GetAccountBalance = require("./intents/get_account_balance.js");
 const GetTransactions = require("./intents/get_transactions.js");
@@ -39,9 +40,9 @@ const AWS_DEFAULT_REGION = process.env.AWS_DEFAULT_REGION;
 const PUBLIC_URL = process.env.PUBLIC_URL;
 
 AWS.config.update({
-  region: AWS_ACCESS_KEY_ID,
-  accessKeyId: AWS_SECRET_ACCESS_KEY,
-  secretAccessKey: AWS_DEFAULT_REGION
+  region: AWS_DEFAULT_REGION,
+  accessKeyId: AWS_ACCESS_KEY_ID,
+  secretAccessKey: AWS_SECRET_ACCESS_KEY
 });
 
 const lexmodelbuildingservice = new AWS.LexModelBuildingService();
@@ -52,6 +53,7 @@ const lexmodel = {};
 
 let intents = [
   Welcome(''),
+  SpeakToAgent(''),
   AskQuestion(''),
   MakePayment(''),
   GetAccountBalance(''),
@@ -63,7 +65,7 @@ let intents = [
 createLambdaRole(iam, lexmodel, serviceRole, policyRole).then(() => {
   return new Promise((resolve, reject) => {
     setTimeout(() => {
-      fs.readFile('./lambda/soft_validation_lambda.zip', (err, data) => {
+      fs.readFile(`${__dirname}/lambda/soft_validation_lambda.zip`, (err, data) => {
         if (err) {
           reject(err);
         } else {
@@ -100,10 +102,12 @@ createLambdaRole(iam, lexmodel, serviceRole, policyRole).then(() => {
 }).then(() => {
   return putBot(lexmodelbuildingservice, lexmodel, CCaaS(lexmodel));
 }).then(() => {
-  return putBotAlias(lexmodelbuildingservice, lexmodel, {
-    botName: CCaaS.name,
-    name: 'prod'
-  });
+  return Promise.all(Object.keys(lexmodel.bot).map((botName) => {
+    return putBotAlias(lexmodelbuildingservice, lexmodel, {
+      botName: botName,
+      name: 'prod'
+    });
+  }));
 }).then(() => {
   console.log('Published');
   Object.keys(lexmodel).map((type) => {

@@ -14,7 +14,6 @@ export const getTasks = () => {
 };
 
 export const markTaskComplete = (task, reason) => {
-  const id = identity();
   return ajax({
     url: `/api/tasks/${task.taskId}`,
     method: 'post',
@@ -24,7 +23,7 @@ export const markTaskComplete = (task, reason) => {
     }
   }).then(() => {
     if(task.channel === 'chat') {
-      return leaveChat(task.chatId, id.username);
+      return leaveChat(task.chatId);
     }
   });
 };

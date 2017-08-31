@@ -470,6 +470,30 @@ select:focus {
   max-width: 480px;
 }
 
+// verification
+
+.identity-verification-modal {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  background-color: #fff;
+  .identity-verification-modal-body {
+    width: 300px;
+  }
+}
+
+.tabular-info {
+  td {
+    text-align: right;
+  }
+  .success {
+    color: $brand-success;
+  }
+  .failed {
+    color: $brand-danger;
+  }
+}
+
 // tasks
 
 .task-status {

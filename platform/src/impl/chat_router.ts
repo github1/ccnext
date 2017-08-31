@@ -1,13 +1,37 @@
+/* tslint:disable:no-floating-promises */
 import {
   EventBus,
   EntityEvent
 } from '../core/entity/entity';
 import {
+  AuthenticationVerificationRequestedEvent,
+  AuthenticationVerificationSucceededEvent
+} from '../core/identity';
+import {
   ChatParticipantVO,
+  ChatStartedEvent,
+  ChatMessagePostedEvent,
   ChatTransferredEvent,
-  ChatMessagePostedEvent
+  ChatParticipantJoinedEvent,
+  ChatParticipantLeftEvent
 } from '../core/chat';
+import {
+  TaskAssignedEvent,
+  TaskCompletedEvent
+} from '../core/task';
 import { ChatService } from '../core/chat_service';
+import { TaskService } from '../core/task_service';
+import {
+  taskById,
+  taskByChatId,
+  tasksByParticipantSessionId,
+  TaskProjectionItem,
+  chatById,
+  chatsByParticipantSessionId,
+  ChatProjectionItem,
+  userById,
+  UserProjectionItem
+} from '../core/projection/projection';
 
 export interface ChatRequest {
   message: string;
@@ -38,13 +62,6 @@ export class NullChatDestination implements ChatDestination {
   }
 }
 
-type ChatData = {
-  queue? : string,
-  conversationData? : { [key:string]:{ [key:string]:string } }
-};
-
-const chatStates : { [key:string]:ChatData } = {};
-
 class BoundChatResponse implements ChatResponse {
   private chatId : string;
   private chatQueue : string;
@@ -67,11 +84,7 @@ class BoundChatResponse implements ChatResponse {
   }
 
   public reply(text : string) : void {
-    this.chatService.joinChat(this.chatId, this.selfParticipant).then(() => {
-      this.chatService.postMessage(this.chatId, this.selfParticipant, text);
-    }).catch((err: Error) => {
-      console.error(err);
-    });
+    this.chatService.postMessage(this.chatId, this.selfParticipant, text);
   }
 
   public signalReadyForFulfillment(data : {}) : void {
@@ -95,56 +108,133 @@ class BoundChatResponse implements ChatResponse {
   }
 
   public storeConversationData(data : { [key:string]:string }) : void {
-    if (data) {
-      chatStates[this.chatId]
-        .conversationData[this.correlationId] = Object.assign(chatStates[this.chatId].conversationData[this.correlationId], data);
-    }
+    // TODO - revisit this
   }
 
 }
 
 export const chatRouter = (eventBus : EventBus,
                            chatDestinationProvider : ChatDestinationProvider,
-                           chatService : ChatService) : void => {
-
-  const getChatData = (chatId : string) : ChatData => {
-    if (chatStates[chatId] === undefined) {
-      chatStates[chatId] = {conversationData: {}};
-    }
-    return chatStates[chatId];
-  };
-
-  const getChatConversationData = (chatId : string, correlationId? : string) : {[key:string]:string} => {
-    const chatState : ChatData = getChatData(chatId);
-    if (correlationId) {
-      if (chatState.conversationData[correlationId] === undefined) {
-        chatState.conversationData[correlationId] = {};
-      }
-    }
-    return chatState.conversationData[correlationId];
-  };
-
+                           chatService : ChatService,
+                           taskService : TaskService) : void => {
   eventBus.subscribe(
     (event : EntityEvent) => {
-      if (event instanceof ChatTransferredEvent) {
-        // store current chat queue;
-        getChatData(event.streamId).queue = event.toQueue;
+      if (event instanceof ChatStartedEvent) {
+        chatService.transferTo(event.streamId, 'bot');
+      } else if (event instanceof TaskAssignedEvent) {
+        taskById(event.streamId, (task : TaskProjectionItem) => {
+          if (task.queue === 'bot') {
+            chatService.joinChat(task.chatId, new ChatParticipantVO(event.worker, 'bot', event.worker));
+          }
+          if(task.customerUsername) {
+            if (task.customerUsername === 'visitor' || task.customerUsername.indexOf('+') === 0) {
+              taskService.amendTask(task.taskId, {
+                servicingUserData: JSON.stringify({
+                  username: 'visitor',
+                  role: 'visitor'
+                }),
+                servicingUserVerified: 'false',
+                servicingUserSessionId: task.customerSessionId
+              });
+            } else {
+              userById(task.customerUsername, (user : UserProjectionItem) => {
+                taskService.amendTask(task.taskId, {
+                  servicingUserData: JSON.stringify(user),
+                  servicingUserVerified: 'false',
+                  servicingUserSessionId: task.customerSessionId
+                });
+              });
+            }
+          }
+        });
       } else if (event instanceof ChatMessagePostedEvent) {
-        const chatQueue : string = getChatData(event.streamId).queue;
-        if (chatQueue) {
-          if (event.fromParticipant.handle === chatQueue) {
-            // don't reply to messages sent from the same chatQueue
+        taskByChatId(event.streamId, (task : TaskProjectionItem) => {
+          if (event.fromParticipant.handle === task.assignedWorker || !task.assignedWorker) {
             return;
           }
-          const conversationData : { [key:string]:string } = getChatConversationData(event.streamId, event.correlationId);
-          conversationData['fromParticipantSessionId'] = event.fromParticipant.sessionId;
+          const conversationData : { [key:string]:string } = {};
+          if (task.customerSessionId) {
+            conversationData['fromParticipantSessionId'] = task.customerSessionId;
+          }
           chatDestinationProvider
-            .getChat(chatQueue)
+            .getChat(task.assignedWorker)
             .send({
               message: event.text,
               correlationId: event.correlationId,
               conversationData: conversationData
-            }, new BoundChatResponse(event.streamId, chatQueue, event.fromParticipant, chatService, event.correlationId));
+            }, new BoundChatResponse(event.streamId, task.assignedWorker, event.fromParticipant, chatService, event.correlationId));
+        });
+      } else if (event instanceof ChatTransferredEvent) {
+        taskByChatId(event.streamId, (task : TaskProjectionItem) => {
+          if (event.fromQueue === 'bot') {
+            taskService.markTaskComplete(task.taskId, `transferred to ${event.toQueue}`);
+          }
+        });
+        // submit new task to next queue
+        taskService.submitTask(event.toQueue, {
+          channel: 'chat',
+          chatId: event.streamId
+        }).catch((error : Error) => {
+          console.error('failed to create task', error);
+        });
+      } else if (event instanceof ChatParticipantJoinedEvent) {
+        chatService.postStatus(event.streamId, `${event.participant.handle} has joined the chat`);
+        taskByChatId(event.streamId, (task : TaskProjectionItem) => {
+          if (event.participant.role === 'visitor') {
+            taskService.amendTask(task.taskId, {
+              servicingUserData: JSON.stringify({
+                username: event.participant.handle,
+                role: event.participant.role
+              }),
+              servicingUserVerified: 'false',
+              servicingUserSessionId: event.participant.sessionId
+            });
+          } else if (event.participant.role === 'customer') {
+            userById(event.participant.handle, (user : UserProjectionItem) => {
+              taskService.amendTask(task.taskId, {
+                servicingUserData: JSON.stringify(user),
+                servicingUserVerified: 'false'
+              });
+            });
+          } else {
+            chatById(event.streamId, (chat : ChatProjectionItem) => {
+              let mpe : ChatMessagePostedEvent;
+              while(chat.messagesSentBeforeBotJoined.length > 0) {
+                mpe = chat.messagesSentBeforeBotJoined.shift();
+                chatService.postMessage(event.streamId, mpe.fromParticipant, mpe.text, true);
+              }
+            });
+          }
+        });
+      } else if (event instanceof ChatParticipantLeftEvent) {
+        chatService.postStatus(event.streamId, `${event.participant.handle} has left the chat`);
+      } else if (event instanceof AuthenticationVerificationRequestedEvent) {
+        chatsByParticipantSessionId(event.streamId, (chats : ChatProjectionItem[]) => {
+          chats.forEach((chat : ChatProjectionItem) => {
+            chatService.postStatus(chat.chatId, 'identity verification requested');
+          });
+        });
+      } else if (event instanceof AuthenticationVerificationSucceededEvent) {
+        userById(event.username, (user : UserProjectionItem) => {
+          if (user.role === 'customer') {
+            tasksByParticipantSessionId(event.streamId, (tasks : TaskProjectionItem[]) => {
+              tasks.forEach((task : TaskProjectionItem) => {
+                taskService.amendTask(task.taskId, {
+                  servicingUserData: JSON.stringify(user),
+                  servicingUserVerified: 'true'
+                });
+              });
+            });
+          }
+        });
+        chatsByParticipantSessionId(event.streamId, (chats : ChatProjectionItem[]) => {
+          chats.forEach((chat : ChatProjectionItem) => {
+            chatService.postStatus(chat.chatId, 'identity verification succeeded');
+          });
+        });
+      } else if (event instanceof TaskCompletedEvent) {
+        if (event.taskData.chatId) {
+          chatService.endChat(event.taskData.chatId);
         }
       }
     });
