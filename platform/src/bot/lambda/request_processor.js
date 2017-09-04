@@ -77,7 +77,7 @@ function createMessage(messageContent) {
 
 function authenticate(slots) {
   if (slots) {
-    return true;  
+    return true;
   }
 }
 
@@ -181,7 +181,7 @@ function validateRequestCallback (slots) {
 
 // ------------ Bot Behaviour --------------------
 
-function welcome(intentRequest) {
+function close(intentRequest) {
   return(delegate(intentRequest.sessionAttributes, getSlots(intentRequest)));
 }
 
@@ -238,7 +238,8 @@ function dispatch(intentRequest, callback) {
 
   switch (intentName) {
     case "Welcome":
-      callback(welcome(intentRequest));
+    case "SpeakToAgent":
+      callback(close(intentRequest));
       break;
     case "AskQuestion":
     case "MakePayment":

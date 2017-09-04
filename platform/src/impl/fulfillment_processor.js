@@ -73,14 +73,3 @@ module.exports = (eventBus, chatService) => {
     }
   });
 };
-
-// // example of escalating to agent
-// chatService.postMessage(
-//   event.streamId,
-//   event.queue,
-//   'I\'m sorry, something went wrong, let me pass you over to a human agent');
-// setTimeout(function() {
-//   // give it time to catch up
-//   chatService.leaveChat(event.streamId, event.queue);
-//   chatService.transferTo(event.streamId, 'agentChatQueue');
-// }, 500);

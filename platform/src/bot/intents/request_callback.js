@@ -65,6 +65,14 @@ let requestCallback = (uri) => {
         }
       ]
     },
+    rejectionStatement: {
+      messages: [
+        {
+          contentType: "PlainText",
+          content: "OK. I have cancelled your call from our agent"
+        }
+      ]
+    },
     sampleUtterances: [
       "Can I get an agent to call me",
       "Can somebody give me a call",
