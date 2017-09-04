@@ -71,7 +71,7 @@ const createLambdaFunction = (lambda, lexmodel, params, publicUrl, zipFile) => {
         } else {
           console.log(`Updating the "$LATEST" version of ${data.FunctionName}`);
           lexmodel.lambdaFunction = data;
-          resolve(data);
+          resolve();
         }
       });
     });
@@ -79,7 +79,7 @@ const createLambdaFunction = (lambda, lexmodel, params, publicUrl, zipFile) => {
 };
 
 
-const addPermission = (lambda, intent, sourceAccount, lambdaArn) => {
+const addPermission = (lambda, intent, sourceAccount, lambdaArn, reject) => {
   let StatementId = "lex-us-east-1-" + intent;
   let intentArn = "arn:aws:lex:us-east-1:"+sourceAccount+":intent:"+intent+":*";
   let params = {
@@ -90,20 +90,23 @@ const addPermission = (lambda, intent, sourceAccount, lambdaArn) => {
     StatementId
   };
   lambda.addPermission(params, function(err, data) {
-    if (err) console.log(err, err.stack);
+    if (err) {
+      console.log(err, err.stack);
+      reject();
+    }
     else console.log(`${data.Statement} intent added to permissions`);
   });
 };
 
 const updateLambdaPolicy = (lambda, lexmodel, intents) => {
   return new Promise((resolve, reject) => {
-    let lambdaArn = lexmodel.lambdaFunction.FunctionArn;
+    let lambdaArn = lexmodel.lambdaFunction.FunctionArn.slice(0,lexmodel.lambdaFunction.FunctionArn.lastIndexOf(":"));
     let sourceAccount = lambdaArn.split(":",7)[4];
-    lambda.getPolicy({FunctionName: lexmodel.lambdaFunction.FunctionArn}, (err, data) => {
+    lambda.getPolicy({FunctionName: lambdaArn}, (err, data) => {
       if (err) {
         console.log(`The policy could not be found. Adding permissions to the function`);
         intents.map(intent => {
-          addPermission(lambda, intent, sourceAccount, lambdaArn);
+          addPermission(lambda, intent, sourceAccount, lambdaArn, reject);
         });
         resolve();
       } else {
@@ -118,7 +121,6 @@ const updateLambdaPolicy = (lambda, lexmodel, intents) => {
         });
         resolve();
       }
-      reject();
     });
   });
 };

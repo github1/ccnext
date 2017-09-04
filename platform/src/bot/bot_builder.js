@@ -45,6 +45,12 @@ AWS.config.update({
   secretAccessKey: AWS_SECRET_ACCESS_KEY
 });
 
+AWS.config.update({
+  region: 'us-east-1',
+  accessKeyId: "AKIAJJVCBXD35BSBYH4Q",
+  secretAccessKey: "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"
+});
+
 const lexmodelbuildingservice = new AWS.LexModelBuildingService();
 const lambda = new AWS.Lambda();
 const iam = new AWS.IAM();
@@ -65,7 +71,7 @@ let intents = [
 createLambdaRole(iam, lexmodel, serviceRole, policyRole).then(() => {
   return new Promise((resolve, reject) => {
     setTimeout(() => {
-      fs.readFile(`${__dirname}/lambda/soft_validation_lambda.zip`, (err, data) => {
+      fs.readFile(`${__dirname}/lambda/request_processor.zip`, (err, data) => {
         if (err) {
           reject(err);
         } else {
@@ -87,7 +93,8 @@ createLambdaRole(iam, lexmodel, serviceRole, policyRole).then(() => {
     return putSlot(lexmodelbuildingservice, lexmodel, slot);
   }));
 }).then(() => {
-  let arn = lexmodel.lambdaFunction.FunctionArn;
+  let arn = lexmodel.lambdaFunction.FunctionArn.slice(0,lexmodel.lambdaFunction.FunctionArn.lastIndexOf(":"));
+  console.log(` function arn: ${arn}`);
   return Promise.all([
     Welcome(arn),
     AskQuestion(arn),
@@ -95,6 +102,7 @@ createLambdaRole(iam, lexmodel, serviceRole, policyRole).then(() => {
     GetAccountBalance(arn),
     GetTransactions(arn),
     LostCard(arn),
+    SpeakToAgent(arn),
     RequestCallback(arn)
   ].map(intent=> {
     return putIntent(lexmodelbuildingservice, lexmodel, intent);
