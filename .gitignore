@@ -8,3 +8,4 @@ node_modules
 *nohist*
 .env
 .DS_Store
+.work
