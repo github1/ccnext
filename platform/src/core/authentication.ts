@@ -1,4 +1,4 @@
-import { uuid } from './entity/entity';
+import { uuid } from 'ddd-es-node';
 
 export interface AuthenticationResult {
   username : string;

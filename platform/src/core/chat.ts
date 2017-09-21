@@ -1,4 +1,4 @@
-import { Entity, EntityEvent, uuid } from './entity/entity';
+import { Entity, EntityEvent, uuid } from 'ddd-es-node';
 
 export class ChatParticipantVO {
   public typeNameMetaData : string;

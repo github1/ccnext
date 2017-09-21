@@ -5,7 +5,7 @@ import {
   TaskAssignedEvent,
   TaskCompletedEvent
 } from '../../src/core/task';
-import { Clock } from '../../src/core/clock';
+import { Clock } from 'ddd-es-node';
 
 describe('Task', () => {
 

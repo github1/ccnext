@@ -2,7 +2,8 @@ import {
   Registration,
   IdentityRegisteredEvent
 } from '../../src/core/identity';
-import { Clock } from '../../src/core/clock';
+import { Clock } from 'ddd-es-node';
+
 
 describe('Registration', () => {
 

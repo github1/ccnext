@@ -1,4 +1,4 @@
-import { Entity, EntityEvent } from './entity/entity';
+import { Entity, EntityEvent } from 'ddd-es-node';
 
 export class TaskEvent extends EntityEvent {
   public taskData : { [key:string]:string};

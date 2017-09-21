@@ -2,7 +2,7 @@
 import * as express from 'express';
 import { TaskEvent, TaskStatusChangedEvent, TaskAmendedEvent } from './../task';
 import { TaskService } from './../task_service';
-import { EventBus, EntityEvent } from './../entity/entity';
+import { EventBus, EntityEvent } from 'ddd-es-node';
 
 export function taskAPI(eventBus : EventBus, taskService : TaskService) : { preConfigure: Function } {
 

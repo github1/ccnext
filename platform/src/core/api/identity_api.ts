@@ -1,5 +1,5 @@
 import * as express from 'express';
-import { EventBus, EntityEvent } from '../entity/entity';
+import { EventBus, EntityEvent } from 'ddd-es-node';
 import {
   Credentials,
   AnonymousCredentials,

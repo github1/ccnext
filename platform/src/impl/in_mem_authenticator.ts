@@ -1,6 +1,6 @@
 import { Authenticator, AuthenticationResult} from '../core/authentication';
 import { Registration, IdentityRegisteredEvent } from '../core/identity';
-import { EntityRepository, EventBus, EntityEvent } from '../core/entity/entity';
+import { EntityRepository, EventBus, EntityEvent } from 'ddd-es-node';
 
 const registrations : { [key:string]:IdentityRegisteredEvent } = {};
 

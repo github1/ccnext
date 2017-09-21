@@ -1,10 +1,10 @@
 import * as awsSdk from 'aws-sdk';
 import { LexChatBot } from '../../../src/impl/integration/lex_chatbot';
-import uuid from 'uuid';
+import { uuid } from 'ddd-es-node';
 
 describe('LexChatBot', () => {
 
-  const dialogCorrelationId = uuid.v4();
+  const dialogCorrelationId = uuid();
   const bot = new LexChatBot('CCaaSBot', 'prod', new awsSdk.LexRuntime({
     credentials: new awsSdk.Credentials(
       process.env.AWS_ACCESS_KEY_ID,

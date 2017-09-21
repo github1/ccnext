@@ -1,6 +1,5 @@
 import { Task } from './task';
-import { EntityRepository } from './entity/entity';
-import { v4 } from 'uuid';
+import { EntityRepository, uuid } from 'ddd-es-node';
 
 export interface TaskVO {
   id : string;
@@ -16,7 +15,7 @@ export class TaskService {
   }
 
   public submitTask(queue : string, data : { [key:string]:string}) : Promise<TaskVO> {
-    const taskId : string = data['taskId'] || v4();
+    const taskId : string = data['taskId'] || uuid();
     data['taskId'] = taskId;
     data['queue'] = queue;
     return this.entityRepository

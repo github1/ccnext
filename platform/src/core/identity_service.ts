@@ -1,6 +1,6 @@
 import { Identity, Registration } from './identity';
 import { Authenticator, AuthenticationResult, Credentials } from './authentication';
-import { EntityRepository, uuid } from './entity/entity';
+import { EntityRepository, uuid } from 'ddd-es-node';
 import * as jwts from 'jwt-simple';
 
 export class IdentityVO {

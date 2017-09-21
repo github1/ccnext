@@ -8,9 +8,7 @@ import {
   AuthenticationVerificationRequestedEvent
 } from '../../src/core/identity';
 import { UsernamePasswordCredentials } from '../../src/core/authentication';
-import { useIncrementalUUID } from '../../src/core/entity/entity';
-
-import { Clock } from '../../src/core/clock';
+import { Clock, useIncrementalUUID } from 'ddd-es-node';
 
 describe('Identity', () => {
 

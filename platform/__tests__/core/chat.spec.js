@@ -9,8 +9,8 @@ import {
   ChatTransferredEvent,
   ChatParticipantVO
 } from '../../src/core/chat';
-import { Clock } from '../../src/core/clock';
-import { useIncrementalUUID } from '../../src/core/entity/entity';
+import { Clock } from 'ddd-es-node';
+import { useIncrementalUUID } from 'ddd-es-node';
 
 describe('Chat', () => {
 

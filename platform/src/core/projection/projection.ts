@@ -1,4 +1,4 @@
-import { EventBus, EntityEvent } from '../entity/entity';
+import { EventBus, EntityEvent } from 'ddd-es-node';
 import {
   ChatStartedEvent,
   ChatParticipantJoinedEvent,

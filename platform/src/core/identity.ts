@@ -3,7 +3,7 @@ import {
   AuthenticationResult,
   Credentials
 } from './authentication';
-import { Entity, EntityEvent, uuid } from './entity/entity';
+import { Entity, EntityEvent, uuid } from 'ddd-es-node';
 
 export class AuthenticationEvent extends EntityEvent {
   constructor() {

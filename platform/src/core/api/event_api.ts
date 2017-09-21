@@ -3,7 +3,7 @@ import * as expressWS from 'express-ws';
 import {
   EventBus,
   EntityEvent
-} from '../entity/entity';
+} from 'ddd-es-node';
 
 type WebSocket  = { on: Function, send : Function };
 interface WSApplication extends express.Application {

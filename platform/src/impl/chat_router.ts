@@ -2,7 +2,7 @@
 import {
   EventBus,
   EntityEvent
-} from '../core/entity/entity';
+} from 'ddd-es-node';
 import {
   AuthenticationVerificationRequestedEvent,
   AuthenticationVerificationSucceededEvent

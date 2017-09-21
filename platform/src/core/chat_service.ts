@@ -1,5 +1,5 @@
 import { Chat, ChatParticipantVO } from './chat';
-import { EntityRepository } from './entity/entity';
+import { EntityRepository } from 'ddd-es-node';
 
 export class ChatService {
   private entityRepository : EntityRepository;

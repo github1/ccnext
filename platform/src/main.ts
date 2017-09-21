@@ -1,6 +1,6 @@
 import * as awsSdk from 'aws-sdk';
 import server from './impl/runtime/server';
-import { entityRepository, eventBus, eventStore } from './impl/runtime/es';
+import { entityRepository, eventBus, eventStore } from 'ddd-es-node';
 import twilio_hooks from './impl/integration/twilio_hooks';
 import { ChatService } from './core/chat_service';
 import { LexChatBot } from './impl/integration/lex_chatbot';
