@@ -92,12 +92,14 @@ class BoundChatResponse implements ChatResponse {
   }
 
   public signalFailed(text : string) : void {
+    console.log('sf',text);
     this.reply(text);
     this.chatService.leaveChat(this.chatId, this.chatQueue);
     this.chatService.transferTo(this.chatId, 'agentChatQueue');
   }
 
   public signalError(error : Error) : void {
+    console.log(error);
     this.chatService.signalError(this.chatId, error);
     this.chatService.leaveChat(this.chatId, this.chatQueue);
     this.chatService.transferTo(this.chatId, 'agentChatQueue');
@@ -120,6 +122,7 @@ export const chatRouter = (eventBus : EventBus,
   eventBus.subscribe(
     (event : EntityEvent) => {
       if (event instanceof ChatStartedEvent) {
+        console.log(event);
         chatService.transferTo(event.streamId, 'bot');
       } else if (event instanceof TaskAssignedEvent) {
         taskById(event.streamId, (task : TaskProjectionItem) => {

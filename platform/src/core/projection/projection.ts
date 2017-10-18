@@ -80,12 +80,16 @@ export const taskByChatId = (chatId : string, func : (task : TaskProjectionItem)
   fetch(tasksByChatId, chatId, func, notPresent);
 };
 
-export const chatById = (chatId : string, func : (chat : ChatProjectionItem) => void) => {
-  fetch(chats, chatId, func);
+export const chatById = (chatId : string, func : (chat : ChatProjectionItem) => void, notPresent? : () => void) => {
+  fetch(chats, chatId, func, notPresent);
 };
 
 export const userById = (username : string, func : (user : UserProjectionItem) => void) => {
   fetch(users, username, func);
+};
+
+export const allUsers = (func : (users : UserProjectionItem[]) => void) => {
+  func(Array.from(users.values()));
 };
 
 export const chatsByParticipantSessionId = (sessionId : string, func : (arr : ChatProjectionItem[]) => void) => {

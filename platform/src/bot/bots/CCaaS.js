@@ -20,7 +20,7 @@ let CCaaS = (lexmodel) => {
       maxAttempts: 2,
       messages: [
         {
-          content: "Sorry, I don't understand what you means, you can ask me to perform account services, or ask a question about our company.",
+          content: "Sorry, I don't understand what you mean, you can ask me to perform account services, or ask a question about our company.",
           contentType: "PlainText"
         },
         {

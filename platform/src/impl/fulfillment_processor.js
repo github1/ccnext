@@ -19,9 +19,13 @@ module.exports = (eventBus, chatService) => {
           chatService.endChat(event.streamId);
           break;
         case "SpeakToAgent":
-          chatService.postMessage(event.streamId, event.fulfiller, 'I\'m transferring you to a live agent now. One moment please.');
-          chatService.leaveChat(event.streamId, event.fulfiller.sessionId);
-          chatService.transferTo(event.streamId, 'agentChatQueue');
+          chatService.postMessage(event.streamId, event.fulfiller, 'I\'m transferring you to a live agent now. One moment please.')
+            .then(() => {
+              return chatService.leaveChat(event.streamId, event.fulfiller.sessionId)
+            })
+            .then(() => {
+              return chatService.transferTo(event.streamId, 'agentChatQueue');
+            });
           break;
         case "AskQuestion":
           chatService.postMessage(
@@ -43,7 +47,9 @@ module.exports = (eventBus, chatService) => {
           chatService.postMessage(
             event.streamId,
             event.fulfiller,
-            `Your last few transactions are:\n${TRANSACTIONS.map(function(transaction) {return ` Vendor: ${transaction.vendor}, Amount: ${transaction.amount}`;})} Is there anything else I can help you with?`
+            `Your last few transactions are:\n${TRANSACTIONS.map(function (transaction) {
+              return ` Vendor: ${transaction.vendor}, Amount: ${transaction.amount}`;
+            })} Is there anything else I can help you with?`
           );
           chatService.endChat(event.streamId);
           break;

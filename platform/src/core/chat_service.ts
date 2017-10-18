@@ -28,8 +28,8 @@ export class ChatService {
       });
   }
 
-  public postMessage(chatId : string, participant : ChatParticipantVO, text : string, hidden : boolean = false) : void {
-    this.entityRepository
+  public postMessage(chatId : string, participant : ChatParticipantVO, text : string, hidden : boolean = false) : Promise<void> {
+    return this.entityRepository
       .load(Chat, chatId)
       .then((chat : Chat) => {
         chat
@@ -91,8 +91,8 @@ export class ChatService {
       });
   }
 
-  public leaveChat(chatId : string, participantSessionId : string) : void {
-    this.entityRepository
+  public leaveChat(chatId : string, participantSessionId : string) : Promise<void> {
+    return this.entityRepository
       .load(Chat, chatId)
       .then((chat : Chat) => {
         chat.leave(participantSessionId);

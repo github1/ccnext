@@ -27,6 +27,7 @@
     "express-ws": "^3.0.0",
     "jwt-simple": "^0.5.1",
     "normalize-url": "^1.9.1",
+    "superagent": "^3.6.2",
     "tslib": "~1.7.1",
     "twilio": "^3.6.1"
   },

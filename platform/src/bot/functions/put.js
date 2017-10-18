@@ -105,6 +105,8 @@ const putSlot = (lexmodelbuildingservice, lexmodel, params) => {
 };
 
 const putIntent = (lexmodelbuildingservice, lexmodel, params) => {
+  // disable lambda hook
+  delete params.dialogCodeHook;
   params.slots.forEach((slot) => {
     if (lexmodel.slotType[slot.slotType]) {
       slot.slotTypeVersion = lexmodel.slotType[slot.slotType].version;

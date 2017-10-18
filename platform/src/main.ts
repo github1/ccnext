@@ -1,7 +1,6 @@
 import * as awsSdk from 'aws-sdk';
 import server from './impl/runtime/server';
 import { entityRepository, eventBus, eventStore } from 'ddd-es-node';
-import twilio_hooks from './impl/integration/twilio_hooks';
 import { ChatService } from './core/chat_service';
 import { LexChatBot } from './impl/integration/lex_chatbot';
 import { TaskService } from './core/task_service';
@@ -13,6 +12,7 @@ import { identityAPI } from './core/api/identity_api';
 import { eventAPI } from './core/api/event_api';
 import { chatAPI } from './core/api/chat_api';
 import { taskAPI } from './core/api/task_api';
+import * as ccsip_integrator from './impl/integration/ccsip_integrator';
 import { Projection } from './core/projection/projection';
 
 // port to run the service on
@@ -20,12 +20,6 @@ const port : string = process.env.PORT || '9999';
 
 // publicly accessible url of this service (for webhooks)
 const publicUrl : string = process.env.PUBLIC_URL || `http://localhost:${port}`;
-const identityVerificationBaseUrl : string = process.env.ID_VERIF_URL || publicUrl;
-
-// twilio credentials
-const twilioPhoneNumberSid : string = process.env.TWILIO_NUMBER_SID;
-const twilioAccountSid : string = process.env.TWILIO_ACCOUNT_SID;
-const twilioAuthToken : string = process.env.TWILIO_AUTH_TOKEN;
 
 // aws config
 awsSdk.config.update({
@@ -44,7 +38,7 @@ awsSdk.config.update({
   region: process.env.AWS_DEFAULT_REGION
 });
 
-const JWT_SECRET : string = twilioPhoneNumberSid.toString();
+const JWT_SECRET : string = process.env.JWT_SECRET.toString();
 
 const identityService : IdentityService = new IdentityService(
   entityRepository,
@@ -73,6 +67,9 @@ chatRouter(eventBus, chatDesintationProvider, chatService, taskService);
 // start fulfillment processor
 fulfillment_processor(eventBus, chatService);
 
+// start ccsip integrator
+ccsip_integrator(chatService, taskService, eventBus);
+
 /* tslint:disable */
 
 const integrations : any = {
@@ -81,21 +78,6 @@ const integrations : any = {
   chat_api: chatAPI(eventBus, eventStore, chatService),
   task_api: taskAPI(eventBus, taskService)
 };
-
-if (publicUrl && publicUrl.indexOf('localhost') === -1) {
-  integrations.twilio = twilio_hooks(
-    publicUrl,
-    '/integration/twilio',
-    twilioPhoneNumberSid,
-    twilioAccountSid,
-    twilioAuthToken,
-    chatService,
-    taskService,
-    eventBus,
-    identityVerificationBaseUrl);
-} else {
-  console.warn('[WARN] Invalid publicUrl provided, Unable to register twilio hooks!');
-}
 
 process.on('unhandledRejection', (reason : {}, p : {}) => {
   console.log('Unhandled Rejection at: Promise', p, 'reason:', reason);
