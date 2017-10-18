@@ -122,7 +122,6 @@ export const chatRouter = (eventBus : EventBus,
   eventBus.subscribe(
     (event : EntityEvent) => {
       if (event instanceof ChatStartedEvent) {
-        console.log(event);
         chatService.transferTo(event.streamId, 'bot');
       } else if (event instanceof TaskAssignedEvent) {
         taskById(event.streamId, (task : TaskProjectionItem) => {

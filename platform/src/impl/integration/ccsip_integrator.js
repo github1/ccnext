@@ -23,7 +23,7 @@ module.exports = (chatService, taskService, eventBus) => {
           superagent
             .post(`http://ccsip-kamailio-0.open-cc.org/chat/${event.streamId}`)
             .send({
-              from: event.fromParticipant.phoneNumber,
+              from: 'CCaaSBot',
               message: event.text
             })
             .catch(err => {
@@ -32,11 +32,19 @@ module.exports = (chatService, taskService, eventBus) => {
         }
       } else if (event instanceof TaskSubmittedEvent) {
         if(event.taskData.channel === 'chat') {
-          if(event.taskData.queue === 'bot') {
-            taskService.assignTask(event.streamId, 'CCaaSBot');
-          } else {
-            taskService.assignTask(event.streamId, 'demoagent');
-          }
+          superagent
+            .get(`http://ccsip-kamailio-0.open-cc.org/route/${event.taskData.channel}?queue=${event.taskData.queue}`)
+            .then(res => {
+              console.log('route response:', res.text);
+              if(res.text !== 'queue') {
+                taskService.assignTask(event.streamId, res.text);
+              } else {
+                taskService.assignTask(event.streamId, 'demoagent');
+              }
+            })
+            .catch(err => {
+              console.error(err);
+            });
         }
       }
     }
@@ -71,7 +79,6 @@ module.exports = (chatService, taskService, eventBus) => {
           })
           .reduce((prev, cur) => {
             const process = (event) => {
-
               if (event.name === 'CallInitiatedEvent') {
                 return taskService.submitTask('call-queue', {
                   channel: event.channel,
