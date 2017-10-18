@@ -1,5 +1,5 @@
 let phoneNumber = {
-  name : "phoneNumber",
+  name : "customPhoneNumber",
   description : "Slot to hold a phone number",
   enumerationValues : [
     { value: "07123456789"},

@@ -14,7 +14,7 @@ let requestCallback = (uri) => {
         name: "contactNumber",
         description: "Phone number the customer would like to be contacted on",
         slotConstraint: "Required",
-        slotType: "phoneNumber",
+        slotType: "customPhoneNumber",
         slotTypeVersion: 1,
         valueElicitationPrompt: {
           messages: [
