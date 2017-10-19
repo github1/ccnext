@@ -1,5 +1,4 @@
 import * as superagent from 'superagent';
-import { IdentityRegisteredEvent } from '../../core/identity';
 import {
   ChatMessagePostedEvent,
   ChatStartedEvent,
@@ -11,7 +10,6 @@ import {
   TaskSubmittedEvent
 } from '../../core/task';
 import {
-  allUsers,
   chatById
 } from '../../core/projection/projection';
 
@@ -26,7 +24,7 @@ module.exports = (ccsipBaseUrl, chatService, taskService, eventBus) => {
     if (!isReplaying) {
       if (event instanceof ChatStartedEvent) {
         otherChats[event.streamId] = 'chat';
-        if(!ccsipChats[event.streamId]) {
+        if (!ccsipChats[event.streamId]) {
           chatService.transferTo(event.streamId, 'bot');
         }
       } else if (event instanceof ChatMessagePostedEvent) {
@@ -118,7 +116,7 @@ module.exports = (ccsipBaseUrl, chatService, taskService, eventBus) => {
                 });
               }
             } else if (event.name === 'InteractionRoutedEvent') {
-              const channel = (event.interaction||{}).channel || otherChats[event.streamId];
+              const channel = (event.interaction || {}).channel || otherChats[event.streamId];
               const workers = {
                 '1001': 'demoagent',
                 'chat-bot': 'CCaaSBot'
@@ -185,7 +183,7 @@ module.exports = (ccsipBaseUrl, chatService, taskService, eventBus) => {
             .then(() => process(cur)
               .catch((err)=> {
                 console.error(err);
-                return process(cur)
+                return process(cur);
               }));
         }, null);
 
@@ -193,27 +191,4 @@ module.exports = (ccsipBaseUrl, chatService, taskService, eventBus) => {
 
   }, 1000);
 
-}
-
-/*-
- export default (chatService, taskService, eventBus) => {
-
- return {
- preConfigure(server) {
-
- },
- postConfigure() {
-
- setInterval(() => {
-
- superagent
- .get('http://ccsip-kamailio-0.open-cc.org/agents').then((res) => {
-
- });
-
- }, 1000);
-
- }
- }
-
- }*/
+};

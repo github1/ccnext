@@ -64,7 +64,7 @@ export function chatAPI(eventBus : EventBus, eventStore : EventStore, chatServic
         const userSessionId : string = req.headers['user-session-id'].toString();
         const chatParticipant : ChatParticipantVO = new ChatParticipantVO(userId, userRole, userSessionId);
         if (body.text) {
-          chatService.postMessage(params.chatId, chatParticipant, body.text);
+          chatService.postMessage(params.chatId, chatParticipant, body.text); // tslint:disable-line:no-floating-promises
         } else {
           chatService.startChat(params.chatId, chatParticipant); // tslint:disable-line:no-floating-promises
         }
@@ -73,7 +73,7 @@ export function chatAPI(eventBus : EventBus, eventStore : EventStore, chatServic
 
       app.delete('/api/chat/:chatId', (req : express.Request, res : express.Response) : void => {
         const params : Msg = <Msg> req.params;
-        chatService.leaveChat(params.chatId, req.headers['user-session-id'].toString());
+        chatService.leaveChat(params.chatId, req.headers['user-session-id'].toString()); // tslint:disable-line:no-floating-promises
         res.status(204).json({});
       });
 

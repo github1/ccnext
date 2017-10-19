@@ -173,15 +173,6 @@ export const chatRouter = (eventBus : EventBus,
             taskService.markTaskComplete(task.taskId, `transferred to ${event.toQueue}`);
           }
         });
-        /** handle this is ccsip_integrator
-        // submit new task to next queue
-        taskService.submitTask(event.toQueue, {
-          channel: 'chat',
-          chatId: event.streamId
-        }).catch((error : Error) => {
-          console.error('failed to create task', error);
-        });
-         */
       } else if (event instanceof ChatParticipantJoinedEvent) {
         chatService.postStatus(event.streamId, `${event.participant.handle} has joined the chat`);
         taskByChatId(event.streamId, (task : TaskProjectionItem) => {

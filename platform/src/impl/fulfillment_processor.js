@@ -21,7 +21,7 @@ module.exports = (eventBus, chatService) => {
         case "SpeakToAgent":
           chatService.postMessage(event.streamId, event.fulfiller, 'I\'m transferring you to a live agent now. One moment please.')
             .then(() => {
-              return chatService.leaveChat(event.streamId, event.fulfiller.sessionId)
+              return chatService.leaveChat(event.streamId, event.fulfiller.sessionId);
             })
             .then(() => {
               return chatService.transferTo(event.streamId, 'agentChatQueue');
