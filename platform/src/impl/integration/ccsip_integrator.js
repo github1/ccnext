@@ -165,17 +165,21 @@ module.exports = (ccsipBaseUrl, chatService, taskService, eventBus) => {
                 });
               }
             } else if (event.name === 'InteractionAnsweredEvent') {
-              return taskService.amendTask(interactionTasks[event.streamId], {
-                callStatus: 'In-progress',
-                answeredTime: new Date().getTime(),
-                duration: 0
-              });
+              if(interactionTasks[event.streamId]) {
+                return taskService.amendTask(interactionTasks[event.streamId], {
+                  callStatus: 'In-progress',
+                  answeredTime: new Date().getTime(),
+                  duration: 0
+                });
+              }
             } else if (event.name === 'InteractionEndedEvent') {
-              return taskService.amendTask(interactionTasks[event.streamId], {
-                callStatus: 'Call ended',
-                endedTime: new Date().getTime(),
-                duration: 0
-              });
+              if(interactionTasks[event.streamId]) {
+                return taskService.amendTask(interactionTasks[event.streamId], {
+                  callStatus: 'Call ended',
+                  endedTime: new Date().getTime(),
+                  duration: 0
+                });
+              }
             }
             return Promise.resolve();
           };
