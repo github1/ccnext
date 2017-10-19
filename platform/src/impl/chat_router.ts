@@ -122,9 +122,10 @@ export const chatRouter = (eventBus : EventBus,
   eventBus.subscribe(
     (event : EntityEvent) => {
       if (event instanceof ChatStartedEvent) {
-        chatService.transferTo(event.streamId, 'bot');
+        //chatService.transferTo(event.streamId, 'bot');
       } else if (event instanceof TaskAssignedEvent) {
         taskById(event.streamId, (task : TaskProjectionItem) => {
+          console.log('task queue: ', event, task);
           if (task.queue === 'bot') {
             chatService.joinChat(task.chatId, new ChatParticipantVO(event.worker, 'bot', event.worker));
           }
@@ -172,6 +173,7 @@ export const chatRouter = (eventBus : EventBus,
             taskService.markTaskComplete(task.taskId, `transferred to ${event.toQueue}`);
           }
         });
+        /** handle this is ccsip_integrator
         // submit new task to next queue
         taskService.submitTask(event.toQueue, {
           channel: 'chat',
@@ -179,6 +181,7 @@ export const chatRouter = (eventBus : EventBus,
         }).catch((error : Error) => {
           console.error('failed to create task', error);
         });
+         */
       } else if (event instanceof ChatParticipantJoinedEvent) {
         chatService.postStatus(event.streamId, `${event.participant.handle} has joined the chat`);
         taskByChatId(event.streamId, (task : TaskProjectionItem) => {
@@ -210,6 +213,10 @@ export const chatRouter = (eventBus : EventBus,
         });
       } else if (event instanceof ChatParticipantLeftEvent) {
         chatService.postStatus(event.streamId, `${event.participant.handle} has left the chat`);
+        if(event.participant.role === 'agent') {
+          // ugh ..
+          chatService.transferTo(event.streamId, 'bot');
+        }
       } else if (event instanceof AuthenticationVerificationRequestedEvent) {
         chatsByParticipantSessionId(event.streamId, (chats : ChatProjectionItem[]) => {
           chats.forEach((chat : ChatProjectionItem) => {

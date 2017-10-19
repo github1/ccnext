@@ -2,6 +2,7 @@ import { Component } from 'react';
 import PropTypes from 'prop-types';
 import ChatDialogBox from './../component/chat_dialog_box';
 import { POST_OUTGOING_CHAT_MESSAGE } from '../constants';
+import * as duration from 'human-duration';
 
 export class TaskDetail extends Component {
   constructor(props) {
@@ -38,7 +39,9 @@ export class TaskDetail extends Component {
           : null }
         { selectedTask.channel === 'voice' ?
           <div>
-            <div>Call from { selectedTask.from }&nbsp;({ selectedTask.callStatus })</div>
+            <div>Call from { selectedTask.from }&nbsp;
+              ({ (selectedTask.callStatus + ' ' + (selectedTask.answeredTime && selectedTask.endedTime ? duration.fmt(selectedTask.endedTime - selectedTask.answeredTime) + '' : '')).trim() })
+            </div>
           </div>
           : null }
       </div>

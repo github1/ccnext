@@ -2,6 +2,9 @@ import * as superagent from 'superagent';
 import { IdentityRegisteredEvent } from '../../core/identity';
 import {
   ChatMessagePostedEvent,
+  ChatStartedEvent,
+  ChatStatusPostedEvent,
+  ChatTransferredEvent,
   ChatParticipantVO
 } from '../../core/chat';
 import {
@@ -13,38 +16,59 @@ import {
 } from '../../core/projection/projection';
 
 const journal = {};
+const interactionTasks = {};
+const ccsipChats = {};
+const otherChats = {};
 
-module.exports = (chatService, taskService, eventBus) => {
+module.exports = (ccsipBaseUrl, chatService, taskService, eventBus) => {
 
   eventBus.subscribe((event, isReplaying) => {
     if (!isReplaying) {
-      if (event instanceof ChatMessagePostedEvent) {
-        if(event.fromParticipant.role === 'bot' || event.fromParticipant.role === 'agent') {
+      if (event instanceof ChatStartedEvent) {
+        otherChats[event.streamId] = 'chat';
+        if(!ccsipChats[event.streamId]) {
+          chatService.transferTo(event.streamId, 'bot');
+        }
+      } else if (event instanceof ChatMessagePostedEvent) {
+        if (event.fromParticipant.role === 'bot' || event.fromParticipant.role === 'agent') {
           superagent
-            .post(`http://ccsip-kamailio-0.open-cc.org/chat/${event.streamId}`)
+            .post(`${ccsipBaseUrl}/chat/${event.streamId}`)
             .send({
-              from: 'CCaaSBot',
+              from: event.fromParticipant.handle,
               message: event.text
             })
             .catch(err => {
               console.error(err);
             });
         }
+      } else if (event instanceof ChatStatusPostedEvent) {
+        superagent
+          .post(`${ccsipBaseUrl}/chat/${event.streamId}`)
+          .send({
+            from: 'system',
+            message: `[${event.text}]`
+          })
+          .catch(err => {
+            console.error(err);
+          });
+      } else if (event instanceof ChatTransferredEvent) {
+
+        superagent
+          .post(`${ccsipBaseUrl}/route/${event.streamId}`)
+          .send({
+            channel: 'chat',
+            queue: event.toQueue || 'bot'
+          })
+          .then(() => {
+            console.log('transfer submitted');
+          })
+          .catch(err => {
+            console.error(err);
+          });
+
       } else if (event instanceof TaskSubmittedEvent) {
-        if(event.taskData.channel === 'chat') {
-          superagent
-            .get(`http://ccsip-kamailio-0.open-cc.org/route/${event.taskData.channel}?queue=${event.taskData.queue}`)
-            .then(res => {
-              console.log('route response:', res.text);
-              if(res.text !== 'queue') {
-                taskService.assignTask(event.streamId, res.text);
-              } else {
-                taskService.assignTask(event.streamId, 'demoagent');
-              }
-            })
-            .catch(err => {
-              console.error(err);
-            });
+        if (event.taskData.interactionId) {
+          interactionTasks[event.taskData.interactionId] = event.streamId;
         }
       }
     }
@@ -55,78 +79,115 @@ module.exports = (chatService, taskService, eventBus) => {
   setInterval(() => {
 
     superagent
-      .get('http://ccsip-kamailio-0.open-cc.org/events').then((res) => {
+      .get(`${ccsipBaseUrl}/events`).then((res) => {
       const events = JSON.parse(res.text);
 
-
-      allUsers((users) => {
-
-        events
-          .filter((event) => {
-            const keep = !journal[event.uuid];
-            journal[event.uuid] = event;
-            return keep;
-          })
-          .filter((event) => {
-            if (false && event.interaction && event.interaction.channel === 'chat') {
-              console.log('skipping chat event', event);
-              return false;
-            }
-            return true;
-          })
-          .filter((event) => {
-            return event.timestamp >= startTime;
-          })
-          .reduce((prev, cur) => {
-            const process = (event) => {
-              if (event.name === 'CallInitiatedEvent') {
-                return taskService.submitTask('call-queue', {
-                  channel: event.channel,
-                  taskId: event.streamId,
-                  from: event.fromPhoneNumber,
-                  callStatus: 'Ringing',
-                  duration: 0
-                })
-              } else if (event.name === 'ChatInitiatedEvent') {
+      events
+        .filter((event) => {
+          const keep = !journal[event.uuid];
+          journal[event.uuid] = event;
+          return keep;
+        })
+        .filter((event) => {
+          return event.timestamp >= startTime;
+        })
+        .reduce((prev, cur) => {
+          const process = (event) => {
+            console.log(event);
+            if (event.name === 'CallInitiatedEvent') {
+              // ...
+            } else if (event.name === 'ChatInitiatedEvent') {
+              const participant = new ChatParticipantVO(event.from, 'visitor', `chat-incoming::${event.streamId}`, event.from);
+              ccsipChats[event.streamId] = event.streamId;
+              return chatService.startChat(event.streamId, participant)
+                .then(() => {
+                  return chatService.postMessage(event.streamId, participant, event.message);
+                });
+            } else if (event.name === 'ChatMessagePostedEvent') {
+              if (event.to === 'inbound') {
                 const participant = new ChatParticipantVO(event.from, 'visitor', `chat-incoming::${event.streamId}`, event.from);
-                chatService.startChat(event.streamId, participant)
-                  .then(() => {
-                    chatService.postMessage(event.streamId, participant, event.initialMessage);
+                chatById(event.streamId, () => {
+                  chatService.postMessage(event.streamId, participant, event.message);
+                }, () => {
+                  ccsipChats[event.streamId] = event.streamId;
+                  return chatService.startChat(event.streamId, participant).then(() => {
+                    return chatService.transferTo(event.streamId, 'bot');
+                  }).then(() => {
+                    return chatService.postMessage(event.streamId, participant, event.message);
                   });
-              } else if (event.name === 'ChatMessagePostedEvent') {
-                if (event.to === 'inbound') {
-                  const participant = new ChatParticipantVO(event.from, 'visitor', `chat-incoming::${event.streamId}`, event.from);
-                  chatById(event.streamId, () => {
-                    chatService.postMessage(event.streamId, participant, event.message);
-                  }, () => {
-                    console.log(`chat ${event.streamId} not found ... starting`);
-                    chatService.startChat(event.streamId, participant)
-                      .then(() => {
-                        chatService.postMessage(event.streamId, participant, event.message);
-                      });
-                  });
-                }
-              } else if (event.name === 'InteractionRoutedEvent') {
-                const worker = event.interaction.agentId === '1001' ? 'demoagent' : event.interaction.agentId;
-                return taskService.assignTask(event.streamId, worker);
-              } else if (event.name === 'InteractionAnsweredEvent') {
-                return taskService.amendTask(event.streamId, {
-                  callStatus: 'In-progress',
-                  duration: 0
                 });
-              } else if (event.name === 'InteractionEndedEvent') {
-                return taskService.amendTask(event.streamId, {
-                  callStatus: 'Call ended',
-                  duration: 0
-                });
-              } else {
-                return Promise.resolve();
               }
-            };
-            return prev === null ? process(cur) : prev.then(() => process(cur));
-          }, null);
-
-      });
+            } else if (event.name === 'InteractionRoutedEvent') {
+              const channel = (event.interaction||{}).channel || otherChats[event.streamId];
+              const workers = {
+                '1001': 'demoagent',
+                'chat-bot': 'CCaaSBot'
+              };
+              if (channel === 'chat') {
+                const matches = /^(dest:([^:]+):)?queue:([^:]+)$/.exec(event.endpoint);
+                if (matches === null) {
+                  return chatService.transferTo(event.streamId, 'bot');
+                } else {
+                  const dest = matches[2];
+                  const queue = matches[3];
+                  console.log('submitting chat task to queue', event.endpoint, queue, dest);
+                  if (dest && queue) {
+                    return taskService.submitTask(queue, {
+                      channel: channel,
+                      from: event.interaction.originator,
+                      interactionId: event.streamId,
+                      chatId: event.streamId
+                    }).then((task) => {
+                      if (dest) {
+                        const worker = workers[dest];
+                        if (worker) {
+                          return taskService.assignTask(task.id, worker);
+                        } else {
+                          console.error(`worker ${dest} not found`);
+                        }
+                      }
+                    });
+                  }
+                }
+              } else if (channel === 'voice') {
+                return taskService.submitTask('call-queue', {
+                  channel: channel,
+                  from: event.interaction.fromPhoneNumber,
+                  callStatus: 'Ringing',
+                  interactionId: event.streamId,
+                  duration: 0
+                }).then((task) => {
+                  const endpoint = event.interaction.agentId || event.endpoint;
+                  const worker = workers[endpoint];
+                  if (worker) {
+                    return taskService.assignTask(task.id, worker);
+                  } else {
+                    console.error(`worker ${endpoint} not found`);
+                  }
+                });
+              }
+            } else if (event.name === 'InteractionAnsweredEvent') {
+              return taskService.amendTask(interactionTasks[event.streamId], {
+                callStatus: 'In-progress',
+                answeredTime: new Date().getTime(),
+                duration: 0
+              });
+            } else if (event.name === 'InteractionEndedEvent') {
+              return taskService.amendTask(interactionTasks[event.streamId], {
+                callStatus: 'Call ended',
+                endedTime: new Date().getTime(),
+                duration: 0
+              });
+            }
+            return Promise.resolve();
+          };
+          return prev === null ? process(cur) : prev
+            .then(() => process(cur)
+              .catch((err)=> {
+                console.error(err);
+                return process(cur)
+              }));
+        }, null);
 
     });
 

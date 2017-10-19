@@ -55,8 +55,8 @@ export class ChatService {
       });
   }
 
-  public transferTo(chatId : string, queue : string) : void {
-    this.entityRepository
+  public transferTo(chatId : string, queue : string) : Promise<void> {
+    return this.entityRepository
       .load(Chat, chatId)
       .then((chat : Chat) => {
         chat.transferTo(queue);

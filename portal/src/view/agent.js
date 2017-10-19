@@ -55,6 +55,7 @@ export default class extends Component {
               </table>
             </div>
           </div>
+          {/*
           <div className="panel panel-default">
             <div className="panel-heading">
               <h3 className="panel-title">Customer Details</h3>
@@ -70,6 +71,7 @@ export default class extends Component {
                 verificationEnabled={selectedTask.status === 'assigned'}/>
             </div>
           </div>
+        */}
         </div>
         <div className="agent-content">
           <TaskDetail task={selectedTask}

@@ -154,7 +154,7 @@ export class Chat extends Entity {
   private started : boolean;
   private participants : { [key:string]:ChatParticipantVO } = {};
   private defaultQueueName : string;
-  private chatQueue : string;
+  private chatQueue : string = 'default';
   private fulfillmentSequence : number = 0;
   private chatSequence : number = 1;
 
@@ -200,9 +200,6 @@ export class Chat extends Entity {
 
   public leave(participantSessionId : string) : void {
     if (this.participants.hasOwnProperty(participantSessionId)) {
-      if(this.participants[participantSessionId].role === 'agent') {
-        this.transferTo(this.defaultQueueName);
-      }
       this.dispatch(this.id, new ChatParticipantLeftEvent(this.participants[participantSessionId]));
     }
   }

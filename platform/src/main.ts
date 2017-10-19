@@ -68,7 +68,7 @@ chatRouter(eventBus, chatDesintationProvider, chatService, taskService);
 fulfillment_processor(eventBus, chatService);
 
 // start ccsip integrator
-ccsip_integrator(chatService, taskService, eventBus);
+ccsip_integrator('http://ccsip-kamailio-0.open-cc.org', chatService, taskService, eventBus);
 
 /* tslint:disable */
 
