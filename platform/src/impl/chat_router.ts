@@ -125,7 +125,6 @@ export const chatRouter = (eventBus : EventBus,
         //chatService.transferTo(event.streamId, 'bot');
       } else if (event instanceof TaskAssignedEvent) {
         taskById(event.streamId, (task : TaskProjectionItem) => {
-          console.log('task queue: ', event, task);
           if (task.queue === 'bot') {
             chatService.joinChat(task.chatId, new ChatParticipantVO(event.worker, 'bot', event.worker));
           }

@@ -62,7 +62,7 @@ export function chatAPI(eventBus : EventBus, eventStore : EventStore, chatServic
         const userId : string = req.headers['user-id'].toString();
         const userRole : string = req.headers['user-role'].toString();
         const userSessionId : string = req.headers['user-session-id'].toString();
-        const chatParticipant : ChatParticipantVO = new ChatParticipantVO(userId, userRole, userSessionId);
+        const chatParticipant : ChatParticipantVO = new ChatParticipantVO(userId, userRole, userSessionId).fromSourceSystem('web');
         if (body.text) {
           chatService.postMessage(params.chatId, chatParticipant, body.text); // tslint:disable-line:no-floating-promises
         } else {

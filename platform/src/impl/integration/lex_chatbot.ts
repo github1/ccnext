@@ -19,7 +19,7 @@ export class LexChatBot implements ChatDestination {
       botName: this.botName,
       botAlias: this.botAlias,
       userId: (request.correlationId.replace(/[^0-9a-z._:-]+/i, '_')),
-      inputText: request.message,
+      inputText: request.message + '',
       sessionAttributes: request.conversationData || {}
     };
     this.lexRuntime.postText(params, (err : Error,

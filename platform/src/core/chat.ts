@@ -6,6 +6,7 @@ export class ChatParticipantVO {
   public role : string;
   public sessionId : string;
   public phoneNumber : string;
+  public sourceSystem : string;
 
   constructor(handle : string, role : string, sessionId : string, phoneNumber? : string) {
     this.typeNameMetaData = this.constructor.name;
@@ -19,6 +20,10 @@ export class ChatParticipantVO {
       throw new Error('Session ids do not match');
     }
     return other.handle !== this.handle || other.role !== this.role;
+  }
+  public fromSourceSystem(sourceSystem : string) : ChatParticipantVO {
+    this.sourceSystem = sourceSystem;
+    return this;
   }
 }
 

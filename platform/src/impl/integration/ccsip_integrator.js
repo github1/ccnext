@@ -1,9 +1,10 @@
 import * as superagent from 'superagent';
 import {
   ChatMessagePostedEvent,
-  ChatStartedEvent,
+  ChatParticipantJoinedEvent,
   ChatStatusPostedEvent,
   ChatTransferredEvent,
+  ChatEndedEvent,
   ChatParticipantVO
 } from '../../core/chat';
 import {
@@ -15,18 +16,28 @@ import {
 
 const journal = {};
 const interactionTasks = {};
-const ccsipChats = {};
-const otherChats = {};
 
 module.exports = (ccsipBaseUrl, chatService, taskService, eventBus) => {
 
   eventBus.subscribe((event, isReplaying) => {
     if (!isReplaying) {
-      if (event instanceof ChatStartedEvent) {
-        otherChats[event.streamId] = 'chat';
-        if (!ccsipChats[event.streamId]) {
-          chatService.transferTo(event.streamId, 'bot');
+      if (event instanceof ChatParticipantJoinedEvent) {
+
+        if (event.participant.sourceSystem === 'web'
+          && event.participant.role !== 'agent'
+          && event.participant.role !== 'bot') {
+          superagent
+            .post(`${ccsipBaseUrl}/interaction/${event.streamId}`)
+            .send({
+              command: 'InitiateChat',
+              from: `web:${event.participant.sessionId}`,
+              initialMessage: ''
+            })
+            .catch(err => {
+              console.error(err);
+            });
         }
+
       } else if (event instanceof ChatMessagePostedEvent) {
         if (event.fromParticipant.role === 'bot' || event.fromParticipant.role === 'agent') {
           superagent
@@ -50,7 +61,6 @@ module.exports = (ccsipBaseUrl, chatService, taskService, eventBus) => {
             console.error(err);
           });
       } else if (event instanceof ChatTransferredEvent) {
-
         superagent
           .post(`${ccsipBaseUrl}/route/${event.streamId}`)
           .send({
@@ -63,7 +73,18 @@ module.exports = (ccsipBaseUrl, chatService, taskService, eventBus) => {
           .catch(err => {
             console.error(err);
           });
-
+      } else if (event instanceof ChatEndedEvent) {
+        superagent
+          .post(`${ccsipBaseUrl}/interaction/${event.streamId}`)
+          .send({
+            command: 'EndInteraction',
+          })
+          .then(() => {
+            console.log('end chat interaction success');
+          })
+          .catch(err => {
+            console.error(err);
+          });
       } else if (event instanceof TaskSubmittedEvent) {
         if (event.taskData.interactionId) {
           interactionTasks[event.taskData.interactionId] = event.streamId;
@@ -91,23 +112,23 @@ module.exports = (ccsipBaseUrl, chatService, taskService, eventBus) => {
         })
         .reduce((prev, cur) => {
           const process = (event) => {
-            console.log(event);
+            console.log(event.name);
             if (event.name === 'CallInitiatedEvent') {
               // ...
             } else if (event.name === 'ChatInitiatedEvent') {
-              const participant = new ChatParticipantVO(event.from, 'visitor', `chat-incoming::${event.streamId}`, event.from);
-              ccsipChats[event.streamId] = event.streamId;
-              return chatService.startChat(event.streamId, participant)
-                .then(() => {
-                  return chatService.postMessage(event.streamId, participant, event.message);
-                });
+              if (!/^web:/.test(event.from)) {
+                const participant = new ChatParticipantVO(event.from, 'visitor', `chat-incoming::${event.streamId}`, event.from);
+                return chatService.startChat(event.streamId, participant)
+                  .then(() => {
+                    return chatService.postMessage(event.streamId, participant, event.initialMessage);
+                  });
+              }
             } else if (event.name === 'ChatMessagePostedEvent') {
               if (event.to === 'inbound') {
                 const participant = new ChatParticipantVO(event.from, 'visitor', `chat-incoming::${event.streamId}`, event.from);
                 chatById(event.streamId, () => {
                   chatService.postMessage(event.streamId, participant, event.message);
                 }, () => {
-                  ccsipChats[event.streamId] = event.streamId;
                   return chatService.startChat(event.streamId, participant).then(() => {
                     return chatService.transferTo(event.streamId, 'bot');
                   }).then(() => {
@@ -116,7 +137,7 @@ module.exports = (ccsipBaseUrl, chatService, taskService, eventBus) => {
                 });
               }
             } else if (event.name === 'InteractionRoutedEvent') {
-              const channel = (event.interaction || {}).channel || otherChats[event.streamId];
+              const channel = (event.interaction || {}).channel;
               const workers = {
                 '1001': 'demoagent',
                 'chat-bot': 'CCaaSBot'
