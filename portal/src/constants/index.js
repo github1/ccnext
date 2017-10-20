@@ -30,4 +30,5 @@ export const TASK_RECEIVED = "task_received";
 export const MARK_TASK_COMPLETE = "mark_task_complete";
 export const SELECT_TASK = "select_task";
 export const TASK_SELECTED = "task_selected";
+export const WORKER_AVAILABILITY_UPDATED = "worker_availability_updated";
 export const RESIZED = "resize";

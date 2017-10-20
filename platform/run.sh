@@ -36,10 +36,6 @@ if [ -z "${TWILIO_NUMBER_SID}" ]; then
     fi
 fi
 
-if [ -n "${DEMO_AGENT_PHONE_NUMBER}" ]; then
-    export DEMO_AGENT_PHONE_NUMBER
-fi
-
 export PUBLIC_URL
 export TWILIO_ACCOUNT_SID
 export TWILIO_AUTH_TOKEN

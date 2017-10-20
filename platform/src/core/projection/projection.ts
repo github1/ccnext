@@ -88,6 +88,12 @@ export const userById = (username : string, func : (user : UserProjectionItem) =
   fetch(users, username, func);
 };
 
+export const userByPhoneNumber = (phoneNumber : string, func : (users : UserProjectionItem) => void) => {
+  func(Array.from(users.values()).filter((user : UserProjectionItem) => {
+    return user.phoneNumber === phoneNumber;
+  })[0]);
+};
+
 export const allUsers = (func : (users : UserProjectionItem[]) => void) => {
   func(Array.from(users.values()));
 };

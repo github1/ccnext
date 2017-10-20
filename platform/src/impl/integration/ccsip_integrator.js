@@ -11,7 +11,13 @@ import {
   TaskSubmittedEvent
 } from '../../core/task';
 import {
-  chatById
+  AuthenticationSucceededEvent
+} from '../../core/identity';
+import {
+  chatById,
+  userById,
+  userByPhoneNumber,
+  allUsers
 } from '../../core/projection/projection';
 
 const journal = {};
@@ -89,6 +95,52 @@ module.exports = (ccsipBaseUrl, chatService, taskService, eventBus) => {
         if (event.taskData.interactionId) {
           interactionTasks[event.taskData.interactionId] = event.streamId;
         }
+      } else if (event instanceof AuthenticationSucceededEvent) {
+        if (event.role === 'agent') {
+          userById(event.username, (user) => {
+            superagent
+              .post(`${ccsipBaseUrl}/agent/${user.phoneNumber}`)
+              .send({
+                command: 'AssignEndpoint',
+                channel: 'chat',
+                endpoint: `dest:${user.username}:queue:agentChatQueue`
+              })
+              .then(() => {
+                console.log(`assigned ${event.username} endpoint for chat`);
+                return superagent
+                  .post(`${ccsipBaseUrl}/agent/${user.phoneNumber}`)
+                  .send({
+                    command: 'AssignQueue',
+                    channel: 'chat',
+                    queue: 'agentChatQueue'
+                  })
+                  .then(() => {
+                    console.log(`assigned ${event.username} to agentChatQueue for chat`);
+                  })
+                  .catch(err => {
+                    console.error(err);
+                  });
+              })
+              .then(() => {
+                console.log(`assigned ${event.username} queue for chat`);
+                return superagent
+                  .post(`${ccsipBaseUrl}/agent/${user.phoneNumber}`)
+                  .send({
+                    command: 'MakeAvailable',
+                    channel: 'chat'
+                  })
+                  .then(() => {
+                    console.log(`set ${event.username} available for chat`);
+                  })
+                  .catch(err => {
+                    console.error(err);
+                  });
+              })
+              .catch(err => {
+                console.error(err);
+              });
+          });
+        }
       }
     }
   }, {replay: true});
@@ -96,6 +148,25 @@ module.exports = (ccsipBaseUrl, chatService, taskService, eventBus) => {
   const startTime = new Date().getTime();
 
   setInterval(() => {
+
+    superagent
+      .get(`${ccsipBaseUrl}/agents`).then((res) => {
+      const agents = JSON.parse(res.text);
+      allUsers((users) => {
+        users.forEach((user) => {
+          agents.forEach((agent) => {
+            if (agent.id === user.phoneNumber) {
+              eventBus.emit({
+                streamId: user.username,
+                name: 'WorkerAvailabilityUpdated',
+                voice: (agent.voice || {}).status === 'available' && !(agent.voice || {}).reserved,
+                chat: (agent.chat || {}).status === 'available' && !(agent.chat || {}).reserved
+              });
+            }
+          });
+        });
+      });
+    });
 
     superagent
       .get(`${ccsipBaseUrl}/events`).then((res) => {
@@ -130,7 +201,7 @@ module.exports = (ccsipBaseUrl, chatService, taskService, eventBus) => {
                   chatService.postMessage(event.streamId, participant, event.message);
                 }, () => {
                   return chatService.startChat(event.streamId, participant).then(() => {
-                    return chatService.transferTo(event.streamId, 'bot');
+                    return chatService.transferTo(event.streamId, 'chat-bot');
                   }).then(() => {
                     return chatService.postMessage(event.streamId, participant, event.message);
                   });
@@ -138,19 +209,15 @@ module.exports = (ccsipBaseUrl, chatService, taskService, eventBus) => {
               }
             } else if (event.name === 'InteractionRoutedEvent') {
               const channel = (event.interaction || {}).channel;
-              const workers = {
-                '1001': 'demoagent',
-                'chat-bot': 'CCaaSBot'
-              };
               if (channel === 'chat') {
                 const matches = /^(dest:([^:]+):)?queue:([^:]+)$/.exec(event.endpoint);
                 if (matches === null) {
-                  return chatService.transferTo(event.streamId, 'bot');
+                  return chatService.transferTo(event.streamId, 'chat-bot');
                 } else {
                   const dest = matches[2];
                   const queue = matches[3];
-                  console.log('submitting chat task to queue', event.endpoint, queue, dest);
                   if (dest && queue) {
+                    console.log('submitting chat task to dest %s and queue %s', dest, queue);
                     return taskService.submitTask(queue, {
                       channel: channel,
                       from: event.interaction.originator,
@@ -158,7 +225,7 @@ module.exports = (ccsipBaseUrl, chatService, taskService, eventBus) => {
                       chatId: event.streamId
                     }).then((task) => {
                       if (dest) {
-                        const worker = workers[dest];
+                        const worker = dest;
                         if (worker) {
                           return taskService.assignTask(task.id, worker);
                         } else {
@@ -166,6 +233,9 @@ module.exports = (ccsipBaseUrl, chatService, taskService, eventBus) => {
                         }
                       }
                     });
+                  } else if(queue) {
+                    console.log('transferring to queue', dest, queue);
+                    return chatService.transferTo(event.streamId, queue);
                   }
                 }
               } else if (channel === 'voice') {
@@ -177,16 +247,17 @@ module.exports = (ccsipBaseUrl, chatService, taskService, eventBus) => {
                   duration: 0
                 }).then((task) => {
                   const endpoint = event.interaction.agentId || event.endpoint;
-                  const worker = workers[endpoint];
-                  if (worker) {
-                    return taskService.assignTask(task.id, worker);
-                  } else {
-                    console.error(`worker ${endpoint} not found`);
-                  }
+                  userByPhoneNumber(endpoint, (user) => {
+                    if (user) {
+                      return taskService.assignTask(task.id, user.username);
+                    } else {
+                      console.error(`worker ${endpoint} not found`);
+                    }
+                  });
                 });
               }
             } else if (event.name === 'InteractionAnsweredEvent') {
-              if(interactionTasks[event.streamId]) {
+              if (interactionTasks[event.streamId]) {
                 return taskService.amendTask(interactionTasks[event.streamId], {
                   callStatus: 'In-progress',
                   answeredTime: new Date().getTime(),
@@ -194,7 +265,7 @@ module.exports = (ccsipBaseUrl, chatService, taskService, eventBus) => {
                 });
               }
             } else if (event.name === 'InteractionEndedEvent') {
-              if(interactionTasks[event.streamId]) {
+              if (interactionTasks[event.streamId]) {
                 return taskService.amendTask(interactionTasks[event.streamId], {
                   callStatus: 'Call ended',
                   endedTime: new Date().getTime(),

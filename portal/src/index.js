@@ -58,6 +58,7 @@ import {
   MARK_TASK_COMPLETE,
   SELECT_TASK,
   TASK_SELECTED,
+  WORKER_AVAILABILITY_UPDATED,
   RESIZED
 } from './constants';
 
@@ -217,6 +218,12 @@ const sideEffect = (command, model) => {
         dispatch({
           type: TASK_RECEIVED,
           task: command.task
+        });
+      } else if (command.name === 'WorkerAvailabilityUpdated') {
+        dispatch({
+          type: WORKER_AVAILABILITY_UPDATED,
+          voice: command.voice,
+          chat: command.chat
         });
       }
       break;
@@ -449,6 +456,11 @@ const update = (event, model) => {
       break;
     case TASK_SELECTED:
       model.selectedTask = event.taskId;
+      break;
+    case WORKER_AVAILABILITY_UPDATED:
+      if(model.user) {
+        model.user.availability = event;
+      }
       break;
   }
   return model;

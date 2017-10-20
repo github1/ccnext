@@ -3,6 +3,7 @@ import Dropdown  from './dropdown';
 import Logo from './logo';
 import NavMenu from './nav_menu';
 import CustomerChat from './customer_chat';
+import AvailabilityIndicator from './availability_indicator';
 import views from '../view';
 import { SIGN_OUT, NAVIGATE } from '../constants';
 
@@ -85,6 +86,8 @@ export default class extends Component {
 
     const notVisitor = this.props.model.user && this.props.model.user.role !== 'visitor';
 
+    const isAgent = this.props.model.user && this.props.model.user.role === 'agent';
+
     const actions = notVisitor ?
       <div
         className="user-menu">
@@ -94,6 +97,8 @@ export default class extends Component {
           menuItems={menuLinks[this.props.model.user.role]}/>
       </div> : null;
 
+    const availabilityIndicator = isAgent ? <AvailabilityIndicator user={this.props.model.user}/> : null;
+
     if (viewName === 'verification') {
       return content;
     } else if (notVisitor) {
@@ -101,6 +106,7 @@ export default class extends Component {
         <div className="pull-left">
           <NavMenu className="account-menu" logo={true}/>
         </div>
+        { availabilityIndicator }
         { actions }
         { content }
         {

@@ -204,8 +204,8 @@ export const chatRouter = (eventBus : EventBus,
       } else if (event instanceof ChatParticipantLeftEvent) {
         chatService.postStatus(event.streamId, `${event.participant.handle} has left the chat`);
         if(event.participant.role === 'agent') {
-          // ugh ..
-          chatService.transferTo(event.streamId, 'bot');
+          // ugh .. if agent leaves, then transfer back to chat-bot queue
+          chatService.transferTo(event.streamId, 'chat-bot');
         }
       } else if (event instanceof AuthenticationVerificationRequestedEvent) {
         chatsByParticipantSessionId(event.streamId, (chats : ChatProjectionItem[]) => {

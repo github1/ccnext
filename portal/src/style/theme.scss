@@ -230,6 +230,26 @@ form {
   }
 }
 
+.availability-indicator {
+  position: absolute;
+  right: 61px;
+  top: 14px;
+  .glyphicon {
+    border: 1px solid;
+    border-radius: 2px;
+    font-size: 18px;
+    padding: 5px;
+    margin-left: 1px;
+    color: #aaa;
+    &.busy {
+      color: $brand-primary;
+    }
+    &.available {
+      color: $brand-success;
+    }
+  }
+}
+
 .dropdown-menu {
   padding: 0px;
   border-color: $brand-success;
