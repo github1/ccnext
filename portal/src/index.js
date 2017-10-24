@@ -407,7 +407,9 @@ const update = (event, model) => {
       break;
     case AUTHENTICATION_SUCCESS:
       model.isPending = false;
+      const availability = (model.user||{}).availability;
       model.user = event.user;
+      model.user.availability = availability;
       break;
     case CHAT_JOINED:
       model.chatSessions[event.id] = {

@@ -240,11 +240,12 @@ form {
     font-size: 18px;
     padding: 5px;
     margin-left: 1px;
-    color: #aaa;
     &.busy {
-      color: $brand-primary;
+      color: #aa33ee;
+      text-shadow: 0 0 3px #fff, 0 0 5px #aaaaee;
     }
     &.available {
+      text-shadow: 0 0 3px #fff, 0 0 5px $brand-success;
       color: $brand-success;
     }
   }

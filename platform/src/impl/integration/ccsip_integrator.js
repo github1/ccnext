@@ -147,6 +147,15 @@ module.exports = (ccsipBaseUrl, chatService, taskService, eventBus) => {
 
   const startTime = new Date().getTime();
 
+  const prepareChannelStatus = (channel) => {
+    const reserved = channel.reserved;
+    const status = channel.status;
+    if(status === 'available' && reserved) {
+      return 'busy'
+    }
+    return status;
+  };
+
   setInterval(() => {
 
     superagent
@@ -159,8 +168,8 @@ module.exports = (ccsipBaseUrl, chatService, taskService, eventBus) => {
               eventBus.emit({
                 streamId: user.username,
                 name: 'WorkerAvailabilityUpdated',
-                voice: (agent.voice || {}).status === 'available' && !(agent.voice || {}).reserved,
-                chat: (agent.chat || {}).status === 'available' && !(agent.chat || {}).reserved
+                voice: prepareChannelStatus(agent.voice||{}),
+                chat: prepareChannelStatus(agent.chat||{})
               });
             }
           });
