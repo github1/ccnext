@@ -20,6 +20,10 @@ app.use((req, res, next) => {
     let proxyUrl = platformUrl;
     req.headers['content-type'] = 'application/json';
     proxy(proxyUrl)(req, res, next);
+  } else if ((/\/registrationtoken/).test(req.path)) {
+    let proxyUrl = 'http://ccsip-kamailio-0.open-cc.org';
+    req.headers['content-type'] = 'application/json';
+    proxy(proxyUrl)(req, res, next);
   } else if (path.extname(req.path).length > 0) {
     req.url = `/${path.basename(req.path)}`;
     // assume static content here

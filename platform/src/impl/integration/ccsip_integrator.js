@@ -151,7 +151,7 @@ module.exports = (ccsipBaseUrl, chatService, taskService, eventBus) => {
     const reserved = channel.reserved;
     const status = channel.status;
     if(status === 'available' && reserved) {
-      return 'busy'
+      return 'busy';
     }
     return status;
   };

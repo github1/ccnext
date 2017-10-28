@@ -1,6 +1,7 @@
 import { Component } from 'react';
 import PropTypes from 'prop-types';
 import ChatDialogBox from './../component/chat_dialog_box';
+import SoftPhone from './softphone';
 import { POST_OUTGOING_CHAT_MESSAGE } from '../constants';
 import * as duration from 'human-duration';
 
@@ -42,6 +43,7 @@ export class TaskDetail extends Component {
             <div>Call from { selectedTask.from }&nbsp;
               ({ (selectedTask.callStatus + ' ' + (selectedTask.answeredTime && selectedTask.endedTime ? duration.fmt(selectedTask.endedTime - selectedTask.answeredTime) + '' : '')).trim() })
             </div>
+            <SoftPhone contacts={this.props.contacts}/>
           </div>
           : null }
       </div>
@@ -52,7 +54,8 @@ export class TaskDetail extends Component {
 TaskDetail.propTypes = {
   task: PropTypes.object.isRequired,
   chatSessions: PropTypes.object.isRequired,
-  height: PropTypes.number
+  height: PropTypes.number,
+  contacts: PropTypes.array
 };
 
 export default TaskDetail;

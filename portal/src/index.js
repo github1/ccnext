@@ -24,6 +24,13 @@ import {
 import { startChat, leaveChat, postChatMessage } from './api/chat.js';
 import { getTasks, markTaskComplete, populateTasks } from './api/tasks.js';
 import { openEventStream, subscribeTo, unsubscribe } from './api/events';
+import {
+  initSIPPhone,
+  declineSIPCall,
+  answerSIPCall,
+  hangUpSIPCall,
+  getRegistrationToken
+} from './api/janus';
 
 import {
   REALTIME_CONNECTION_ESTABLISHED,
@@ -59,7 +66,13 @@ import {
   SELECT_TASK,
   TASK_SELECTED,
   WORKER_AVAILABILITY_UPDATED,
-  RESIZED
+  RESIZED,
+  INCOMING_CONTACT_REQUESTED,
+  ACCEPT_INCOMING_CONTACT,
+  INCOMING_CONTACT_ACCEPTED,
+  DECLINE_INCOMING_CONTACT,
+  HANGUP_INCOMING_CONTACT,
+  INCOMING_CONTACT_ENDED
 } from './constants';
 
 let element = document.getElementById('main');
@@ -142,7 +155,42 @@ const sideEffect = (command, model) => {
               type: AUTHENTICATION_SUCCESS,
               user: user
             }).then(() => {
-              subscribeTo(id.username).then(() => perform());
+              subscribeTo(id.username)
+                .then(() => {
+                  perform();
+                })
+                .then(() => {
+                  if (id.role === 'agent') {
+                    initSIPPhone({
+                      server: 'https://ccsip-janus-0.open-cc.org/janus',
+                      onInitSuccess: (session) => {
+                        getRegistrationToken().then((token) => {
+                          session
+                            .register(user.phoneNumber,
+                              'ccsip-kamailio-0.open-cc.org',
+                              token);
+                        });
+                      },
+                      onCallReceived: (callId) => {
+                        dispatch({
+                          type: INCOMING_CONTACT_REQUESTED,
+                          source: 'janus',
+                          callId: callId
+                        });
+                      },
+                      onCallAccepted: () => {
+                        dispatch({
+                          type: INCOMING_CONTACT_ACCEPTED
+                        });
+                      },
+                      onCallHungUp: () => {
+                        dispatch({
+                          type: INCOMING_CONTACT_ENDED
+                        });
+                      }
+                    });
+                  }
+                });
             });
           });
         } else {
@@ -368,6 +416,19 @@ const sideEffect = (command, model) => {
         taskId: command.taskId
       });
       break;
+    case ACCEPT_INCOMING_CONTACT:
+      answerSIPCall(command.callId);
+      break;
+    case HANGUP_INCOMING_CONTACT:
+      model.contacts.forEach(contact => {
+        hangUpSIPCall(contact.id);
+      });
+      break;
+    case DECLINE_INCOMING_CONTACT:
+      model.contacts.forEach(contact => {
+        declineSIPCall(contact.id);
+      });
+      break;
   }
 };
 
@@ -407,7 +468,7 @@ const update = (event, model) => {
       break;
     case AUTHENTICATION_SUCCESS:
       model.isPending = false;
-      const availability = (model.user||{}).availability;
+      const availability = (model.user || {}).availability;
       model.user = event.user;
       model.user.availability = availability;
       break;
@@ -460,9 +521,21 @@ const update = (event, model) => {
       model.selectedTask = event.taskId;
       break;
     case WORKER_AVAILABILITY_UPDATED:
-      if(model.user) {
+      if (model.user) {
         model.user.availability = event;
       }
+      break;
+    case INCOMING_CONTACT_REQUESTED:
+      model.contacts = model.contacts || [];
+      model.contacts.push({id: event.callId, state: 'ringing'});
+      break;
+    case INCOMING_CONTACT_ACCEPTED:
+      model.contacts = (model.contacts || []).map((contact) => {
+        return {id: contact.id, state: 'accepted'};
+      });
+      break;
+    case INCOMING_CONTACT_ENDED:
+      model.contacts = [];
       break;
   }
   return model;

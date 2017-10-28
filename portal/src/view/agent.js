@@ -74,6 +74,7 @@ export default class extends Component {
         <div className="agent-content">
           <TaskDetail task={selectedTask}
                       chatSessions={this.props.model.chatSessions}
+                      contacts={this.props.model.contacts}
                       height={ this.props.model.device.screen.height - 210 }/>
         </div>
       </div>

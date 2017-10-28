@@ -6,12 +6,24 @@
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <link rel="shortcut icon" href="/favicon.ico" type="image/x-icon" />
     <title><%= htmlWebpackPlugin.options.title %></title>
+    <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/webrtc-adapter/5.0.1/adapter.min.js"></script>
+    <script type="text/javascript" src="https://janus.conf.meetecho.com/janus.js"></script>
 </head>
 <body>
 <div class="bg">
     <div class="bg-line"></div>
     <div class="bg-line"></div>
     <div class="bg-line"></div>
+</div>
+<div style="display: none">
+    <div id="videos">
+        <div id="videoleft"></div>
+        <div id="videoright"></div>
+        <div id="myvideo"></div>
+        <div id="remotevideo"></div>
+        <div id="novideo"></div>
+        <div id="waitingvideo"></div>
+    </div>
 </div>
 <script type="text/javascript" src="app.bundle.js"></script></body>
 </html>
