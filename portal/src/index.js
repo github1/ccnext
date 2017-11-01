@@ -250,7 +250,8 @@ const sideEffect = (command, model) => {
           const url = `/agent/task/${tasks[0].taskId}`;
           growl({
             title: `Task ${tasks[0].status}`,
-            message: `<a href='${url}'>${tasks[0].taskId}</a>`
+            message: `<a href='${url}'>${tasks[0].taskId}</a>`,
+            location: 'br'
           });
           dispatch({
             type: TASK_RECEIVED,

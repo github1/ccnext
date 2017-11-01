@@ -1,4 +1,7 @@
 import ajax from './ajax';
+import * as adapter from 'webrtc-adapter';
+import Janus from '@github1/janus';
+Janus.adapter = adapter;
 
 export const getRegistrationToken = () => {
   return ajax({
@@ -11,6 +14,9 @@ export const getRegistrationToken = () => {
 
 /*eslint-disable */
 let started = false;
+let offerlessInvite;
+let doAudio;
+let doVideo;
 const calls = {};
 export const initSIPPhone = (opts) => {
   Janus.init({
@@ -79,215 +85,241 @@ const register = (server, opaqueId, identity, domain, secret, onCallReceived, on
     "authuser": identity
   };
   let janus, sipcall, registered;
+
   const doHangUp = (sipcall) => {
     return () => {
       sipcall.send({"message": {"request": "hangup"}});
       sipcall.hangup();
     };
   };
-  return janus = new Janus(
-    {
-      server: server,
-      success: function () {
-        // Attach to echo test plugin
-        janus.attach(
-          {
-            plugin: "janus.plugin.sip",
-            opaqueId: opaqueId,
-            success: function (pluginHandle) {
-              sipcall = pluginHandle;
-              Janus.debug("Plugin attached! (" + sipcall.getPlugin() + ", id=" + sipcall.getId() + ")");
-              sipcall.send({message: registration});
-              //janus.destroy();
-            },
-            error: function (error) {
-              Janus.debug("  -- Error attaching plugin...", error);
-            },
-            consentDialog: function (on) {
-              Janus.debug("Consent dialog should be " + (on ? "on" : "off") + " now");
-            },
-            onmessage: function (msg, jsep) {
-              Janus.debug(" ::: Got a message :::");
-              Janus.debug('msg', msg);
-              Janus.debug('jsep', jsep);
-              // Any error?
-              var error = msg["error"];
-              if (error != null && error != undefined) {
+
+  const doAnswer = (jsep, sipcall) => {
+    return () => {
+      //$('#peer').val(result["username"]).attr('disabled', true);
+      // Notice that we can only answer if we got an offer: if this was
+      // an offerless call, we'll need to create an offer ourselves
+      var sipcallAction = (offerlessInvite ? sipcall.createOffer : sipcall.createAnswer);
+      sipcallAction(
+        {
+          jsep: jsep,
+          media: {audio: doAudio, video: doVideo},
+          success: (jsep) => {
+            Janus.debug("Got SDP " + jsep.type + "! audio=" + doAudio + ", video=" + doVideo);
+            Janus.debug(jsep);
+            var body = {request: "accept"};
+            sipcall.send({"message": body, "jsep": jsep});
+          },
+          error: (error) => {
+            console.log(error);
+            Janus.debug("WebRTC error:", error);
+            // Don't keep the caller waiting any longer, but use a 480 instead of the default 486 to clarify the cause
+            var body = {"request": "decline", "code": 480};
+            sipcall.send({"message": body});
+          }
+        });
+    };
+  };
+
+  return janus = new Janus({
+    server: server,
+    success: function () {
+      janus.attach(
+        {
+          plugin: "janus.plugin.sip",
+          opaqueId: opaqueId,
+          success: function (pluginHandle) {
+            sipcall = pluginHandle;
+            Janus.debug("Plugin attached! (" + sipcall.getPlugin() + ", id=" + sipcall.getId() + ")");
+            sipcall.send({message: registration});
+          },
+          error: function (error) {
+            Janus.debug("  -- Error attaching plugin...", error);
+          },
+          consentDialog: function (on) {
+            Janus.debug("Consent dialog should be " + (on ? "on" : "off") + " now");
+          },
+          onmessage: function (msg, jsep) {
+            Janus.debug(" ::: Got a message :::");
+            Janus.debug('msg', msg);
+            Janus.debug('jsep', jsep);
+            // Any error?
+            var error = msg["error"];
+            if (error != null && error != undefined) {
+              if (!registered) {
+                Janus.debug('not registered');
+              } else {
+                // Reset status
+                sipcall.hangup();
+              }
+              return;
+            }
+            var result = msg["result"];
+            if (result !== null && result !== undefined && result["event"] !== undefined && result["event"] !== null) {
+              var event = result["event"];
+              if (event === 'registration_failed') {
+                Janus.debug("Registration failed: " + result["code"] + " " + result["reason"]);
+                return;
+              }
+              if (event === 'registered') {
+                Janus.debug("Successfully registered as " + result["username"] + "!");
+                // TODO Enable buttons to call now
                 if (!registered) {
-                  Janus.debug('not registered');
+                  registered = true;
+                }
+              } else if (event === 'calling') {
+                Janus.debug("Waiting for the peer to answer...");
+                // TODO Any ringtone?
+              } else if (event === 'incomingcall') {
+                Janus.debug("Incoming call from " + result["username"] + "!");
+                doAudio = true, doVideo = true;
+                offerlessInvite = false;
+                if (jsep !== null && jsep !== undefined) {
+                  Janus.debug('jsep', jsep.sdp);
+                  // What has been negotiated?
+                  doAudio = (jsep.sdp.indexOf("m=audio ") > -1);
+                  doVideo = (jsep.sdp.indexOf("m=video ") > -1);
+                  Janus.debug("Audio " + (doAudio ? "has" : "has NOT") + " been negotiated");
+                  Janus.debug("Video " + (doVideo ? "has" : "has NOT") + " been negotiated");
                 } else {
-                  // Reset status
-                  sipcall.hangup();
+                  Janus.debug("This call doesn't contain an offer... we'll need to provide one ourselves");
+                  offerlessInvite = true;
+                  // In case you want to offer video when reacting to an offerless call, set this to true
+                  doVideo = false;
                 }
-                return;
-              }
-              var result = msg["result"];
-              if (result !== null && result !== undefined && result["event"] !== undefined && result["event"] !== null) {
-                var event = result["event"];
-                if (event === 'registration_failed') {
-                  Janus.debug("Registration failed: " + result["code"] + " " + result["reason"]);
-                  return;
-                }
-                if (event === 'registered') {
-                  Janus.debug("Successfully registered as " + result["username"] + "!");
-                  // TODO Enable buttons to call now
-                  if (!registered) {
-                    registered = true;
-                  }
-                } else if (event === 'calling') {
-                  Janus.debug("Waiting for the peer to answer...");
-                  // TODO Any ringtone?
-                } else if (event === 'incomingcall') {
-                  Janus.debug("Incoming call from " + result["username"] + "!");
-                  var doAudio = true, doVideo = true;
-                  var offerlessInvite = false;
-                  if (jsep !== null && jsep !== undefined) {
-                    Janus.debug('jsep', jsep.sdp);
-                    // What has been negotiated?
-                    doAudio = (jsep.sdp.indexOf("m=audio ") > -1);
-                    doVideo = (jsep.sdp.indexOf("m=video ") > -1);
-                    Janus.debug("Audio " + (doAudio ? "has" : "has NOT") + " been negotiated");
-                    Janus.debug("Video " + (doVideo ? "has" : "has NOT") + " been negotiated");
-                  } else {
-                    Janus.debug("This call doesn't contain an offer... we'll need to provide one ourselves");
-                    offerlessInvite = true;
-                    // In case you want to offer video when reacting to an offerless call, set this to true
-                    doVideo = false;
-                  }
-                  const doAnswer = (jsep, sipcall) => {
-                    return () => {
-                      //$('#peer').val(result["username"]).attr('disabled', true);
-                      // Notice that we can only answer if we got an offer: if this was
-                      // an offerless call, we'll need to create an offer ourselves
-                      var sipcallAction = (offerlessInvite ? sipcall.createOffer : sipcall.createAnswer);
-                      sipcallAction(
-                        {
-                          jsep: jsep,
-                          media: {audio: doAudio, video: doVideo},
-                          success: (jsep) => {
-                            Janus.debug("Got SDP " + jsep.type + "! audio=" + doAudio + ", video=" + doVideo);
-                            Janus.debug(jsep);
-                            var body = {request: "accept"};
-                            sipcall.send({"message": body, "jsep": jsep});
-                          },
-                          error: (error) => {
-                            Janus.debug("WebRTC error:", error);
-                            // Don't keep the caller waiting any longer, but use a 480 instead of the default 486 to clarify the cause
-                            var body = {"request": "decline", "code": 480};
-                            sipcall.send({"message": body});
-                          }
-                        });
-                    };
-                  };
 
-                  const doDecline = (sipcall) => {
-                    return () => {
-                      var body = {"request": "decline"};
-                      sipcall.send({"message": body});
-                    };
+                const doDecline = (sipcall) => {
+                  return () => {
+                    var body = {"request": "decline"};
+                    sipcall.send({"message": body});
                   };
+                };
 
-                  onCallReceived({
-                    id: `call-${Janus.randomString(12)}`,
-                    answer: doAnswer(jsep, sipcall),
-                    decline: doDecline(sipcall),
-                    hangup: doHangUp(sipcall)
+                onCallReceived({
+                  id: `call-${Janus.randomString(12)}`,
+                  answer: doAnswer(jsep, sipcall),
+                  decline: doDecline(sipcall),
+                  hangup: doHangUp(sipcall)
+                });
+
+              } else if (event === 'accepting') {
+                // Response to an offerless INVITE, let's wait for an 'accepted'
+              } else if (event === 'progress') {
+                Janus.debug("There's early media from " + result["username"] + ", wairing for the call!");
+                Janus.debug(jsep);
+                // Call can start already: handle the remote answer
+                if (jsep !== null && jsep !== undefined) {
+                  console.log('EARLY MEDIA');
+                  sipcall.handleRemoteJsep({
+                    jsep: jsep,
+                    error: doHangUp(sipcall)
                   });
-
-                } else if (event === 'accepting') {
-                  // Response to an offerless INVITE, let's wait for an 'accepted'
-                } else if (event === 'progress') {
-                  Janus.debug("There's early media from " + result["username"] + ", wairing for the call!");
-                  Janus.debug(jsep);
-                  // Call can start already: handle the remote answer
-                  if (jsep !== null && jsep !== undefined) {
-                    sipcall.handleRemoteJsep({
-                      jsep: jsep,
-                      error: doHangUp(sipcall)
-                    });
-                  }
-                } else if (event === 'accepted') {
-                  Janus.debug(result["username"] + " accepted the call!", result);
-                  Janus.debug(jsep);
-                  onCallAccepted();
-                  // Call can start, now: handle the remote answer
-                  if (jsep !== null && jsep !== undefined) {
-                    sipcall.handleRemoteJsep({
-                      jsep: jsep,
-                      error: doHangUp(sipcall)
-                    });
-                  }
-                } else if (event === 'hangup') {
-                  Janus.debug("Call hung up (" + result["code"] + " " + result["reason"] + ")!");
-                  sipcall.hangup();
-                  onCallHungUp();
                 }
-              }
-            },
-            onlocalstream: function (stream) {
-              Janus.debug(" ::: Got a local stream :::");
-              Janus.debug(stream);
-              $('#videos').removeClass('hide').show();
-              if ($('#myvideo').length === 0) {
-                $('#videoleft').append('<video class="rounded centered" id="myvideo" width=320 height=240 autoplay muted="muted"/>');
-              }
-              Janus.attachMediaStream($('#myvideo').get(0), stream);
-              $("#myvideo").get(0).muted = "muted";
-              // No remote video yet
-              $('#videoright').append('<video class="rounded centered" id="waitingvideo" width=320 height=240 />');
-
-              let videoTracks = stream.getVideoTracks();
-              if (videoTracks === null || videoTracks === undefined || videoTracks.length === 0) {
-                // No webcam
-                $('#myvideo').hide();
-                $('#videoleft').append(
-                  '<div class="no-video-container">' +
-                  '<i class="fa fa-video-camera fa-5 no-video-icon"></i>' +
-                  '<span class="no-video-text">No webcam available</span>' +
-                  '</div>');
-              }
-            },
-            onremotestream: function (stream) {
-              Janus.debug(" ::: Got a remote stream :::");
-              Janus.debug(stream);
-              if ($('#remotevideo').length > 0) {
-                let videoTracks = stream.getVideoTracks();
-                if (videoTracks && videoTracks.length > 0 && !videoTracks[0].muted) {
-                  $('#novideo').remove();
-                  if ($("#remotevideo").get(0).videoWidth) {
-                    $('#remotevideo').show();
-                  }
+              } else if (event === 'accepted') {
+                Janus.debug(result["username"] + " accepted the call!", result);
+                Janus.debug(jsep);
+                onCallAccepted();
+                // Call can start, now: handle the remote answer
+                if (jsep !== null && jsep !== undefined) {
+                  sipcall.handleRemoteJsep({
+                    jsep: jsep,
+                    error: doHangUp(sipcall)
+                  });
                 }
-                return;
+              } else if (event === 'hangup') {
+                Janus.debug("Call hung up (" + result["code"] + " " + result["reason"] + ")!");
+                sipcall.hangup();
+                onCallHungUp();
               }
-              // Show the peer and hide the spinner when we get a playing event
-              $("#remotevideo").bind("playing", function () {
-                $('#waitingvideo').remove();
-                if (this.videoWidth) {
-                  $('#remotevideo').removeClass('hide').show();
+            }
+          },
+          onlocalstream: function (stream) {
+            Janus.debug(" ::: Got a local stream :::");
+            Janus.debug(stream);
+            $('#videos').removeClass('hide').show();
+            if ($('#myvideo').length === 0) {
+              $('#videoleft').append('<video class="rounded centered" id="myvideo" width=320 height=240 autoplay muted="muted"/>');
+            }
+            Janus.attachMediaStream($('#myvideo').get(0), stream);
+            $("#myvideo").get(0).muted = "muted";
+            // No remote video yet
+            $('#videoright').append('<video class="rounded centered" id="waitingvideo" width=320 height=240 />');
+
+            let videoTracks = stream.getVideoTracks();
+            if (videoTracks === null || videoTracks === undefined || videoTracks.length === 0) {
+              // No webcam
+              $('#myvideo').hide();
+              $('#videoleft').append(
+                '<div class="no-video-container">' +
+                '<i class="fa fa-video-camera fa-5 no-video-icon"></i>' +
+                '<span class="no-video-text">No webcam available</span>' +
+                '</div>');
+            }
+          },
+          onremotestream: function (stream) {
+            Janus.debug(" ::: Got a remote stream :::");
+            Janus.debug(stream);
+            if ($('#remotevideo').length === 0) {
+              $('#videoright').parent().find('h3').html(
+                'Send DTMF: <span id="dtmf" class="btn-group btn-group-xs"></span>');
+              $('#videoright').append(
+                '<video class="rounded centered hide" id="remotevideo" width=320 height=240 autoplay/>');
+              for (var i = 0; i < 12; i++) {
+                if (i < 10)
+                  $('#dtmf').append('<button class="btn btn-info dtmf">' + i + '</button>');
+                else if (i == 10)
+                  $('#dtmf').append('<button class="btn btn-info dtmf">#</button>');
+                else if (i == 11)
+                  $('#dtmf').append('<button class="btn btn-info dtmf">*</button>');
+              }
+              $('.dtmf').click(function () {
+                if (adapter.browserDetails.browser === 'chrome') {
+                  // Send DTMF tone (inband)
+                  sipcall.dtmf({dtmf: {tones: $(this).text()}});
+                } else {
+                  // Try sending the DTMF tone using SIP INFO
+                  sipcall.send({
+                    message: {
+                      request: "dtmf_info",
+                      digit: $(this).text()
+                    }
+                  });
                 }
               });
-              Janus.attachMediaStream($('#remotevideo').get(0), stream);
-              var videoTracks = stream.getVideoTracks();
-              if (videoTracks === null || videoTracks === undefined || videoTracks.length === 0 || videoTracks[0].muted) {
-                $('#remotevideo').hide();
-                $('#videoright').append(
-                  '<div id="novideo" class="no-video-container">' +
-                  '<i class="fa fa-video-camera fa-5 no-video-icon"></i>' +
-                  '<span class="no-video-text">No remote video available</span>' +
-                  '</div>');
-              }
-            },
-            oncleanup: function () {
-              Janus.debug(" ::: Got a cleanup notification :::");
             }
-          });
-      },
-      error: function (error) {
-        Janus.debug(error);
-      },
-      destroyed: function () {
-        Janus.debug('unregistered');
-      }
-    });
+
+            // Show the peer and hide the spinner when we get a playing event
+            $("#remotevideo").bind("playing", function () {
+              $('#waitingvideo').remove();
+              if (this.videoWidth) {
+                $('#remotevideo').removeClass('hide').show();
+              }
+            });
+            Janus.attachMediaStream($('#remotevideo').get(0), stream);
+            var videoTracks = stream.getVideoTracks();
+            if (videoTracks === null || videoTracks === undefined || videoTracks.length === 0 || videoTracks[0].muted) {
+              $('#remotevideo').hide();
+              $('#videoright').append(
+                '<div id="novideo" class="no-video-container">' +
+                '<i class="fa fa-video-camera fa-5 no-video-icon"></i>' +
+                '<span class="no-video-text">No remote video available</span>' +
+                '</div>');
+            }
+          },
+          oncleanup: function () {
+            Janus.debug(" ::: Got a cleanup notification :::");
+            $('#myvideo').remove();
+            $('#waitingvideo').remove();
+            $('#remotevideo').remove();
+            $('.no-video-container').remove();
+            $('#videos').hide();
+          }
+        });
+    },
+    error: function (error) {
+      Janus.debug(error);
+    },
+    destroyed: function () {
+      Janus.debug('unregistered');
+    }
+  });
 };

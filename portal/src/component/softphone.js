@@ -29,7 +29,6 @@ class Softphone extends Component {
     return <div className="softphone">
       {
       (this.props.contacts || []).map(call => {
-        console.log(call.id);
         if(call.state === 'accepted') {
           return <button className="btn btn-primary" key={call.id} onClick={() => {
             this.hangupCall();
