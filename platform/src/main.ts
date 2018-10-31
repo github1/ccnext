@@ -65,10 +65,10 @@ Projection(eventBus);
 chatRouter(eventBus, chatDesintationProvider, chatService, taskService);
 
 // start fulfillment processor
-fulfillment_processor(eventBus, chatService);
+(<Function>fulfillment_processor)(eventBus, chatService);
 
 // start ccsip integrator
-ccsip_integrator('http://ccsip-kamailio-0.open-cc.org', chatService, taskService, eventBus);
+(<Function>ccsip_integrator)('http://ccsip-kamailio-0.open-cc.org', chatService, taskService, eventBus);
 
 /* tslint:disable */
 

@@ -7,7 +7,6 @@ import {
 
 type WebSocket  = { on: Function, send : Function };
 interface WSApplication extends express.Application {
-  on: Function;
   ws : Function;
 }
 

@@ -5,7 +5,14 @@
     "rootDir": ".",
     "outDir": "dist",
     "removeComments": true,
-    "jsx": "react"
+    "jsx": "react",
+    "noUnusedLocals": false,
+    "noUnusedParameters": false,
+    "noImplicitAny": false,
+    "noImplicitThis": false,
+    "strictNullChecks": false,
+    "allowSyntheticDefaultImports": true,
+    "allowJs": true
   },
   "include": [
     "src/**/*"
