@@ -57,7 +57,7 @@ module.exports = (eventBus, chatService) => {
           chatService.postMessage(
             event.streamId,
             event.fulfiller,
-            `OK ${event.requester}, your ${event.payload.slots.cardType} has been disabled. Is there anything else I can help you with today?`
+            `OK ${event.requester.handle}, your ${event.payload.slots.cardType} has been disabled. Is there anything else I can help you with today?`
           );
           chatService.endChat(event.streamId);
           break;
@@ -65,7 +65,7 @@ module.exports = (eventBus, chatService) => {
           chatService.postMessage(
             event.streamId,
             event.fulfiller,
-            `OK ${event.requester}, I have set up a payment of £${slots.amount} to ${slots.payee} on ${slots.paymentDate} from your account ending in ${slots.fromAccount}. Anything else I can do for you?`
+            `OK ${event.requester.handle}, I have set up a payment of £${slots.amount} to ${slots.payee} on ${slots.paymentDate} from your account ending in ${slots.fromAccount}. Anything else I can do for you?`
           );
           chatService.endChat(event.streamId);
           break;
