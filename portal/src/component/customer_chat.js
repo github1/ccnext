@@ -56,6 +56,7 @@ export default class extends Component {
   }
 
   render() {
+    console.log(this.props.model.device.screen.height);
     const chatSessions = this.props.model.chatSessions || {};
     const chatSession = chatSessions[this.getChatId()];
     return <div className="customer-chat">
@@ -75,6 +76,7 @@ export default class extends Component {
             <div className="panel-body">
               <ChatDialogBox
                 messages={chatSession.messages}
+                height={ this.props.model.device.screen.height - 84 }
                 placeholder="How can we help you?"
                 onChatInputBlur={() => this.onChatInputBlur()}
                 onChatMessageSubmitted={(message) => this.postMessage(message)}/>
