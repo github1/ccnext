@@ -33,6 +33,7 @@
     "export-name": false,
     "promise-function-async": false,
     "no-void-expression": false,
+    "no-unused-variable": false,
     "align": false,
     "typedef": [
       true,

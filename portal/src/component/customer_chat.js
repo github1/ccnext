@@ -56,7 +56,6 @@ export default class extends Component {
   }
 
   render() {
-    console.log(this.props.model.device.screen.height);
     const chatSessions = this.props.model.chatSessions || {};
     const chatSession = chatSessions[this.getChatId()];
     return <div className="customer-chat">

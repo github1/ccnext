@@ -160,15 +160,18 @@ const sideEffect = (command, model) => {
                   perform();
                 })
                 .then(() => {
+                  console.log(id);
                   if (id.role === 'agent') {
                     initSIPPhone({
-                      server: 'https://ccsip-janus-0.open-cc.org/janus',
+                      server: window.location.protocol + '//ccsip-janus-0.open-cc.org/janus',
                       onInitSuccess: (session) => {
                         getRegistrationToken().then((token) => {
                           session
                             .register(user.phoneNumber,
                               'ccsip-kamailio-0.open-cc.org',
                               token);
+                        }).catch(err => {
+                          console.log(err);
                         });
                       },
                       onCallReceived: (callId) => {
