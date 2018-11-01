@@ -73,7 +73,7 @@ module.exports = (eventBus, chatService) => {
           chatService.postMessage(
             event.streamId,
             event.fulfiller,
-            `${event.intentName} fulfilled!`);
+            `${event.payload.intentName} fulfilled!`);
           chatService.endChat(event.streamId);
       }
     }

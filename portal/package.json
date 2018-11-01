@@ -9,7 +9,8 @@
     "test": "npm run lint",
     "build": "npm run lint && webpack",
     "start": "nodemon --watch server.js server.js",
-    "test:e2e": "wdio ./wdio.conf.js"
+    "test:e2e": "wdio ./wdio.conf.js",
+    "start:ccnext": "PLATFORM_URL=http://ccnext.open-cc.org npm run start"
   },
   "license": "MIT",
   "dependencies": {
